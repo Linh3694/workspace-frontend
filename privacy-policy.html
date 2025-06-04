@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chính sách bảo mật - Wiswork</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+
+        .highlight {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .contact-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Chính sách bảo mật - Wiswork</h1>
+
+        <div class="highlight">
+            <strong>Cập nhật lần cuối:</strong>
+            <?php echo date('d/m/Y'); ?>
+        </div>
+
+        <h2>1. Giới thiệu</h2>
+        <p>Chào mừng bạn đến với Wiswork! Chúng tôi cam kết bảo vệ quyền riêng tư và dữ liệu cá nhân của bạn. Chính sách
+            bảo mật này giải thích cách chúng tôi thu thập, sử dụng, và bảo vệ thông tin của bạn khi sử dụng ứng dụng
+            Wiswork.</p>
+
+        <h2>2. Thông tin chúng tôi thu thập</h2>
+
+        <h3>2.1 Thông tin đăng nhập</h3>
+        <ul>
+            <li>Tên người dùng và email từ hệ thống Azure Active Directory</li>
+            <li>Thông tin xác thực sinh trắc học (Face ID/Touch ID) được lưu trữ cục bộ trên thiết bị</li>
+        </ul>
+
+        <h3>2.2 Nội dung người dùng</h3>
+        <ul>
+            <li>Ảnh chụp từ camera khi bạn gửi tin nhắn</li>
+            <li>Ảnh từ thư viện ảnh khi bạn chia sẻ</li>
+            <li>Ghi âm thoại (nếu có tính năng này)</li>
+            <li>Tài liệu và file bạn tải lên</li>
+        </ul>
+
+        <h3>2.3 Dữ liệu thiết bị</h3>
+        <ul>
+            <li>Device ID để gửi push notifications</li>
+            <li>Thông tin phiên bản ứng dụng và hệ điều hành</li>
+            <li>Dữ liệu sự cố (crash logs) để cải thiện ứng dụng</li>
+        </ul>
+
+        <h2>3. Cách chúng tôi sử dụng thông tin</h2>
+        <ul>
+            <li><strong>Chức năng ứng dụng:</strong> Cung cấp các tính năng chính của workspace</li>
+            <li><strong>Xác thực:</strong> Đăng nhập an toàn và quản lý phiên làm việc</li>
+            <li><strong>Thông báo:</strong> Gửi push notifications về cập nhật công việc</li>
+            <li><strong>Cải thiện dịch vụ:</strong> Phân tích lỗi và nâng cao hiệu suất</li>
+        </ul>
+
+        <h2>4. Chia sẻ thông tin</h2>
+        <p>Chúng tôi <strong>KHÔNG</strong> bán, cho thuê hoặc chia sẻ thông tin cá nhân của bạn với bên thứ ba vì mục
+            đích thương mại. Thông tin chỉ được chia sẻ trong các trường hợp:</p>
+        <ul>
+            <li>Với Microsoft Azure AD để xác thực đăng nhập</li>
+            <li>Khi có yêu cầu pháp lý từ cơ quan có thẩm quyền</li>
+            <li>Để bảo vệ quyền lợi và an toàn của người dùng khác</li>
+        </ul>
+
+        <h2>5. Bảo mật dữ liệu</h2>
+        <ul>
+            <li>Dữ liệu được mã hóa khi truyền tải và lưu trữ</li>
+            <li>Xác thực sinh trắc học được lưu trữ cục bộ trên thiết bị</li>
+            <li>Sử dụng HTTPS/TLS cho all API calls</li>
+            <li>Thông tin nhạy cảm được lưu trong Secure Storage</li>
+        </ul>
+
+        <h2>6. Quyền truy cập của ứng dụng</h2>
+        <p>Wiswork yêu cầu các quyền sau:</p>
+        <ul>
+            <li><strong>Camera:</strong> Chụp ảnh để gửi trong tin nhắn công việc</li>
+            <li><strong>Thư viện ảnh:</strong> Chọn ảnh từ thiết bị để chia sẻ</li>
+            <li><strong>Microphone:</strong> Ghi âm tin nhắn thoại</li>
+            <li><strong>Face ID/Touch ID:</strong> Xác thực đăng nhập an toàn</li>
+            <li><strong>Push Notifications:</strong> Nhận thông báo về cập nhật công việc</li>
+        </ul>
+
+        <h2>7. Quyền của người dùng</h2>
+        <p>Bạn có quyền:</p>
+        <ul>
+            <li>Truy cập và chỉnh sửa thông tin cá nhân</li>
+            <li>Yêu cầu xóa dữ liệu cá nhân</li>
+            <li>Tắt push notifications trong cài đặt</li>
+            <li>Tắt xác thực sinh trắc học</li>
+            <li>Đăng xuất và xóa dữ liệu cục bộ</li>
+        </ul>
+
+        <h2>8. Lưu trữ dữ liệu</h2>
+        <ul>
+            <li>Dữ liệu được lưu trữ tại các trung tâm dữ liệu có tiêu chuẩn bảo mật cao</li>
+            <li>Thời gian lưu trữ phù hợp với mục đích sử dụng</li>
+            <li>Dữ liệu sẽ được xóa khi bạn yêu cầu hoặc khi không còn cần thiết</li>
+        </ul>
+
+        <h2>9. Trẻ em</h2>
+        <p>Ứng dụng này không dành cho trẻ em dưới 13 tuổi. Chúng tôi không cố ý thu thập thông tin cá nhân từ trẻ em
+            dưới 13 tuổi.</p>
+
+        <h2>10. Thay đổi chính sách</h2>
+        <p>Chúng tôi có thể cập nhật chính sách bảo mật này. Mọi thay đổi sẽ được thông báo qua ứng dụng hoặc email.
+            Việc tiếp tục sử dụng ứng dụng sau khi có thay đổi được xem là bạn đồng ý với chính sách mới.</p>
+
+        <div class="contact-info">
+            <h2>11. Liên hệ</h2>
+            <p>Nếu bạn có câu hỏi về chính sách bảo mật này, vui lòng liên hệ:</p>
+            <ul>
+                <li><strong>Email:</strong> privacy@wiswork.com</li>
+                <li><strong>Địa chỉ:</strong> [Địa chỉ công ty của bạn]</li>
+                <li><strong>Điện thoại:</strong> [Số điện thoại hỗ trợ]</li>
+            </ul>
+        </div>
+
+        <div class="highlight">
+            <p><strong>Lưu ý:</strong> Chính sách này tuân thủ các quy định của Apple App Store và luật pháp Việt Nam về
+                bảo vệ dữ liệu cá nhân.</p>
+        </div>
+    </div>
+</body>
+
+</html>
