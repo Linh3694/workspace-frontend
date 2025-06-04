@@ -28,10 +28,10 @@ jobs:
           git pull origin main
 
           echo "Installing dependencies..."
-          yarn install
+          npm install
 
           echo "Building Vite project..."
-          yarn build
+          npm run build
 
           echo "Restarting frontend with PM2..."
           pm2 restart wis-frontend || pm2 start "serve -s dist -l 3000" --name wis-frontend
