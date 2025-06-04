@@ -134,7 +134,6 @@ const ClassComponent: React.FC = () => {
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>("");
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
@@ -359,7 +358,6 @@ const ClassComponent: React.FC = () => {
 
   const fetchTeachers = async () => {
     try {
-      setLoadingTeachers(true);
       const response = await api.get(API_ENDPOINTS.TEACHERS);
 
       let teachersData = [];
@@ -390,8 +388,6 @@ const ClassComponent: React.FC = () => {
         variant: "destructive"
       });
       setTeachers([]);
-    } finally {
-      setLoadingTeachers(false);
     }
   };
 

@@ -68,16 +68,6 @@ interface APIError {
   message: string;
 }
 
-interface ExcelUser {
-  username: string;
-  email: string;
-  role: string;
-  fullname: string;
-  password: string;
-  active: boolean;
-  school?: string; // Added school field
-}
-
 const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +79,6 @@ const UserManagement = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -197,7 +186,7 @@ const UserManagement = () => {
     }
 
     // Map to payload
-    const users = data.map((row, idx) => ({
+    const users = data.map((row) => ({
       username: row.Username.toString().trim(),
       password: row.Password.toString().trim(),
       email: row.Email.toString().trim(),

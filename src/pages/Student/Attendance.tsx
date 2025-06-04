@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
 import {
     Table,
     TableBody,
@@ -28,7 +27,6 @@ import {
 import { API_ENDPOINTS, BASE_URL } from '../../lib/config';
 import { DatePicker } from '../../components/ui/datepicker';
 import { Checkbox } from '../../components/ui/checkbox';
-import { Info } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
 import { AiOutlineInfoCircle } from "react-icons/ai";
 
@@ -113,7 +111,6 @@ const AttendanceList: React.FC = () => {
     const [selectedClass, setSelectedClass] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [classes, setClasses] = useState<Class[]>([]);
-    const [userRole, setUserRole] = useState<string>('');
     const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
     const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
@@ -172,7 +169,6 @@ const AttendanceList: React.FC = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const role = userResponse.data.role;
-            setUserRole(role);
 
             let classesData: Class[] = [];
             if (role === 'admin') {
@@ -299,77 +295,8 @@ const AttendanceList: React.FC = () => {
         }
     };
 
-    const getStatusLabel = (status: string) => {
-        switch (status) {
-            case 'present':
-                return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Có mặt</span>;
-            case 'absent':
-                return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">Vắng mặt</span>;
-            case 'late':
-                return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Đi muộn</span>;
-            case 'excused':
-                return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">Có phép</span>;
-            default:
-                return <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">Không xác định</span>;
-        }
-    };
-
-    const handleStatusChange = async (attendanceId: string, newStatus: string) => {
-        try {
-            // Kiểm tra quyền thay đổi trạng thái
-            if (userRole === 'teacher' && !currentTeacher) {
-                console.error('Không có quyền thay đổi trạng thái điểm danh');
-                return;
-            }
-
-            await axios.put(API_ENDPOINTS.ATTENDANCE(attendanceId), {
-                status: newStatus
-            });
-
-            // Cập nhật state hiện tại
-            const updatedAttendances = attendances.map(attendance => {
-                if (attendance._id === attendanceId) {
-                    return {
-                        ...attendance,
-                        status: newStatus as 'present' | 'absent' | 'late' | 'excused'
-                    };
-                }
-                return attendance;
-            });
-
-            setAttendances(updatedAttendances);
-        } catch (error) {
-            console.error('Lỗi khi cập nhật trạng thái điểm danh:', error);
-        }
-    };
-
     const getAttendanceByStudent = (studentId: string) => {
         return attendances.find(a => a.student._id === studentId);
-    };
-
-    const handleCreateAttendance = async (student: Student, status: string) => {
-        try {
-            const token = localStorage.getItem('token');
-            // Lấy id giáo viên hiện tại
-            const teacherId = currentTeacher?._id;
-            if (!teacherId) {
-                alert('Không xác định được giáo viên điểm danh!');
-                return;
-            }
-            await axios.post(API_ENDPOINTS.ATTENDANCES, {
-                student: student._id,
-                class: selectedClass,
-                date: selectedDate,
-                status,
-                note: '',
-                teacher: teacherId
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            fetchAttendances();
-        } catch (error) {
-            console.error('Lỗi khi tạo mới điểm danh:', error);
-        }
     };
 
     const handlePendingStatusChange = (studentId: string, status: string, checked: boolean) => {
@@ -480,7 +407,7 @@ const AttendanceList: React.FC = () => {
                             <label className="block text-sm font-medium mb-1">Ngày</label>
                             <DatePicker
                                 date={selectedDate}
-                                setDate={setSelectedDate}
+                                setDate={(date) => date && setSelectedDate(date)}
                             />
                         </div>
                     </div>
@@ -547,7 +474,7 @@ const AttendanceList: React.FC = () => {
                                                         <input
                                                             type="time"
                                                             value={attendance?.checkIn || ''}
-                                                            onChange={e => {/* handle locally or leave for later */ }}
+                                                            onChange={() => {/* handle locally or leave for later */ }}
                                                             className="max-w-20"
                                                         />
                                                     </TableCell>
@@ -555,7 +482,7 @@ const AttendanceList: React.FC = () => {
                                                         <input
                                                             type="time"
                                                             value={attendance?.checkOut || ''}
-                                                            onChange={e => {/* handle locally or leave for later */ }}
+                                                            onChange={() => {/* handle locally or leave for later */ }}
                                                             className="max-w-20"
                                                         />
                                                     </TableCell>
@@ -563,12 +490,12 @@ const AttendanceList: React.FC = () => {
                                                         <TableCell key={status} className="text-center">
                                                             <Checkbox
                                                                 checked={(pendingAttendances[student._id]?.status ?? attendance?.status) === status}
-                                                                onCheckedChange={checked => handlePendingStatusChange(student._id, status, checked)}
+                                                                onCheckedChange={(checked) => handlePendingStatusChange(student._id, status, checked as boolean)}
                                                             />
                                                         </TableCell>
                                                     ))}
                                                     <TableCell>
-                                                        {['absent', 'late', 'excused'].includes(pendingAttendances[student._id]?.status || attendance?.status) ? (
+                                                        {['absent', 'late', 'excused'].includes(pendingAttendances[student._id]?.status || attendance?.status || '') ? (
                                                             <input
                                                                 type="text"
                                                                 value={pendingAttendances[student._id]?.note ?? attendance?.note ?? ''}

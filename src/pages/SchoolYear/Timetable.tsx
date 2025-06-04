@@ -28,7 +28,7 @@ import { Badge } from "../../components/ui/badge";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useToast } from "../../hooks/use-toast";
+import { toast } from "sonner";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
 import * as XLSX from 'xlsx';
@@ -61,11 +61,8 @@ interface PeriodDefinition {
   startTime: string;
   endTime: string;
   type: "regular" | "morning" | "lunch" | "nap" | "snack" | "dismissal";
+  label?: string;
   schoolYear: string;
-}
-
-interface ApiError {
-  message: string;
 }
 
 const periodSchema = z.object({
@@ -86,7 +83,6 @@ const TimetableComponent = () => {
     entry: TimetableEntry | null;
   } | null>(null);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
   const [periodDefinitions, setPeriodDefinitions] = useState<PeriodDefinition[]>([]);
   const [isPeriodDialogOpen, setIsPeriodDialogOpen] = useState(false);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
@@ -156,11 +152,7 @@ const TimetableComponent = () => {
     } catch (err) {
       console.error("Error fetching classes:", err);
       setClasses([]);
-      toast({
-        title: "Lỗi",
-        description: "Không thể tải danh sách lớp",
-        variant: "destructive",
-      });
+      toast.error("Không thể tải danh sách lớp");
     }
   };
 
@@ -179,7 +171,7 @@ const TimetableComponent = () => {
       setTimetableGrid(grid);
     } catch (e) {
       console.error("Error fetching timetable grid:", e);
-      toast({ title: "Lỗi", description: "Không thể tải TKB", variant: "destructive" });
+      toast.error("Không thể tải TKB");
       setTimetableGrid(null);
     } finally {
       setLoading(false);
@@ -192,11 +184,7 @@ const TimetableComponent = () => {
       setPeriodDefinitions(response.data.data);
     } catch (error) {
       console.error("Error fetching period definitions:", error);
-      toast({
-        title: "Lỗi",
-        description: "Không thể tải danh sách tiết học",
-        variant: "destructive"
-      });
+      toast.error("Không thể tải danh sách tiết học");
     }
   };
 
@@ -209,11 +197,7 @@ const TimetableComponent = () => {
         setSelectedSchoolYear(activeYear._id);
       }
     } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: "Không thể tải danh sách năm học",
-        variant: "destructive"
-      });
+      toast.error("Không thể tải danh sách năm học");
     }
   };
 
@@ -301,14 +285,12 @@ const TimetableComponent = () => {
     try {
       setLoading(true);
 
-      const [subjectsRes, teachersRes, roomsRes] = await Promise.all([
+      const [subjectsRes, teachersRes] = await Promise.all([
         api.get(API_ENDPOINTS.SUBJECTS),
         api.get(API_ENDPOINTS.TEACHERS),
-        api.get(API_ENDPOINTS.ROOMS),
       ]);
       const subjects: any[] = subjectsRes.data?.data ?? subjectsRes.data ?? [];
       const teachers: any[] = teachersRes.data?.data ?? teachersRes.data ?? [];
-      const rooms: any[] = roomsRes.data?.data ?? roomsRes.data ?? [];
 
       const findSubject = (nameVi: string) =>
         subjects.find((s) => normalize(s.name) === normalize(nameVi));
@@ -442,11 +424,7 @@ const TimetableComponent = () => {
       }
 
       if (cleanData.length === 0) {
-        toast({
-          title: "Không có dữ liệu",
-          description: "File không chứa bản ghi hợp lệ.",
-          variant: "destructive",
-        });
+        toast.error("Không có dữ liệu");
         return;
       }
 
@@ -458,14 +436,10 @@ const TimetableComponent = () => {
       if (selectedSchoolYear && selectedClass) {
         await fetchTimetableGrid(selectedSchoolYear, selectedClass);
       }
-      toast({ title: "Thành công", description: "Upload thời khóa biểu thành công" });
+      toast.success("Upload thời khóa biểu thành công");
     } catch (error: any) {
       console.error(error);
-      toast({
-        title: "Lỗi",
-        description: error?.response?.data?.message || error.message || "Upload thất bại",
-        variant: "destructive",
-      });
+      toast.error(error?.response?.data?.message || error.message || "Upload thất bại");
     } finally {
       setLoading(false);
       event.target.value = "";
@@ -475,11 +449,7 @@ const TimetableComponent = () => {
   const handleCreatePeriod = async (data: PeriodFormData) => {
     try {
       if (!selectedSchoolYear) {
-        toast({
-          title: "Lỗi",
-          description: "Vui lòng chọn năm học",
-          variant: "destructive"
-        });
+        toast.error("Vui lòng chọn năm học");
         return;
       }
 
@@ -495,16 +465,9 @@ const TimetableComponent = () => {
       await fetchPeriodDefinitions(selectedSchoolYear);
       setIsPeriodDialogOpen(false);
       periodForm.reset();
-      toast({
-        title: "Thành công",
-        description: "Thêm tiết học thành công"
-      });
+      toast.success("Thêm tiết học thành công");
     } catch (error: unknown) {
-      toast({
-        title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể thêm tiết học",
-        variant: "destructive"
-      });
+      toast.error(error instanceof Error ? error.message : "Không thể thêm tiết học");
     } finally {
       setLoading(false);
     }

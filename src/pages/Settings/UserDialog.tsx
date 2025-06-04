@@ -88,7 +88,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
         _id: userData._id,
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
-        avatar: userData.avatarUrl,  
+        avatar: userData.avatar,  
 
       });
     } else if (!open) {

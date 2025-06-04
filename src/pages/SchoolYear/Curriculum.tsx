@@ -589,7 +589,7 @@ const CurriculumComponent: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
                           setSelectedCurriculum(curr);
                           setIsDialogOpen(true);
                           e.stopPropagation();
@@ -600,7 +600,7 @@ const CurriculumComponent: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
                           setSelectedCurriculum(curr);
                           setIsSubjectDialogOpen(true);
                           e.stopPropagation();

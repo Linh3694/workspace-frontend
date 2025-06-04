@@ -15,9 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import {
   Select,
@@ -148,7 +146,6 @@ const TeacherComponent: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTeachingDialogOpen, setIsTeachingDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(false);
@@ -778,7 +775,7 @@ const TeacherComponent: React.FC = () => {
                             size="sm"
                             onClick={() => {
                               setSelectedTeacher(teacher);
-                              setIsDialogOpen(true);
+                              setIsTeachingDialogOpen(true);
                             }}
                           >
                             Cập nhật

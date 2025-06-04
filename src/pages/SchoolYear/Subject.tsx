@@ -625,38 +625,6 @@ const SubjectComponent: React.FC = () => {
     }
   };
 
-  const handleRemoveFromCurriculum = async (subjectId: string, curriculumId: string) => {
-    try {
-      const endpoint = `${API_ENDPOINTS.CURRICULUM(curriculumId)}/subjects/${subjectId}`;
-      await api.delete(endpoint);
-
-      // Cập nhật state subjects bằng cách xóa curriculum khỏi subject
-      setSubjects(prevSubjects =>
-        prevSubjects.map(subject =>
-          subject._id === subjectId
-            ? {
-              ...subject,
-              curriculums: subject.curriculums.filter(
-                curr => curr.curriculum._id !== curriculumId
-              )
-            }
-            : subject
-        )
-      );
-
-      toast({
-        title: "Thành công",
-        description: "Đã xóa môn học khỏi chương trình"
-      });
-    } catch (error: unknown) {
-      toast({
-        title: "Lỗi",
-        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi',
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">

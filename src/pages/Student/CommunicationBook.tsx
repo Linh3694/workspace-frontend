@@ -50,6 +50,7 @@ interface Teacher {
     user?: {
         _id: string;
     };
+    fullName?: string;
 }
 
 interface Parent {
@@ -86,7 +87,7 @@ const CommunicationBookComponent: React.FC = () => {
     const [communications, setCommunications] = useState<CommunicationBook[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [content, setContent] = useState<string>('');
-    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [searchTerm] = useState<string>('');
     const [studyRating, setStudyRating] = useState<string>('');
     const [disciplineRating, setDisciplineRating] = useState<string>('');
     const [extracurricularRating, setExtracurricularRating] = useState<string>('');
@@ -244,7 +245,7 @@ const CommunicationBookComponent: React.FC = () => {
     const filteredCommunications = Array.isArray(communications) ? communications.filter(comm =>
         comm.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         comm.student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        comm.teacher?.fullname.toLowerCase().includes(searchTerm.toLowerCase())
+        comm.teacher?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
     ) : [];
 
     return (
@@ -262,7 +263,7 @@ const CommunicationBookComponent: React.FC = () => {
                         <div className="w-1/3 flex flex-col gap-4 mb-6">
                             <div>
                                 <label className="block text-sm font-medium mb-1">Chọn ngày</label>
-                                <DatePicker date={selectedDate} setDate={setSelectedDate} />
+                                <DatePicker date={selectedDate} setDate={(date) => date && setSelectedDate(date)} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Chọn năm học</label>
@@ -398,7 +399,7 @@ const CommunicationBookComponent: React.FC = () => {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {comm.teacher?.fullname || 'Không có giáo viên'}
+                                                    {comm.teacher?.fullName || 'Không có giáo viên'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {format(new Date(comm.date), 'dd/MM/yyyy', { locale: vi })}

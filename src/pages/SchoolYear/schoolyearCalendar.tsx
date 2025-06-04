@@ -81,8 +81,10 @@ const SchoolYearCalendar: React.FC = () => {
 
   const fetchEvents = async () => {
     try {
-      const data = await api.get<SchoolYearEvent[]>(API_ENDPOINTS.SCHOOL_YEAR_EVENTS);
-      setEvents(data);
+      const response = await api.get<SchoolYearEvent[]>(API_ENDPOINTS.SCHOOL_YEAR_EVENTS);
+      // Extract data properly from response
+      const eventsData = Array.isArray(response) ? response : response.data;
+      setEvents(eventsData || []);
     } catch (error: unknown) {
       toast({
         title: "Lỗi",
