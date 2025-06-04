@@ -1,54 +1,142 @@
-# React + TypeScript + Vite
+# 🎯 Workspace Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![🚀 Deploy](https://github.com/Linh3694/workspace-frontend/actions/workflows/deploy.yml/badge.svg)](https://github.com/Linh3694/workspace-frontend/actions/workflows/deploy.yml)
+[![🧪 Test & Quality Check](https://github.com/Linh3694/workspace-frontend/actions/workflows/test.yml/badge.svg)](https://github.com/Linh3694/workspace-frontend/actions/workflows/test.yml)
+[![CI/CD Pipeline](https://github.com/Linh3694/workspace-frontend/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Linh3694/workspace-frontend/actions/workflows/ci-cd.yml)
 
-Currently, two official plugins are available:
+🚀 **Frontend application cho hệ thống quản lý workspace** được xây dựng với React + TypeScript + Vite
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🌐 Live Demo
 
-## Expanding the ESLint configuration
+🔗 **Website:** [https://linh3694.github.io/workspace-frontend/](https://linh3694.github.io/workspace-frontend/)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## ⚡ Tech Stack
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+- **Framework:** React 18 với TypeScript
+- **Build Tool:** Vite 6
+- **UI Library:** Radix UI + Tailwind CSS
+- **Routing:** React Router v6
+- **State Management:** React Hook Form + Zod
+- **Authentication:** Azure MSAL
+- **Icons:** Lucide React + React Icons
+- **Deployment:** GitHub Pages với GitHub Actions
+
+## 🚀 CI/CD Pipeline
+
+Project sử dụng GitHub Actions để tự động hóa:
+
+### 📦 Build & Test Workflow (`test.yml`)
+- ✅ Multi-node testing (Node 18.x, 20.x)
+- ✅ ESLint code quality check
+- ✅ Build verification
+- ✅ Bundle size analysis
+- ✅ Security audit
+- ✅ Dependency check
+
+### 🚀 Deploy Workflow (`deploy.yml`)
+- ✅ Tự động deploy lên GitHub Pages khi push vào `main`
+- ✅ Build optimization với code splitting
+- ✅ Source maps cho debugging
+
+### 🔄 Full CI/CD Pipeline (`ci-cd.yml`)
+- ✅ Comprehensive testing
+- ✅ Security checks cho PR
+- ✅ Quality gates
+- ✅ Automated deployment
+
+## 🛠️ Development
+
+### Prerequisites
+- Node.js 18+ hoặc 20+
+- npm hoặc yarn
+
+### Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/Linh3694/workspace-frontend.git
+cd workspace-frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run linting
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 📁 Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
 ```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Base UI components (Radix + Tailwind)
+│   ├── Layout.tsx      # Main layout wrapper
+│   └── Header.tsx      # Navigation header
+├── pages/              # Route components
+│   ├── Dashboard.tsx   # Main dashboard
+│   ├── Login.tsx       # Authentication
+│   ├── Admission/      # Student admission
+│   ├── SchoolYear/     # Academic management
+│   ├── Student/        # Student information
+│   ├── Settings/       # System settings
+│   └── Facilities/     # Facility management
+├── lib/                # Utilities & configurations
+│   ├── api.ts          # API client setup
+│   ├── config.ts       # App configuration
+│   ├── constants.ts    # App constants
+│   └── utils.ts        # Helper functions
+├── hooks/              # Custom React hooks
+├── types/              # TypeScript type definitions
+└── assets/             # Static assets
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+```env
+# API Configuration
+VITE_API_BASE_URL=your_api_url
+VITE_AZURE_CLIENT_ID=your_azure_client_id
+VITE_AZURE_TENANT_ID=your_azure_tenant_id
+```
+
+### GitHub Pages Setup
+1. Kích hoạt GitHub Pages trong repository settings
+2. Chọn source: "GitHub Actions"
+3. Workflow sẽ tự động deploy khi push vào main branch
+
+## 🎨 Features
+
+- 🔐 **Authentication:** Azure AD integration
+- 📊 **Dashboard:** Real-time analytics
+- 👥 **User Management:** Role-based access control
+- 🎓 **Academic Management:** Classes, subjects, teachers
+- 📚 **Student Information:** Profiles, attendance, grades
+- 🏢 **Facility Management:** Rooms, resources
+- 📱 **Responsive Design:** Mobile-first approach
+- 🌙 **Dark Mode:** Theme switching support
+
+## 🤝 Contributing
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Tạo Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+---
+
+Made with ❤️ in Vietnam 🇻🇳
