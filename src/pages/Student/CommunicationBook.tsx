@@ -47,7 +47,9 @@ interface Student {
 
 interface Teacher {
     _id: string;
-    fullname: string;
+    user?: {
+        _id: string;
+    };
 }
 
 interface Parent {
@@ -73,6 +75,11 @@ interface CommunicationBook {
         discipline: string;
         extracurricular: string;
     };
+}
+
+interface Class {
+    _id: string;
+    homeroomTeachers?: Teacher[];
 }
 
 const CommunicationBookComponent: React.FC = () => {
@@ -129,11 +136,11 @@ const CommunicationBookComponent: React.FC = () => {
                 const tRes = await axios.get(API_ENDPOINTS.TEACHERS, { headers: { Authorization: `Bearer ${token}` } });
                 const teachers = Array.isArray(tRes.data) ? tRes.data : tRes.data.data || [];
                 const me = await axios.get(API_ENDPOINTS.CURRENT_USER, { headers: { Authorization: `Bearer ${token}` } });
-                const teacher = teachers.find(t => t.user?._id === me.data._id);
+                const teacher = teachers.find((t: Teacher) => t.user?._id === me.data._id);
                 setCurrentTeacher(teacher);
                 const allCls = await axios.get(API_ENDPOINTS.CLASSES, { params: { schoolYear: selectedSchoolYear, populate: 'homeroomTeachers' }, headers: { Authorization: `Bearer ${token}` } });
                 const arr = Array.isArray(allCls.data) ? allCls.data : allCls.data.data || [];
-                const home = arr.filter(c => c.homeroomTeachers?.some((h: any) => h._id === teacher._id));
+                const home = arr.filter((c: Class) => c.homeroomTeachers?.some((h: Teacher) => h._id === teacher._id));
                 setClasses(home);
                 setSelectedClass(home[0]?._id || '');
             }

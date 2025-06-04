@@ -58,11 +58,13 @@ interface Class {
 
 interface Attendance {
     _id: string;
+    status: string;
+    checkIn?: string;
+    checkOut?: string;
     student: Student;
     class: Class;
     teacher: Teacher;
     date: string;
-    status: 'present' | 'absent' | 'late' | 'excused';
     note: string;
     createdAt: string;
     updatedAt: string;

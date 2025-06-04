@@ -81,11 +81,13 @@ interface GradeLevel {
 
 interface Teacher {
   _id: string;
+  user?: {
+    avatarUrl?: string;
+  };
   fullname: string;
   phone: string;
   email: string;
   jobTitle: string;
-  avatarUrl?: string;
   school: {
     _id: string;
     name: string;
