@@ -58,6 +58,7 @@ export const API_ENDPOINTS = {
   // Upload endpoints
   UPLOAD: `${UPLOAD_URL}`,
   UPLOAD_FILE: (filename: string) => `${UPLOAD_URL}/${filename}`,
+  AVATAR: (filename: string) => `${UPLOAD_URL}/Avatar/${filename}`,
   // Admission endpoints
   ADMISSIONS: `${API_URL}/admissions`,
   ADMISSION: (id: string) => `${API_URL}/admissions/${id}`,

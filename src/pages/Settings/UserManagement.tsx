@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { useRef } from 'react';
 import { Button } from '../../components/ui/button';
@@ -18,6 +18,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../../components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../../components/ui/pagination";
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { format } from 'date-fns';
@@ -26,11 +35,11 @@ import UserDialog from './UserDialog';
 import { API_ENDPOINTS } from '../../lib/config';
 import { api } from '../../lib/api';
 import { useToast } from "../../hooks/use-toast";
+import { UserAvatar } from '../../lib/avatar';
 
 
 interface User {
   _id: string;
-  username: string;
   email: string;
   role: string;
   fullname: string;
@@ -42,7 +51,6 @@ interface User {
 }
 
 interface UserFormData {
-  username: string;
   email: string;
   role: string;
   fullname: string;
@@ -63,6 +71,7 @@ interface APIError {
   response?: {
     data?: {
       message?: string;
+      errors?: string[];
     };
   };
   message: string;
@@ -79,7 +88,45 @@ const UserManagement = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  // Search and pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const { toast } = useToast();
+
+  // Filter and paginate users
+  const filteredAndPaginatedUsers = useMemo(() => {
+    if (!users || users.length === 0) {
+      return {
+        users: [],
+        totalUsers: 0,
+        totalPages: 0,
+        currentPage: 1,
+        hasNext: false,
+        hasPrev: false
+      };
+    }
+
+    const filtered = users.filter(user => 
+      (user.fullname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedUsers = filtered.slice(startIndex, endIndex);
+
+    return {
+      users: paginatedUsers,
+      totalUsers: filtered.length,
+      totalPages,
+      currentPage,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
+    };
+  }, [users, searchTerm, currentPage, itemsPerPage]);
 
   const fetchUsers = async () => {
     try {
@@ -168,15 +215,15 @@ const UserManagement = () => {
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
-      data = XLSX.utils.sheet_to_json<any>(sheet, { defval: '' });
-    } catch (err) {
+      data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+    } catch {
       toast({ variant: 'destructive', title: 'Lỗi', description: 'Không đọc được file Excel' });
       setImportLoading(false);
       return;
     }
 
     // Verify headers
-    const required = ['Username', 'Password', 'Email', 'Role', 'Fullname', 'Active'];
+    const required = ['Password', 'Email', 'Role', 'Fullname', 'Active'];
     const headers = Object.keys(data[0] || {});
     const missing = required.filter(h => !headers.includes(h));
     if (missing.length) {
@@ -187,14 +234,12 @@ const UserManagement = () => {
 
     // Map to payload
     const users = data.map((row) => ({
-      username: row.Username.toString().trim(),
-      password: row.Password.toString().trim(),
-      email: row.Email.toString().trim(),
-      role: row.Role.toString().trim(),
-      fullname: row.Fullname.toString().trim(),
-      active: /true/i.test(row.Active.toString()),
-      // optional School column if present
-      ...(row.School ? { school: row.School.toString().trim() } : {})
+      password: String(row.Password || '').trim(),
+      email: String(row.Email || '').trim(),
+      role: String(row.Role || '').trim(),
+      fullname: String(row.Fullname || '').trim(),
+      active: /true/i.test(String(row.Active || '')),
+      ...(row.School ? { school: String(row.School).trim() } : {})
     }));
 
     // Send to backend
@@ -202,9 +247,10 @@ const UserManagement = () => {
       const res = await api.post(API_ENDPOINTS.USERS + '/batch', { users, defaultSchool: undefined });
       toast({ title: 'Thành công', description: res.data.message });
       fetchUsers();
-    } catch (err: any) {
-      const detail = err.response?.data;
-      toast({ variant: 'destructive', title: detail?.message || err.message, description: Array.isArray(detail?.errors) ? detail.errors.join('; ') : undefined });
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      const detail = apiError.response?.data;
+      toast({ variant: 'destructive', title: detail?.message || apiError.message, description: Array.isArray(detail?.errors) ? detail.errors.join('; ') : undefined });
     } finally {
       setImportLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -216,7 +262,7 @@ const UserManagement = () => {
     try {
       if (dialogMode === 'create') {
         // Validate dữ liệu cho tạo mới
-        if (!data.username || !data.email || !data.role || !data.fullname) {
+        if (!data.email || !data.role || !data.fullname) {
           toast({
             variant: "destructive",
             title: "Lỗi",
@@ -236,7 +282,6 @@ const UserManagement = () => {
         // Chuẩn hóa dữ liệu
         const submissionData = {
           ...data,
-          username: data.username.trim(),
           email: data.email.trim().toLowerCase(),
           fullname: data.fullname.trim(),
           role: data.role.trim(),
@@ -262,7 +307,7 @@ const UserManagement = () => {
         setDialogOpen(false);
       } else if (dialogMode === 'edit' && selectedUser) {
         // Validate dữ liệu cho cập nhật
-        if (!data.username || !data.email || !data.role || !data.fullname) {
+        if (!data.email || !data.role || !data.fullname) {
           toast({
             variant: "destructive",
             title: "Lỗi",
@@ -272,7 +317,6 @@ const UserManagement = () => {
         }
 
         const updateData = {
-          username: data.username.trim(),
           email: data.email.trim().toLowerCase(),
           fullname: data.fullname.trim(),
           role: data.role.trim(),
@@ -377,10 +421,19 @@ const UserManagement = () => {
   if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý người dùng</h1>
-        <div className="space-x-2 ">
+        <div className="flex items-center space-x-2">
+          <Input
+            placeholder="Tìm kiếm người dùng..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1); // Reset to first page when searching
+            }}
+            className="w-64"
+          />
           <Button onClick={handleCreateUser}>
             Thêm người dùng
           </Button>
@@ -424,32 +477,37 @@ const UserManagement = () => {
           </Dialog>
         </div>
       </div>
-
       <div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="font-semibold">Tên đăng nhập</TableHead>
               <TableHead className="font-semibold">Họ tên</TableHead>
               <TableHead className="font-semibold">Email</TableHead>
               <TableHead className="font-semibold">Vai trò</TableHead>
-              <TableHead className="font-semibold">Trạng thái</TableHead>
               <TableHead className="font-semibold">Ngày tạo</TableHead>
               <TableHead className="text-right font-semibold">Hành Động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
+            {filteredAndPaginatedUsers.users.map((user) => (
               <TableRow key={user._id}>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.fullname}</TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <UserAvatar 
+                      user={user}
+                      size={40}
+                      showTooltip
+                    />
+                    <div>
+                      <div className="font-medium">{user.fullname}</div>
+                      {user.school && (
+                        <div className="text-sm text-gray-500">{user.school}</div>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{user.role}</TableCell>
-                <TableCell>
-                  <span className={`px-2 py-1 rounded-full text-xs ${user.active ? 'bg-green-100 text-green-800 font-bold' : 'bg-gray-100 text-gray-800'}`}>
-                    {user.active ? 'Hoạt động' : 'Không hoạt động'}
-                  </span>
-                </TableCell>
                 <TableCell>
                   {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: vi })}
                 </TableCell>
@@ -468,12 +526,68 @@ const UserManagement = () => {
         </Table>
       </div>
 
+      {filteredAndPaginatedUsers.totalPages > 1 && (
+        <div className="flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              {filteredAndPaginatedUsers.hasPrev && (
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    className="cursor-pointer"
+                  />
+                </PaginationItem>
+              )}
+              
+              {Array.from({ length: filteredAndPaginatedUsers.totalPages }, (_, i) => i + 1)
+                .filter(page => {
+                  const showPage = page === 1 || 
+                                 page === filteredAndPaginatedUsers.totalPages ||
+                                 Math.abs(page - currentPage) <= 1;
+                  return showPage;
+                })
+                .map((page, index, array) => {
+                  const prevPage = array[index - 1];
+                  const showEllipsis = prevPage && page - prevPage > 1;
+                  
+                  return (
+                    <React.Fragment key={page}>
+                      {showEllipsis && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </React.Fragment>
+                  );
+                })}
+
+              {filteredAndPaginatedUsers.hasNext && (
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    className="cursor-pointer"
+                  />
+                </PaginationItem>
+              )}
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+
       <UserDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         mode={dialogMode}
         userData={selectedUser ? {
-          username: selectedUser.username,
           email: selectedUser.email,
           role: selectedUser.role,
           fullname: selectedUser.fullname,
@@ -487,8 +601,6 @@ const UserManagement = () => {
         onDelete={handleDeleteUser}
         onChangePassword={handleChangePassword}
       />
-
-      {/* UploadDialog removed, replaced with in-place Excel import dialog */}
     </div>
   );
 };

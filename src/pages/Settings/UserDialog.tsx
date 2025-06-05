@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { Switch } from "../../components/ui/switch";
+// import { Switch } from "../../components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,6 @@ import {
 } from "../../components/ui/alert-dialog";
 
 interface BaseUser {
-  username: string;
   email: string;
   role: string;
   fullname: string;
@@ -59,7 +58,6 @@ interface UserDialogProps {
 
 const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, mode, userData }: UserDialogProps) => {
   const [formData, setFormData] = useState<UserFormData>({
-    username: '',
     email: '',
     role: 'user',
     fullname: '',
@@ -77,7 +75,6 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
   useEffect(() => {
     if (open && userData) {
       setFormData({
-        username: userData.username,
         email: userData.email,
         role: userData.role,
         fullname: userData.fullname,
@@ -94,7 +91,6 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     } else if (!open) {
       // Reset form khi dialog đóng
       setFormData({
-        username: '',
         email: '',
         role: 'user',
         fullname: '',
@@ -125,12 +121,12 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     }));
   };
 
-  const handleSwitchChange = (name: string, checked: boolean): void => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: checked
-    }));
-  };
+  // const handleSwitchChange = (name: string, checked: boolean): void => {
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     [name]: checked
+  //   }));
+  // };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
@@ -157,18 +153,6 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
             {(mode === 'create' || mode === 'edit') && (
               <>
                 <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="username" className="text-right">
-                      Tên đăng nhập
-                    </Label>
-                    <Input
-                      id="username"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleInputChange}
-                      className="col-span-3"
-                    />
-                  </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">
                       Email
@@ -237,6 +221,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                         <SelectValue placeholder="Chọn vai trò" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="superadmin">Super Admin</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="teacher">Giáo viên</SelectItem>
                         <SelectItem value="parent">Phụ huynh</SelectItem>
@@ -263,7 +248,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                       />
                     </div>
                   )}
-                  <div className="grid grid-cols-4 items-center gap-4">
+                  {/* <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="active" className="text-right">
                       Trạng thái
                     </Label>
@@ -278,7 +263,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                         {formData.active ? 'Active' : 'Deactive'}
                       </Label>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </>
             )}
