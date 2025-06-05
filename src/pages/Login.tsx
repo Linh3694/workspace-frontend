@@ -215,7 +215,7 @@ export default function Login() {
               />
               <div className="space-y-2">
                 <p className="text-xl text-[#000000] font-semibold">
-                  Không cầnnnn mò mẫm, làm việc sáng suốt
+                  Where Innovation Meets Education.
                 </p>
               </div>
             </div>

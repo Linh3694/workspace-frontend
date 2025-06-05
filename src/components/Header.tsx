@@ -89,7 +89,7 @@ const Header = () => {
             <NavigationMenu className="hidden p-2 sm:ml-6 sm:flex" viewport={false}>
               <NavigationMenuList>
                 <NavigationMenuItem className="p-2">
-                  <NavigationMenuTrigger className="font-semibold">Quản lý học sinh</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className="font-semibold">Học sinh</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
                       <ListItem href="/dashboard/students/info" title="Thông tin học sinh">
@@ -111,7 +111,7 @@ const Header = () => {
                   </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Quản lý Học thuật</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className="font-semibold">Học thuật</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
                      
@@ -132,7 +132,7 @@ const Header = () => {
                   </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Quản lý Giảng dạy</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className="font-semibold">Giảng dạy</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
                       <ListItem href="/dashboard/academic/years" title="Năm học">
@@ -155,7 +155,7 @@ const Header = () => {
                   </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Quản lý Tuyển sinh</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className="font-semibold">Tuyển sinh</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
                       <ListItem href="/dashboard/admission/profiles" title="Hồ sơ đăng ký">
@@ -163,6 +163,19 @@ const Header = () => {
                       </ListItem>
                       <ListItem href="/dashboard/admission/families" title="Thông tin gia đình">
                         Thông tin gia đình học sinh
+                      </ListItem>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="font-semibold">Tuyển dụng</NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
+                      <ListItem href="/dashboard/recruitment/jobs" title="Quản lý công việc">
+                        Quản lý các vị trí tuyển dụng
+                      </ListItem>
+                      <ListItem href="/dashboard/recruitment/applications" title="Hồ sơ ứng tuyển">
+                        Quản lý hồ sơ ứng tuyển
                       </ListItem>
                     </ul>
                   </NavigationMenuContent>

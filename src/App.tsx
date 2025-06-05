@@ -19,7 +19,9 @@ import Student from './pages/Student/StudentInformation/Student';
 import ReportCard from './pages/Student/ReportCard';
 import Attendance from './pages/Student/Attendance';
 import CommunicationBook from './pages/Student/CommunicationBook';
+import { RecruitmentAdmin } from './pages/Recruitment';
 import { Toaster } from './components/ui/sonner';
+import { Toaster as HotToaster } from 'react-hot-toast';
 
 import './App.css';
 
@@ -45,7 +47,7 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          
+     
           {/* Admission routes */}
           <Route path="admission/profiles" element={<Profile />} />
           <Route path="admission/families" element={<Family />} />
@@ -74,6 +76,10 @@ function App() {
           {/* Facilities routes */}
           <Route path="facilities/rooms" element={<Room />} />
 
+          {/* Recruitment routes */}
+          <Route path="recruitment/jobs" element={<RecruitmentAdmin />} />
+          <Route path="recruitment/applications" element={<div>Hồ sơ ứng tuyển - Đang phát triển</div>} />
+
           {/* Settings routes */}
           <Route path="settings/users" element={<UserManagement />} />
         </Route>
@@ -82,6 +88,7 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       <Toaster />
+      <HotToaster position="top-right" />
     </Router>
   );
 }

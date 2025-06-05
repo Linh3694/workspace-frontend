@@ -24,61 +24,47 @@ export const API_ENDPOINTS = {
   SCHOOL_YEAR: (id: string) => `${API_URL}/school-years/${id}`,
   SCHOOL_YEAR_EVENTS: `${API_URL}/school-year-events`,
   SCHOOL_YEAR_EVENT: (id: string) => `${API_URL}/school-year-events/${id}`,
-
   // Class endpoints
   CLASSES: `${API_URL}/classes`,
   CLASS: (id: string) => `${API_URL}/classes/${id}`,
-
   // Student endpoints
   STUDENTS: `${API_URL}/students`,
   STUDENT: (id: string) => `${API_URL}/students/${id}`,
-
   // Teacher endpoints
   TEACHERS: `${API_URL}/teachers`,
   TEACHER: (id: string) => `${API_URL}/teachers/${id}`,
-
   // Parent endpoints
   PARENTS: `${API_URL}/parents`,
   PARENT: (id: string) => `${API_URL}/parents/${id}`,
-
   // Subject endpoints
   SUBJECTS: `${API_URL}/subjects`,
   SUBJECT: (id: string) => `${API_URL}/subjects/${id}`,
-
   // Curriculum endpoints
   CURRICULUMS: `${API_URL}/curriculums`,
   CURRICULUM: (id: string) => `${API_URL}/curriculums/${id}`,
   CURRICULUM_SUBJECTS: (id: string) => `${API_URL}/curriculums/${id}/subjects`,
-
   // Educational System endpoints
   EDUCATIONAL_SYSTEMS: `${API_URL}/educational-systems`,
   EDUCATIONAL_SYSTEM: (id: string) => `${API_URL}/educational-systems/${id}`,
-
   // Grade endpoints
   GRADES: `${API_URL}/grades`,
   GRADE: (id: string) => `${API_URL}/grades/${id}`,
-
   // Attendance endpoints
   ATTENDANCES: `${API_URL}/attendances`,
   ATTENDANCE: (id: string) => `${API_URL}/attendances/${id}`,
-
   // Report endpoints
   REPORTS: `${API_URL}/reports`,
   REPORT: (id: string) => `${API_URL}/reports/${id}`,
-
   // Upload endpoints
   UPLOAD: `${UPLOAD_URL}`,
   UPLOAD_FILE: (filename: string) => `${UPLOAD_URL}/${filename}`,
-
   // Admission endpoints
   ADMISSIONS: `${API_URL}/admissions`,
   ADMISSION: (id: string) => `${API_URL}/admissions/${id}`,
   ADMISSION_NEXT_STAGE: (id: string) => `${API_URL}/admissions/${id}/nextStage`,
-
   // Room endpoints
   ROOMS: `${API_URL}/rooms`,
   ROOM: (id: string) => `${API_URL}/rooms/${id}`,
-
   // Timetable endpoints
   TIMETABLES: `${API_URL}/timetables`,
   TIMETABLE: (id: string) => `${API_URL}/timetables/${id}`,
@@ -115,4 +101,12 @@ export const API_ENDPOINTS = {
   // Enrollment endpoints
   ENROLLMENTS: `${API_URL}/enrollments`,
   ENROLLMENT: (id: string) => `${API_URL}/enrollments/${id}`,
+
+  // Recruitment endpoints
+  JOBS: `${API_URL}/jobs`,
+  JOB: (id: string) => `${API_URL}/jobs/${id}`,
+  JOB_TOGGLE_ACTIVE: (id: string) => `${API_URL}/jobs/toggle-active/${id}`,
+  APPLICATIONS: `${API_URL}/applications`,
+  APPLICATION: (id: string) => `${API_URL}/applications/${id}`,
+  APPLICATIONS_BY_JOB: (jobId: string) => `${API_URL}/applications/job/${jobId}`,
 } as const; 
