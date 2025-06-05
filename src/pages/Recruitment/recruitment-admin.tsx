@@ -6,6 +6,7 @@ import Switch from "react-switch";
 import CreateJobModal from "./CreateJobModal";
 import JobDetailModal from "./JobDetailModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { Button } from "@/components/ui/button";
 
 interface Job {
   _id: string;
@@ -127,12 +128,11 @@ function RecruitmentAdmin() {
       <div className="w-full h-full p-6 bg-white rounded-xl shadow-md border">
         <div className="flex flex-row justify-between items-center">
           <h2 className="font-bold text-lg mb-4">Tuyển dụng</h2>
-          <button
+          <Button
             onClick={() => setIsCreateJobModalOpen(true)}
-            className="px-4 py-2 bg-[#FF5733] text-white font-bold rounded-lg shadow-md hover:bg-[#001b33] transition-all"
           >
             Tạo mới
-          </button>
+          </Button>
         </div>
         {fileList.length > 0 ? (
           <table className="w-full">

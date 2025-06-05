@@ -152,7 +152,7 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg max-w-[90vw] h-[95vh] px-10 py-5">
         <div className="flex justify-between items-center pb-3 mb-4">
           <h2 className="text-xl font-bold text-[#002147]">{job?.title}</h2>
@@ -245,7 +245,7 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
             </div>
 
             {/* Mô tả */}
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-2 mb-4 ">
               <label className="text-sm font-semibold text-gray-700">
                 Mô tả <span className="text-red-500">*</span>
               </label>
@@ -253,11 +253,12 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
                 content={editJob.description || ''}
                 onUpdate={(content) => handleQuillChange('description', content)}
                 placeholder="Nhập mô tả công việc"
+                className="max-h-[200px] overflow-y-auto"
               />
             </div>
 
             {/* Yêu cầu công việc */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 h-[200px]">
               <label className="text-sm font-semibold text-gray-700">
                 Yêu cầu công việc <span className="text-red-500">*</span>
               </label>
@@ -265,6 +266,7 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
                 content={editJob.requirements || ''}
                 onUpdate={(content) => handleQuillChange('requirements', content)}
                 placeholder="Nhập yêu cầu công việc"
+                className="max-h-[200px] overflow-y-auto"
               />
             </div>
           </div>

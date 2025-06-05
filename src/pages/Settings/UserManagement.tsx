@@ -380,7 +380,7 @@ const UserManagement = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý người dùng</h1>
-        <div className="space-x-2">
+        <div className="space-x-2 ">
           <Button onClick={handleCreateUser}>
             Thêm người dùng
           </Button>
