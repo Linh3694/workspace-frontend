@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { API_URL } from "../../lib/config";
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 import { toast } from 'sonner';
@@ -18,29 +18,12 @@ interface Job {
   active: boolean;
 }
 
-interface Application {
-  _id: string;
-  jobId: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  resumeUrl: string;
-  createdAt: string;
-}
-
-interface RecruitmentAdminProps {
-  currentUser?: any;
-}
-
-function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+function RecruitmentAdmin() {
   const [fileList, setFileList] = useState<Job[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
   const [jobList, setJobList] = useState<Job[]>();
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isJobDetailModalOpen, setIsJobDetailModalOpen] = useState(false);
-  const [cvList, setCvList] = useState<Application[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
 
@@ -63,28 +46,9 @@ function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
           setFileList(data);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         toast.error("Có lỗi khi tải danh sách CV!");
       });
-  };
-
-  const fetchJobDetails = async (jobId: string) => {
-    try {
-      const res = await fetch(`${API_URL}/applications/job/${jobId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!res.ok) throw new Error("Không thể tải danh sách CV");
-
-      const data = await res.json();
-      setCvList(data.applications);
-    } catch (err) {
-      toast.error("Có lỗi khi tải danh sách CV!");
-    }
   };
 
   const handleOpenJobDetail = (job: Job) => {
@@ -95,12 +59,6 @@ function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
   useEffect(() => {
     fetchFileList();
   }, []);
-
-  const handleJobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
 
   const handleRemoveJob = (job: Job) => {
     setJobToDelete(job);
@@ -120,7 +78,7 @@ function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
       if (!res.ok) throw new Error("Xoá công việc thất bại");
       toast.success("Đã xoá công việc!");
       setFileList((prev) => prev.filter((j) => j._id !== jobToDelete._id));
-    } catch (err) {
+    } catch {
       toast.error("Có lỗi khi xoá công việc!");
     } finally {
       setIsDeleteModalOpen(false);
@@ -128,7 +86,7 @@ function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
     }
   };
 
-  const toggleActiveStatus = async (id: string, currentStatus: boolean) => {
+  const toggleActiveStatus = async (id: string) => {
     const token = localStorage.getItem("token");
     if (!token) {
       toast.error("Bạn chưa đăng nhập!");
@@ -157,9 +115,10 @@ function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
           job._id === id ? { ...job, active: data.job.active } : job
         )
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
-      toast.error(err.message || "Có lỗi khi cập nhật trạng thái!");
+      const errorMessage = err instanceof Error ? err.message : "Có lỗi khi cập nhật trạng thái!";
+      toast.error(errorMessage);
     }
   };
 
@@ -249,7 +208,7 @@ function RecruitmentAdmin({ currentUser }: RecruitmentAdminProps) {
 
                   <td className="border-white/0 py-3 pr-4">
                     <Switch
-                      onChange={() => toggleActiveStatus(job._id, !job.active)}
+                      onChange={() => toggleActiveStatus(job._id)}
                       checked={job.active}
                       onColor="#FF5733"
                       offColor="#ccc"

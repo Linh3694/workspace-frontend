@@ -21,20 +21,51 @@ jobs:
     - name: Deploy to server
       run: |
         ssh -o StrictHostKeyChecking=no root@wis.wellspring.edu.vn << 'EOF'
+          set -e  # Exit on any error
+          
+          echo "=== Starting deployment ==="
           cd /srv/app/workspace-frontend
-
-          echo "Pulling latest code..."
-          git reset --hard
-          git pull origin main
-
-          echo "Installing dependencies..."
+          
+          echo "Current directory: $(pwd)"
+          echo "Current git commit: $(git rev-parse HEAD)"
+          
+          echo "=== Pulling latest code ==="
+          git fetch origin main
+          BEFORE_COMMIT=$(git rev-parse HEAD)
+          git reset --hard origin/main
+          AFTER_COMMIT=$(git rev-parse HEAD)
+          
+          echo "Before commit: $BEFORE_COMMIT"
+          echo "After commit: $AFTER_COMMIT"
+          
+          if [ "$BEFORE_COMMIT" = "$AFTER_COMMIT" ]; then
+            echo "No new commits to deploy"
+          else
+            echo "New commits detected, proceeding with deployment"
+          fi
+          
+          echo "=== Installing dependencies ==="
           npm install --legacy-peer-deps
-
-          echo "Building Vite project..."
+          
+          echo "=== Building Vite project ==="
           npm run build
-
-          echo "Restarting frontend with PM2..."
-          pm2 restart wis-frontend || pm2 start "serve -s dist -l 3000" --name wis-frontend
-
+          
+          echo "=== Checking build output ==="
+          ls -la dist/
+          
+          echo "=== Managing PM2 process ==="
+          # Stop existing process if running
+          pm2 stop wis-frontend || echo "Process not running"
+          pm2 delete wis-frontend || echo "Process not found"
+          
+          # Start new process
+          pm2 start "serve -s dist -l 3000" --name wis-frontend
+          
+          # Save PM2 configuration
           pm2 save
+          
+          echo "=== Checking PM2 status ==="
+          pm2 status wis-frontend
+          
+          echo "=== Deployment completed successfully ==="
         EOF
