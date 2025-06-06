@@ -110,4 +110,10 @@ export const API_ENDPOINTS = {
   APPLICATIONS: `${API_URL}/applications`,
   APPLICATION: (id: string) => `${API_URL}/applications/${id}`,
   APPLICATIONS_BY_JOB: (jobId: string) => `${API_URL}/applications/job/${jobId}`,
+
+  // Hall of Honor endpoints
+  AWARD_CATEGORIES: `${API_URL}/award-categories`,
+  AWARD_CATEGORY: (id: string) => `${API_URL}/award-categories/${id}`,
+  AWARD_RECORDS: `${API_URL}/award-records`,
+  AWARD_RECORD: (id: string) => `${API_URL}/award-records/${id}`,
 } as const; 

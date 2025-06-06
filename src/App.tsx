@@ -19,6 +19,7 @@ import Student from './pages/Student/StudentInformation/Student';
 import ReportCard from './pages/Student/ReportCard';
 import Attendance from './pages/Student/Attendance';
 import CommunicationBook from './pages/Student/CommunicationBook';
+import HallOfHonor from './pages/Student/HallOfHonor/HallOfHonor';
 import { RecruitmentAdmin } from './pages/Recruitment';
 import { Toaster } from './components/ui/sonner';
 import { Toaster as HotToaster } from 'react-hot-toast';
@@ -30,9 +31,10 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   return token ? <>{children}</> : <Navigate to="/login" />;
 };
 
+
 function App() {
   return (
-    <Router>
+      <Router>
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
@@ -70,7 +72,7 @@ function App() {
           <Route path="students/attendance" element={<Attendance />} />
           <Route path="students/grades" element={<ReportCard />} />
           <Route path="students/reports" element={<CommunicationBook />} />
-          <Route path="students/hall-of-honor" element={<CommunicationBook />} />
+          <Route path="students/hall-of-honor" element={<HallOfHonor />} />
           
           {/* Academic Management routes - TODO: Implement these components */}
           <Route path="academic/schedule" element={<div>Thời khóa biểu - Đang phát triển</div>} />
