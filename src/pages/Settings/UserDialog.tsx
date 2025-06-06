@@ -28,8 +28,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
+import { Avatar } from "../../lib/avatar";
 
 interface BaseUser {
+  username?: string;
   email: string;
   role: string;
   fullname: string;
@@ -38,12 +40,14 @@ interface BaseUser {
   _id: string;
   createdAt: string;
   updatedAt: string;
+  avatarUrl?: string;
 }
 
 interface UserFormData extends BaseUser {
   password?: string;
   confirmPassword?: string;
   avatar?: File | string;
+  newAvatarFile?: File;
 }
 
 interface UserDialogProps {
@@ -67,7 +71,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     _id: '',
     createdAt: '',
     updatedAt: '',
-    avatar: undefined  
+    avatarUrl: ''  
   });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -85,7 +89,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
         _id: userData._id,
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
-        avatar: userData.avatar,  
+        avatarUrl: userData.avatarUrl,  
 
       });
     } else if (!open) {
@@ -101,7 +105,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
         _id: '',
         createdAt: '',
         updatedAt: '',
-        avatar: undefined
+        avatarUrl: ''
       });
     }
   }, [open, userData]);
@@ -178,8 +182,8 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                       className="col-span-3"
                     />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="avatar" className="text-right">
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label htmlFor="avatar" className="text-right mt-3">
                       Ảnh đại diện
                     </Label>
                     <div className="col-span-3 space-y-2">
@@ -188,24 +192,25 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                         type="file"
                         accept="image/*"
                         onChange={(e) =>
-                          setFormData(prev => ({ ...prev, avatar: e.target.files?.[0] }))
+                          setFormData(prev => ({ ...prev, newAvatarFile: e.target.files?.[0] }))
                         }
                       />
-                      {/* preview */}
-                      {formData.avatar && typeof formData.avatar !== 'string' && (
-                        <img
-                          src={URL.createObjectURL(formData.avatar)}
-                          alt="preview"
-                          className="h-16 w-16 object-cover rounded-full"
+                      {/* Hiển thị ảnh hiện có hoặc ảnh preview mới */}
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          src={
+                            formData.newAvatarFile
+                              ? URL.createObjectURL(formData.newAvatarFile)
+                              : formData.avatarUrl || undefined
+                          }
+                          alt="Ảnh đại diện"
+                          name={formData.fullname}
+                          email={formData.email}
+                          size={80}
+                          className="border-2 border-gray-200"
                         />
-                      )}
-                      {typeof formData.avatar === 'string' && formData.avatar && (
-                        <img
-                          src={formData.avatar}
-                          alt="preview"
-                          className="h-16 w-16 object-cover rounded-full"
-                        />
-                      )}
+                       
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">

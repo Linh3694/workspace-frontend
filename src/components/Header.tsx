@@ -104,7 +104,7 @@ const Header = () => {
                       <ListItem href="/dashboard/students/grades" title="Báo cáo học tập">
                         Chưa có mô tả
                       </ListItem>
-                       <ListItem href="/dashboard/students/grades" title="Vinh danh">
+                       <ListItem href="/dashboard/students/hall-of-honor" title="Vinh danh">
                         Chưa có mô tả
                       </ListItem>
                     </ul>
@@ -115,7 +115,7 @@ const Header = () => {
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
                      
-                      <ListItem href="/dashboard/academic/grades" title="Khối trường">
+                      <ListItem href="/dashboard/academic/grade-levels" title="Khối trường">
                         Danh sách khối trường theo năm học
                       </ListItem>
                       <ListItem href="/dashboard/academic/educational-programs" title="Hệ học">
@@ -127,7 +127,6 @@ const Header = () => {
                       <ListItem href="/dashboard/academic/subjects" title="Môn học">
                         Danh sách môn học
                       </ListItem>
-                     
                     </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
@@ -135,20 +134,20 @@ const Header = () => {
                   <NavigationMenuTrigger className="font-semibold">Giảng dạy</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/academic/years" title="Năm học">
+                      <ListItem href="/dashboard/teaching/years" title="Năm học">
                         Tạo năm học mới
                       </ListItem>
-                      <ListItem href="/dashboard/academic/classes" title="Lớp">
+                      <ListItem href="/dashboard/teaching/classes" title="Lớp">
                         Danh sách lớp theo năm học
                       </ListItem>
                      
-                      <ListItem href="/dashboard/academic/teachers" title="Giáo viên">
+                      <ListItem href="/dashboard/teaching/teachers" title="Giáo viên">
                         Danh sách giáo viên
                       </ListItem>
-                      <ListItem href="/dashboard/academic/timetables" title="Thời khoá biểu">
+                      <ListItem href="/dashboard/teaching/timetables" title="Thời khoá biểu">
                         Quản lý thời khoá biểu
                       </ListItem>
-                      <ListItem href="/dashboard/academic/school-calendar" title="Lịch năm học">
+                      <ListItem href="/dashboard/teaching/school-year-calendar" title="Lịch năm học">
                         Quản lý lịch năm học
                       </ListItem>
                     </ul>
@@ -158,7 +157,7 @@ const Header = () => {
                   <NavigationMenuTrigger className="font-semibold">Tuyển sinh</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/admission/profiles" title="Hồ sơ đăng ký">
+                      <ListItem href="/dashboard/admission/profiles" title="Hồ sơ học sinh">
                         Quản lý hồ sơ đăng ký tuyển sinh
                       </ListItem>
                       <ListItem href="/dashboard/admission/families" title="Thông tin gia đình">
@@ -170,12 +169,9 @@ const Header = () => {
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="font-semibold">Tuyển dụng</NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/recruitment/jobs" title="Quản lý công việc">
+                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] ">
+                      <ListItem href="/dashboard/recruitment/jobs" title="Quản lý hồ sơ">
                         Quản lý các vị trí tuyển dụng
-                      </ListItem>
-                      <ListItem href="/dashboard/recruitment/applications" title="Hồ sơ ứng tuyển">
-                        Quản lý hồ sơ ứng tuyển
                       </ListItem>
                     </ul>
                   </NavigationMenuContent>
@@ -184,7 +180,7 @@ const Header = () => {
                   <NavigationMenuTrigger className="font-semibold">Cơ sở vật chất</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/facilities/rooms" title="Phòng học">
+                      <ListItem href="/dashboard/facilities/rooms" title="Quản lý phòng học">
                         Quản lý phòng học và phòng chức năng
                       </ListItem>
                     </ul>

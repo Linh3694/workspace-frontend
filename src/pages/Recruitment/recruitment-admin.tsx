@@ -156,7 +156,7 @@ function RecruitmentAdmin() {
                   <p className="text-sm font-bold text-gray-500">Ngày sửa</p>
                 </th>
                 <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start">
-                  <p className="text-sm font-bold text-gray-500">CV Applied</p>
+                  <p className="text-sm font-bold text-gray-500">CVs</p>
                 </th>
                 <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start">
                   <p className="text-sm font-bold text-gray-500">Active</p>

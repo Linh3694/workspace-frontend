@@ -100,7 +100,7 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
 
   return (
     isOpen && (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50  z-50" onClick={handleCloseAndReset}>
+      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50" onClick={handleCloseAndReset}>
         <div className="bg-white rounded-[20px] p-6 w-full max-w-2xl shadow-lg" onClick={e => e.stopPropagation()}>
           <div className="flex justify-between items-center border-b pb-3">
             <h2 className="text-lg font-bold text-[#002147]">Thêm mới</h2>

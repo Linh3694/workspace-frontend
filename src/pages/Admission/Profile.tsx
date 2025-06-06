@@ -59,11 +59,15 @@ const useAdmissions = () => {
 
   const fetchAdmissions = useCallback(async () => {
     try {
-      const data = await api.get<Admission[]>(API_ENDPOINTS.ADMISSIONS);
-      if (Array.isArray(data)) {
-        setAdmissions(data);
+      const response = await api.get<{data: Admission[]}>(API_ENDPOINTS.ADMISSIONS);
+      // Backend trả về { data: admissions }, nên ta cần truy cập vào response.data
+      if (response && response.data && Array.isArray(response.data)) {
+        setAdmissions(response.data);
+      } else if (Array.isArray(response)) {
+        // Fallback nếu backend trả về trực tiếp array
+        setAdmissions(response);
       } else {
-        console.error('Invalid response format:', data);
+        console.error('Invalid response format:', response);
         toast.error("Dữ liệu không đúng định dạng");
       }
     } catch (error: unknown) {
@@ -145,7 +149,7 @@ const Profile = () => {
   }, [fetchAdmissions]);
 
   const filteredAdmissions = admissions.filter(admission =>
-    admission.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+    admission?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const transformAdmissionToFormData = (admission: Admission): AdmissionFormData => ({
@@ -161,7 +165,7 @@ const Profile = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý hồ sơ tuyển sinh</h1>
         <div className="flex items-center gap-2">
@@ -179,8 +183,6 @@ const Profile = () => {
           </Button>
         </div>
       </div>
-
-
       <div className="rounded-lg p-6">
         <div className="grid grid-cols-1 gap-6">
           <div className="space-y-4">

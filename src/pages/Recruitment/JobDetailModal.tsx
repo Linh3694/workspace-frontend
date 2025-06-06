@@ -153,20 +153,20 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg max-w-[90vw] h-[95vh] px-10 py-5">
+      <div className="bg-white rounded-lg max-w-[90vw] h-[90vh] px-10 py-5">
         <div className="flex justify-between items-center pb-3 mb-4">
           <h2 className="text-xl font-bold text-[#002147]">{job?.title}</h2>
           <div className="flex gap-2">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300"
               disabled={isSaving}
             >
               Huỷ bỏ
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-[#FF5733] text-white font-bold rounded-lg hover:bg-[#ff6b4a] transition"
+              className="px-4 py-2 bg-[#FF5733] text-white font-semibold rounded-lg hover:bg-[#ff6b4a] transition"
               disabled={isSaving}
             >
               Lưu

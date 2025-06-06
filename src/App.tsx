@@ -4,16 +4,16 @@ import Dashboard from './pages/Dashboard';
 import Layout from './components/Layout';
 import Profile from './pages/Admission/Profile';
 import Family from './pages/Admission/Family';
-import SchoolYearCalendar from './pages/SchoolYear/schoolyearCalendar';
-import Class from './pages/SchoolYear/class';
-import Timetable from './pages/SchoolYear/Timetable';
-import EducationalProgram from './pages/SchoolYear/EducationalSystem';
-import Curriculum from './pages/SchoolYear/Curriculum';
-import Year from './pages/SchoolYear/year';
-import Subject from './pages/SchoolYear/Subject';
+import SchoolYearCalendar from './pages/Teaching/schoolyearCalendar';
+import Class from './pages/Teaching/class';
+import Timetable from './pages/Teaching/Timetable';
+import EducationalProgram from './pages/Academic/EducationalSystem';
+import Curriculum from './pages/Academic/Curriculum';
+import Year from './pages/Teaching/year';
+import Subject from './pages/Academic/Subject';
 import UserManagement from './pages/Settings/UserManagement';
-import Teacher from './pages/SchoolYear/Teacher';
-import Grade from './pages/SchoolYear/GradeLevel';
+import Teacher from './pages/Teaching/Teacher';
+import Grade from './pages/Academic/GradeLevel';
 import Room from './pages/Facilities/Room';
 import Student from './pages/Student/StudentInformation/Student';
 import ReportCard from './pages/Student/ReportCard';
@@ -52,22 +52,25 @@ function App() {
           <Route path="admission/profiles" element={<Profile />} />
           <Route path="admission/families" element={<Family />} />
 
-          {/* SchoolYear routes */}
-          <Route path="academic/years" element={<Year />} />
-          <Route path="academic/classes" element={<Class />} />
-          <Route path="academic/school-calendar" element={<SchoolYearCalendar />} />
+          {/* Teaching routes */}
+          <Route path="teaching/classes" element={<Class />} />
+          <Route path="teaching/years" element={<Year />} />
+          <Route path="teaching/timetables" element={<Timetable />} />
+          <Route path="teaching/teachers" element={<Teacher />} />
+          <Route path="teaching/school-year-calendar" element={<SchoolYearCalendar />} />
+
+          {/* Academic routes */}
+          <Route path="academic/grade-levels" element={<Grade />} />
           <Route path="academic/educational-programs" element={<EducationalProgram />} />
           <Route path="academic/curriculums" element={<Curriculum />} />
-          <Route path="academic/timetables" element={<Timetable />} />
           <Route path="academic/subjects" element={<Subject />} />
-          <Route path="academic/teachers" element={<Teacher />} />
-          <Route path="academic/grades" element={<Grade />} />
 
           {/* Student Management routes - TODO: Implement these components */}
           <Route path="students/info" element={<Student />} />
           <Route path="students/attendance" element={<Attendance />} />
           <Route path="students/grades" element={<ReportCard />} />
           <Route path="students/reports" element={<CommunicationBook />} />
+          <Route path="students/hall-of-honor" element={<CommunicationBook />} />
           
           {/* Academic Management routes - TODO: Implement these components */}
           <Route path="academic/schedule" element={<div>Thời khóa biểu - Đang phát triển</div>} />

@@ -13,9 +13,7 @@ import {
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
-    CardTitle
 } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import {
@@ -30,6 +28,15 @@ import {
     AlertDialogTrigger,
 } from '../../../components/ui/alert-dialog';
 import { Input } from '../../../components/ui/input';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '../../../components/ui/pagination';
 import { API_ENDPOINTS, BASE_URL } from '../../../lib/config';
 import { useToast } from "../../../hooks/use-toast";
 import StudentDialog from './StudentDialog';
@@ -95,6 +102,10 @@ const StudentList: React.FC = () => {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [pageSize] = useState<number>(10);
 
     // Dialog states
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
@@ -108,6 +119,11 @@ const StudentList: React.FC = () => {
     useEffect(() => {
         fetchStudents();
     }, []);
+
+    // Reset page when search term changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     const fetchStudents = async () => {
         try {
@@ -346,6 +362,58 @@ const StudentList: React.FC = () => {
         student.studentCode.toLowerCase().includes(searchTerm.toLowerCase())
     ) : [];
 
+    // Pagination logic
+    const totalPages = Math.ceil(filteredStudents.length / pageSize);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentPageStudents = filteredStudents.slice(startIndex, endIndex);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    // Pagination display logic
+    const getPaginationNumbers = () => {
+        const pages = [];
+        const maxPagesToShow = 5;
+        const halfRange = Math.floor(maxPagesToShow / 2);
+        
+        let startPage = Math.max(1, currentPage - halfRange);
+        let endPage = Math.min(totalPages, currentPage + halfRange);
+        
+        // Adjust range to always show maxPagesToShow pages when possible
+        if (endPage - startPage + 1 < maxPagesToShow) {
+            if (startPage === 1) {
+                endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            } else {
+                startPage = Math.max(1, endPage - maxPagesToShow + 1);
+            }
+        }
+        
+        // Add first page and ellipsis if needed
+        if (startPage > 1) {
+            pages.push(1);
+            if (startPage > 2) {
+                pages.push('...');
+            }
+        }
+        
+        // Add visible page numbers
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(i);
+        }
+        
+        // Add ellipsis and last page if needed
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                pages.push('...');
+            }
+            pages.push(totalPages);
+        }
+        
+        return pages;
+    };
+
     const getStatusLabel = (status: string) => {
         switch (status) {
             case 'active':
@@ -385,25 +453,20 @@ const StudentList: React.FC = () => {
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <CardTitle>Danh sách học sinh</CardTitle>
+                        <h1 className="text-2xl font-semibold">Quản lý học sinh</h1>
                         <div className="flex space-x-2">
-                            <Button onClick={() => setIsImportDialogOpen(true)} variant="outline">Nhập từ Excel</Button>
+                             <Input
+                            type="text"
+                            placeholder="Tìm kiếm học sinh"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Button onClick={() => setIsImportDialogOpen(true)}>Nhập từ Excel</Button>
                             <Button onClick={() => setIsCreateDialogOpen(true)}>Thêm học sinh</Button>
                         </div>
                     </div>
-                    <CardDescription>Quản lý thông tin học sinh trong hệ thống</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="mb-4">
-                        <Input
-                            type="text"
-                            placeholder="Tìm kiếm theo tên hoặc mã học sinh..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="max-w-sm"
-                        />
-                    </div>
-
                     <div className="rounded-lg">
                         {loading ? (
                             <div className="flex justify-center items-center h-32">
@@ -424,7 +487,7 @@ const StudentList: React.FC = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredStudents.length === 0 ? (
+                                    {currentPageStudents.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={8} className="text-center py-4">
                                                 Không có dữ liệu học sinh
@@ -432,7 +495,7 @@ const StudentList: React.FC = () => {
                                         </TableRow>
                                     ) : (
                                         (() => {
-                                            const sortedStudents = processStudentsForDisplay(filteredStudents);
+                                            const sortedStudents = processStudentsForDisplay(currentPageStudents);
                                             let currentFamilyId: string | null = null;
                                             let familyRowSpan = 0;
                                             let rowsToSkip = 0;
@@ -538,6 +601,42 @@ const StudentList: React.FC = () => {
                                 </TableBody>
                             </Table>
                         )}
+                    </div>
+
+                    <div className="mt-4 flex justify-center">
+                        <Pagination>
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious 
+                                        onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                                        className={currentPage <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                    />
+                                </PaginationItem>
+                                
+                                {getPaginationNumbers().map((page, index) => (
+                                    <PaginationItem key={`${page}-${index}`}>
+                                        {page === '...' ? (
+                                            <PaginationEllipsis />
+                                        ) : (
+                                            <PaginationLink
+                                                onClick={() => handlePageChange(page as number)}
+                                                isActive={currentPage === page}
+                                                className="cursor-pointer"
+                                            >
+                                                {page}
+                                            </PaginationLink>
+                                        )}
+                                    </PaginationItem>
+                                ))}
+                                
+                                <PaginationItem>
+                                    <PaginationNext 
+                                        onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                                        className={currentPage >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
                     </div>
                 </CardContent>
             </Card>

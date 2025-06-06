@@ -575,11 +575,11 @@ const ClassComponent: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý lớp học</h1>
-        <div className="flex items-center space-x-4">
-          <div className="w-[200px]">
+        <div className="flex items-center space-x-2">
+          <div>
             <Select
               value={selectedSchoolYear}
               onValueChange={setSelectedSchoolYear}

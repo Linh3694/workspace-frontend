@@ -532,7 +532,7 @@ const TeacherComponent: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý giáo viên</h1>
         {/* <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -708,7 +708,7 @@ const TeacherComponent: React.FC = () => {
                       <TableRow key={teacher._id}>
                         <TableCell className="font-medium">{teacher.user?.avatarUrl && (
                           <img
-                            src={`${BASE_URL}${encodeURI(teacher.user.avatarUrl)}`}
+                            src={`${BASE_URL}/uploads/Avatar/${encodeURI(teacher.user.avatarUrl)}`}
                             alt={teacher.fullname}
                             style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', marginRight: 8, display: 'inline-block', verticalAlign: 'middle' }}
                           />
@@ -735,7 +735,6 @@ const TeacherComponent: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
-                            variant="outline"
                             size="sm"
                             onClick={() => {
                               setSelectedTeacher(teacher);
@@ -747,7 +746,6 @@ const TeacherComponent: React.FC = () => {
                             Phân công lớp
                           </Button>
                           <Button
-                            variant="outline"
                             size="sm"
                             onClick={() => {
                               if (!teacher.school?._id) {
@@ -771,7 +769,6 @@ const TeacherComponent: React.FC = () => {
                             Phân công môn
                           </Button>
                           <Button
-                            variant="outline"
                             size="sm"
                             onClick={() => {
                               setSelectedTeacher(teacher);

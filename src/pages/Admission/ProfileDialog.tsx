@@ -284,7 +284,7 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-hidden hover:overflow-y-auto">
+            <DialogContent className="md:max-w-[700px] lg:max-w-[800px] max-h-[80vh] overflow-y-hidden hover:overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'create' ? 'Thêm hồ sơ tuyển sinh mới' : 'Cập nhật hồ sơ tuyển sinh'}
@@ -306,6 +306,15 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
                                 {errors.fullName && <p className="text-red-500 text-sm">{errors.fullName.message}</p>}
                             </div>
                             <div className="space-y-2">
+                            <Label htmlFor="currentSchool">Trường hiện tại</Label>
+                            <Input
+                                id="currentSchool"
+                                {...register("currentSchool")}
+                            />
+                        </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                           <div className="space-y-2">
                                 <Label htmlFor="dateOfBirth">Ngày sinh</Label>
                                 <Input
                                     id="dateOfBirth"
@@ -314,10 +323,8 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
                                 />
                                 {errors.dateOfBirth && <p className="text-red-500 text-sm">{errors.dateOfBirth.message}</p>}
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                          
+                              <div className="space-y-2">
                                 <Label htmlFor="currentClass">Lớp hiện tại</Label>
                                 <Input
                                     id="currentClass"
@@ -332,16 +339,8 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
                                 />
                                 {errors.appliedClass && <p className="text-red-500 text-sm">{errors.appliedClass.message}</p>}
                             </div>
+                              
                         </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="currentSchool">Trường hiện tại</Label>
-                            <Input
-                                id="currentSchool"
-                                {...register("currentSchool")}
-                            />
-                        </div>
-
                         {mode === 'edit' && admissionData?.status === 'Follow up' && (
                             <>
                                 <div className="grid grid-cols-2 gap-4">
@@ -392,7 +391,7 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
 
                     <fieldset className="space-y-4 border p-4 rounded-lg">
                         <legend className="text-lg font-semibold">Thông tin phụ huynh</legend>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-4 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="parentFullName">Họ tên phụ huynh</Label>
                                 <Input
@@ -411,8 +410,7 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
                                     onChange={handleParentInputChange}
                                 />
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                       
                             <div className="space-y-2">
                                 <Label htmlFor="parentEmail">Email</Label>
                                 <Input
@@ -432,7 +430,8 @@ const ProfileDialog = ({ open, onOpenChange, onSubmit, mode, admissionData }: Pr
                                     onChange={handleParentInputChange}
                                 />
                             </div>
-                        </div>
+                         </div>
+                      
                         {(mode === 'edit' && admissionData?.status === 'Follow up') && (
                             <div className="space-y-2">
                                 <Label htmlFor="parentAddress">Địa chỉ</Label>

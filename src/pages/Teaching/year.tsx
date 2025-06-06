@@ -262,7 +262,7 @@ const YearComponent = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý năm học</h1>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -376,7 +376,7 @@ const YearComponent = () => {
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
-                        variant="outline"
+                       
                         size="sm"
                         onClick={() => handleYearClick(year)}
                       >

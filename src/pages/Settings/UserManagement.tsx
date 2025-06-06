@@ -594,8 +594,9 @@ const UserManagement = () => {
           active: selectedUser.active,
           school: selectedUser.school,
           _id: selectedUser._id,
+          avatarUrl: selectedUser.avatarUrl,
           createdAt: selectedUser.createdAt,
-          updatedAt: selectedUser.updatedAt
+          updatedAt: selectedUser.updatedAt,
         } : undefined}
         onSubmit={handleDialogSubmit}
         onDelete={handleDeleteUser}
