@@ -169,9 +169,12 @@ const Header = () => {
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="font-semibold">Tuyển dụng</NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] ">
-                      <ListItem href="/dashboard/recruitment/jobs" title="Quản lý hồ sơ">
+                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
+                      <ListItem href="/dashboard/recruitment/jobs" title="Quản lý công việc">
                         Quản lý các vị trí tuyển dụng
+                      </ListItem>
+                      <ListItem href="/dashboard/recruitment/applications" title="Quản lý hồ sơ">
+                        Quản lý hồ sơ đã nộp
                       </ListItem>
                     </ul>
                   </NavigationMenuContent>

@@ -21,6 +21,7 @@ import Attendance from './pages/Student/Attendance';
 import CommunicationBook from './pages/Student/CommunicationBook';
 import HallOfHonor from './pages/Student/HallOfHonor/HallOfHonor';
 import { RecruitmentAdmin } from './pages/Recruitment';
+import  ApplicationList  from './pages/Recruitment/ApplicationList';
 import { Toaster } from './components/ui/sonner';
 import { Toaster as HotToaster } from 'react-hot-toast';
 
@@ -83,7 +84,7 @@ function App() {
 
           {/* Recruitment routes */}
           <Route path="recruitment/jobs" element={<RecruitmentAdmin />} />
-          <Route path="recruitment/applications" element={<div>Hồ sơ ứng tuyển - Đang phát triển</div>} />
+          <Route path="recruitment/applications" element={<ApplicationList />} />
 
           {/* Settings routes */}
           <Route path="settings/users" element={<UserManagement />} />
