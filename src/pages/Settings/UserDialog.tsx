@@ -30,6 +30,46 @@ import {
 } from "../../components/ui/alert-dialog";
 import { Avatar } from "../../lib/avatar";
 
+// Function to translate role to Vietnamese
+const translateRole = (role: string): string => {
+  const roleTranslations: { [key: string]: string } = {
+    'superadmin': 'Quản trị viên cấp cao',
+    'admin': 'Quản trị viên',
+    'teacher': 'Giáo viên',
+    'parent': 'Phụ huynh',
+    'registrar': 'Phòng đăng ký',
+    'admission': 'Phòng tuyển sinh',
+    'bos': 'Ban điều hành trường',
+    'principal': 'Hiệu trưởng',
+    'service': 'Dịch vụ',
+    'technical': 'Kỹ thuật',
+    'marcom': 'Marcom',
+    'hr': 'Nhân sự',
+    'bod': 'Hội đồng quản trị',
+    'user': 'Người dùng thông thường'
+  };
+  
+  return roleTranslations[role] || role;
+};
+
+// Available roles with their English keys and Vietnamese labels
+const availableRoles = [
+  { value: 'superadmin', label: 'Quản trị viên cấp cao' },
+  { value: 'admin', label: 'Quản trị viên' },
+  // { value: 'teacher', label: 'Giáo viên' },
+  // { value: 'parent', label: 'Phụ huynh' },
+  // { value: 'registrar', label: 'Phòng đăng ký' },
+  // { value: 'admission', label: 'Phòng tuyển sinh' },
+  { value: 'bos', label: 'Ban đào tạo' },
+  // { value: 'principal', label: 'Hiệu trưởng' },
+  // { value: 'service', label: 'Dịch vụ' },
+  { value: 'technical', label: 'Kỹ thuật' },
+  // { value: 'marcom', label: 'Marcom' },
+  { value: 'hr', label: 'Nhân sự' },
+  // { value: 'bod', label: 'Hội đồng quản trị' },
+  { value: 'user', label: 'Người dùng thông thường' }
+];
+
 interface BaseUser {
   username?: string;
   email: string;
@@ -223,18 +263,16 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                       onValueChange={(value) => handleSelectChange('role', value)}
                     >
                       <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Chọn vai trò" />
+                        <SelectValue placeholder="Chọn vai trò">
+                          {formData.role ? translateRole(formData.role) : "Chọn vai trò"}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="superadmin">Super Admin</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="teacher">Giáo viên</SelectItem>
-                        <SelectItem value="parent">Phụ huynh</SelectItem>
-                        <SelectItem value="registrar">Giáo vụ</SelectItem>
-                        <SelectItem value="admission">Tuyển sinh</SelectItem>
-                        <SelectItem value="bos">Ban giám hiệu</SelectItem>
-                        <SelectItem value="principal">Hiệu trưởng</SelectItem>
-                        <SelectItem value="service">Dịch vụ</SelectItem>
+                        {availableRoles.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

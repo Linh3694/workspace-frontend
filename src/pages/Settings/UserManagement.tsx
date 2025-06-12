@@ -37,6 +37,27 @@ import { api } from '../../lib/api';
 import { useToast } from "../../hooks/use-toast";
 import { UserAvatar } from '../../lib/avatar';
 
+// Function to translate role to Vietnamese
+const translateRole = (role: string): string => {
+  const roleTranslations: { [key: string]: string } = {
+    'superadmin': 'Quản trị viên cấp cao',
+    'admin': 'Quản trị viên',
+    // 'teacher': 'Giáo viên',
+    // 'parent': 'Phụ huynh',
+    // 'registrar': 'Giáo vụ',
+    // 'admission': 'Tuyển sinh',
+    'bos': 'Ban đào tạo',
+    // 'principal': 'Hiệu trưởng',
+    // 'service': 'Dịch vụ',
+    'technical': 'Kỹ thuật/IT',
+    // 'marcom': 'Marcom',
+    'hr': 'Nhân sự',
+    // 'bod': 'Ban giám đốc',
+    'user': 'Người dùng'
+  };
+  
+  return roleTranslations[role] || role;
+};
 
 interface User {
   _id: string;
@@ -110,7 +131,8 @@ const UserManagement = () => {
     const filtered = users.filter(user => 
       (user.fullname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (user.role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      translateRole(user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -507,7 +529,7 @@ const UserManagement = () => {
                   </div>
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
+                <TableCell>{translateRole(user.role)}</TableCell>
                 <TableCell>
                   {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: vi })}
                 </TableCell>

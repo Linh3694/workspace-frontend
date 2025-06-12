@@ -24,70 +24,169 @@ import { RecruitmentAdmin } from './pages/Recruitment';
 import  ApplicationList  from './pages/Recruitment/ApplicationList';
 import { Toaster } from './components/ui/sonner';
 import { Toaster as HotToaster } from 'react-hot-toast';
-
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import RoleProtectedRoute from './components/RoleProtectedRoute';
+import  TicketList from './pages/Application/Ticket/Admin/TicketList';
 import './App.css';
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = localStorage.getItem('token');
-  return token ? <>{children}</> : <Navigate to="/login" />;
+// Wrapper component để truyền currentUser
+const TicketListWrapper = () => {
+  const { user } = useAuth();
+  const mappedUser = user ? { ...user, id: user._id } : null;
+  return <TicketList currentUser={mappedUser} />;
 };
-
 
 function App() {
   return (
+    <AuthProvider>
       <Router>
-      <Routes>
-        {/* Public routes */}
+        <Routes>
+                  {/* Public routes */}
         <Route path="/login" element={<Login />} />
-
-        {/* Protected routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Layout />
-            </PrivateRoute>
-          }
-        >
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <RoleProtectedRoute>
+                <Layout />
+              </RoleProtectedRoute>
+            }
+          >
           <Route index element={<Dashboard />} />
      
           {/* Admission routes */}
-          <Route path="admission/profiles" element={<Profile />} />
-          <Route path="admission/families" element={<Family />} />
+          <Route path="admission/profiles" element={
+            <RoleProtectedRoute permission="admission.profiles">
+              <Profile />
+            </RoleProtectedRoute>
+          } />
+          <Route path="admission/families" element={
+            <RoleProtectedRoute permission="admission.families">
+              <Family />
+            </RoleProtectedRoute>
+          } />
 
           {/* Teaching routes */}
-          <Route path="teaching/classes" element={<Class />} />
-          <Route path="teaching/years" element={<Year />} />
-          <Route path="teaching/timetables" element={<Timetable />} />
-          <Route path="teaching/teachers" element={<Teacher />} />
-          <Route path="teaching/school-year-calendar" element={<SchoolYearCalendar />} />
+          <Route path="teaching/classes" element={
+            <RoleProtectedRoute permission="teaching.classes">
+              <Class />
+            </RoleProtectedRoute>
+          } />
+          <Route path="teaching/years" element={
+            <RoleProtectedRoute permission="teaching.years">
+              <Year />
+            </RoleProtectedRoute>
+          } />
+          <Route path="teaching/timetables" element={
+            <RoleProtectedRoute permission="teaching.timetables">
+              <Timetable />
+            </RoleProtectedRoute>
+          } />
+          <Route path="teaching/teachers" element={
+            <RoleProtectedRoute permission="teaching.teachers">
+              <Teacher />
+            </RoleProtectedRoute>
+          } />
+          <Route path="teaching/school-year-calendar" element={
+            <RoleProtectedRoute permission="teaching.calendar">
+              <SchoolYearCalendar />
+            </RoleProtectedRoute>
+          } />
 
           {/* Academic routes */}
-          <Route path="academic/grade-levels" element={<Grade />} />
-          <Route path="academic/educational-programs" element={<EducationalProgram />} />
-          <Route path="academic/curriculums" element={<Curriculum />} />
-          <Route path="academic/subjects" element={<Subject />} />
+          <Route path="academic/grade-levels" element={
+            <RoleProtectedRoute permission="academic.grade-levels">
+              <Grade />
+            </RoleProtectedRoute>
+          } />
+          <Route path="academic/educational-programs" element={
+            <RoleProtectedRoute permission="academic.educational-programs">
+              <EducationalProgram />
+            </RoleProtectedRoute>
+          } />
+          <Route path="academic/curriculums" element={
+            <RoleProtectedRoute permission="academic.curriculums">
+              <Curriculum />
+            </RoleProtectedRoute>
+          } />
+          <Route path="academic/subjects" element={
+            <RoleProtectedRoute permission="academic.subjects">
+              <Subject />
+            </RoleProtectedRoute>
+          } />
 
-          {/* Student Management routes - TODO: Implement these components */}
-          <Route path="students/info" element={<Student />} />
-          <Route path="students/attendance" element={<Attendance />} />
-          <Route path="students/grades" element={<ReportCard />} />
-          <Route path="students/reports" element={<CommunicationBook />} />
-          <Route path="students/hall-of-honor" element={<HallOfHonor />} />
+          {/* Student Management routes */}
+          <Route path="students/info" element={
+            <RoleProtectedRoute permission="students.info">
+              <Student />
+            </RoleProtectedRoute>
+          } />
+          <Route path="students/attendance" element={
+            <RoleProtectedRoute permission="students.attendance">
+              <Attendance />
+            </RoleProtectedRoute>
+          } />
+          <Route path="students/grades" element={
+            <RoleProtectedRoute permission="students.grades">
+              <ReportCard />
+            </RoleProtectedRoute>
+          } />
+          <Route path="students/reports" element={
+            <RoleProtectedRoute permission="students.reports">
+              <CommunicationBook />
+            </RoleProtectedRoute>
+          } />
+          <Route path="students/hall-of-honor" element={
+            <RoleProtectedRoute permission="students.hall-of-honor">
+              <HallOfHonor />
+            </RoleProtectedRoute>
+          } />
           
-          {/* Academic Management routes - TODO: Implement these components */}
-          <Route path="academic/schedule" element={<div>Thời khóa biểu - Đang phát triển</div>} />
-          <Route path="academic/exams" element={<div>Kiểm tra - Đang phát triển</div>} />
+          {/* Academic Management routes */}
+          <Route path="academic/schedule" element={
+            <RoleProtectedRoute permission="academic.schedule">
+              <div>Thời khóa biểu - Đang phát triển</div>
+            </RoleProtectedRoute>
+          } />
+          <Route path="academic/exams" element={
+            <RoleProtectedRoute permission="academic.exams">
+              <div>Kiểm tra - Đang phát triển</div>
+            </RoleProtectedRoute>
+          } />
 
           {/* Facilities routes */}
-          <Route path="facilities/rooms" element={<Room />} />
+          <Route path="facilities/rooms" element={
+            <RoleProtectedRoute permission="facilities.rooms">
+              <Room />
+            </RoleProtectedRoute>
+          } />
 
           {/* Recruitment routes */}
-          <Route path="recruitment/jobs" element={<RecruitmentAdmin />} />
-          <Route path="recruitment/applications" element={<ApplicationList />} />
+          <Route path="recruitment/jobs" element={
+            <RoleProtectedRoute permission="recruitment.jobs">
+              <RecruitmentAdmin />
+            </RoleProtectedRoute>
+          } />
+          <Route path="recruitment/applications" element={
+            <RoleProtectedRoute permission="recruitment.applications">
+              <ApplicationList />
+            </RoleProtectedRoute>
+          } />
+
+          {/* Application routes */}
+          <Route path="application/tickets/management" element={
+            <RoleProtectedRoute permission="application.tickets.admin">
+              <TicketListWrapper />
+            </RoleProtectedRoute>
+          } />
+
 
           {/* Settings routes */}
-          <Route path="settings/users" element={<UserManagement />} />
+          <Route path="settings/users" element={
+            <RoleProtectedRoute permission="settings.users">
+              <UserManagement />
+            </RoleProtectedRoute>
+          } />
         </Route>
 
         {/* Redirect root to dashboard */}
@@ -96,6 +195,7 @@ function App() {
       <Toaster />
       <HotToaster position="top-right" />
     </Router>
+    </AuthProvider>
   );
 }
 

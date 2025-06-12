@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -17,28 +17,23 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { BASE_URL } from "../lib/config";
+import { useAuth } from "../contexts/AuthContext";
+import { MENU_SECTIONS } from "../data/menuConfig";
+import type { MenuItem } from "../types/auth";
 
-interface ListItemProps {
-  className?: string;
-  title: string;
-  href: string;
-  children: React.ReactNode;
-}
-
-const ListItem = ({ className, title, href, children }: ListItemProps) => {
+const ListItem = ({ item }: { item: MenuItem }) => {
   return (
     <li>
       <NavigationMenuLink asChild>
         <a
-          href={href}
+          href={item.href}
           className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
           )}
         >
-          <div className="text-sm font-medium leading-none">{title}</div>
+          <div className="text-sm font-medium leading-none">{item.title}</div>
           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
+            {item.description}
           </p>
         </a>
       </NavigationMenuLink>
@@ -48,31 +43,18 @@ const ListItem = ({ className, title, href, children }: ListItemProps) => {
 
 const Header = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem("user");
-    return storedUser ? JSON.parse(storedUser) : { fullname: "User", avatarUrl: "" };
-  });
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('userUpdated', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('userUpdated', handleStorageChange);
-    };
-  }, []);
+  const { user, logout, hasPermission } = useAuth();
+  
+  // Filter menu sections based on user permissions
+  const filteredMenuSections = useMemo(() => {
+    return MENU_SECTIONS.map(section => ({
+      ...section,
+      items: section.items.filter(item => hasPermission(item.permission))
+    })).filter(section => section.items.length > 0);
+  }, [hasPermission]);
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('user');
-    setUser({ fullname: "User", avatarUrl: "" });
+    logout();
     navigate('/login');
   };
 
@@ -88,174 +70,41 @@ const Header = () => {
             />
             <NavigationMenu className="hidden p-2 sm:ml-6 sm:flex" viewport={false}>
               <NavigationMenuList>
-                <NavigationMenuItem className="p-2">
-                  <NavigationMenuTrigger className="font-semibold">Học sinh</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/students/info" title="Thông tin học sinh">
-                        Thông tin cơ bản của học sinh
-                      </ListItem>
-                      <ListItem href="/dashboard/students/attendance" title="Điểm danh">
-                        Điểm danh học sinh
-                      </ListItem>
-                      <ListItem href="/dashboard/students/reports" title="Sổ liên lạc điện tử">
-                        Chưa có mô tả
-                      </ListItem>
-                      <ListItem href="/dashboard/students/grades" title="Báo cáo học tập">
-                        Chưa có mô tả
-                      </ListItem>
-                       <ListItem href="/dashboard/students/hall-of-honor" title="Vinh danh">
-                        Chưa có mô tả
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Học thuật</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                     
-                      <ListItem href="/dashboard/academic/grade-levels" title="Khối trường">
-                        Danh sách khối trường theo năm học
-                      </ListItem>
-                      <ListItem href="/dashboard/academic/educational-programs" title="Hệ học">
-                        Danh sách hệ học
-                      </ListItem>
-                      <ListItem href="/dashboard/academic/curriculums" title="Chương trình học">
-                        Danh sách chương trình học
-                      </ListItem>
-                      <ListItem href="/dashboard/academic/subjects" title="Môn học">
-                        Danh sách môn học
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Giảng dạy</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/teaching/years" title="Năm học">
-                        Tạo năm học mới
-                      </ListItem>
-                      <ListItem href="/dashboard/teaching/classes" title="Lớp">
-                        Danh sách lớp theo năm học
-                      </ListItem>
-                     
-                      <ListItem href="/dashboard/teaching/teachers" title="Giáo viên">
-                        Danh sách giáo viên
-                      </ListItem>
-                      <ListItem href="/dashboard/teaching/timetables" title="Thời khoá biểu">
-                        Quản lý thời khoá biểu
-                      </ListItem>
-                      <ListItem href="/dashboard/teaching/school-year-calendar" title="Lịch năm học">
-                        Quản lý lịch năm học
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Tuyển sinh</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/admission/profiles" title="Hồ sơ học sinh">
-                        Quản lý hồ sơ đăng ký tuyển sinh
-                      </ListItem>
-                      <ListItem href="/dashboard/admission/families" title="Thông tin gia đình">
-                        Thông tin gia đình học sinh
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Tuyển dụng</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/recruitment/jobs" title="Quản lý công việc">
-                        Quản lý các vị trí tuyển dụng
-                      </ListItem>
-                      <ListItem href="/dashboard/recruitment/applications" title="Quản lý hồ sơ">
-                        Quản lý hồ sơ đã nộp
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Cơ sở vật chất</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/facilities/rooms" title="Quản lý phòng học">
-                        Quản lý phòng học và phòng chức năng
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Dịch vụ học sinh</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/services/menu" title="Thực đơn">
-                        Quản lý thực đơn hàng ngày
-                      </ListItem>
-                       <ListItem href="/dashboard/services/bus" title="Xe đưa đón">
-                        Quản lý xe đưa đón học sinh
-                      </ListItem>
-                       <ListItem href="/dashboard/services/boarding" title="Bán trú">
-                        Quản lý dịch vụ bán trú
-                      </ListItem>
-                       <ListItem href="/dashboard/services/activities" title="Hoạt động ngoại khóa">
-                        Quản lý các hoạt động ngoại khóa
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Ứng dụng</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/flippage" title="Phần mềm lật trang">
-                        Phần mềm lật trang
-                      </ListItem>
-                      <ListItem href="/dashboard/ticket" title="Ticket">
-                        Hệ thống quản lý ticket
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-semibold">Cài đặt</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px] ">
-                      <ListItem href="/dashboard/settings/users" title="Quản lý người dùng">
-                        Quản lý và phân quyền người dùng hệ thống
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                {filteredMenuSections.map((section) => (
+                  <NavigationMenuItem key={section.title} className="p-2">
+                    <NavigationMenuTrigger className="font-semibold">
+                      {section.title}
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <ul className="grid w-[200px] gap-3 p-4 md:w-[300px] md:grid-cols-2 lg:w-[500px]">
+                        {section.items.map((item) => (
+                          <ListItem key={item.href} item={item} />
+                        ))}
+                      </ul>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                ))}
               </NavigationMenuList>
             </NavigationMenu>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
             <span className="text-sm font-medium">
               Xin chào WISer&nbsp;
-              <span className="text-primary font-bold">{user.fullname ?? "User"}</span>
+              <span className="text-primary font-bold">{user?.fullname ?? "User"}</span>
             </span>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Avatar className="cursor-pointer">
-                  {user.avatarUrl ? (
+                  {user?.avatarUrl ? (
                     <AvatarImage
-                      src={
-                        user.avatarUrl
-                          ? `${BASE_URL}/uploads/Avatar/${user.avatarUrl}`
-                          : user.avatarUrl
-                      }
+                      src={`${BASE_URL}/uploads/Avatar/${user.avatarUrl}`}
                       alt="avatar"
                       className="object-cover object-top"
                     />
                   ) : (
                     <AvatarFallback>
-                        {user.fullname
+                        {user?.fullname
                           ? user.fullname
                           .split(" ")
                           .slice(-2)
