@@ -15,6 +15,7 @@ import { Plus, Trophy, Edit } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import CreateCategoryDialog from './CreateCategoryDialog';
 import EditCategoryDialog from './EditCategoryDialog';
+import SubAwardsModal from './SubAwardsModal';
 
 interface SubAward {
   type: string;
@@ -95,6 +96,8 @@ const HallOfHonor: React.FC = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState<boolean>(false);
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
   const [editingCategory, setEditingCategory] = useState<AwardCategory | null>(null);
+  const [subAwardsModalOpen, setSubAwardsModalOpen] = useState<boolean>(false);
+  const [editingCategoryForSubAwards, setEditingCategoryForSubAwards] = useState<AwardCategory | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -170,6 +173,23 @@ const HallOfHonor: React.FC = () => {
     setEditingCategory(null);
   };
 
+  const handleSubAwardsClick = (category: AwardCategory, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    setEditingCategoryForSubAwards(category);
+    setSubAwardsModalOpen(true);
+  };
+
+  const handleSubAwardsCategoryUpdated = (updatedCategory: AwardCategory) => {
+    setCategories(prev => 
+      prev.map(cat => cat._id === updatedCategory._id ? updatedCategory : cat)
+    );
+    if (selectedCategory?._id === updatedCategory._id) {
+      setSelectedCategory(updatedCategory);
+    }
+    setSubAwardsModalOpen(false);
+    setEditingCategoryForSubAwards(null);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
@@ -239,9 +259,14 @@ const HallOfHonor: React.FC = () => {
                               {category.description}
                             </p>
                             <div className="flex justify-between items-center pt-2">
-                              <Badge variant="secondary" className="text-xs">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="text-xs h-6 px-2 hover:bg-secondary/80"
+                                onClick={(e) => handleSubAwardsClick(category, e)}
+                              >
                                 {category.subAwards?.length || 0} Hạng mục
-                              </Badge>
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
@@ -422,6 +447,14 @@ const HallOfHonor: React.FC = () => {
         onOpenChange={setEditDialogOpen}
         category={editingCategory}
         onCategoryUpdated={handleCategoryUpdated}
+      />
+
+      {/* Sub Awards Modal */}
+      <SubAwardsModal
+        open={subAwardsModalOpen}
+        onOpenChange={setSubAwardsModalOpen}
+        category={editingCategoryForSubAwards}
+        onCategoryUpdated={handleSubAwardsCategoryUpdated}
       />
     </div>
   );
