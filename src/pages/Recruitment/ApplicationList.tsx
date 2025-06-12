@@ -161,7 +161,7 @@ function ApplicationList() {
       <div className="w-full h-full p-6 bg-white rounded-xl shadow-md border">
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex flex-row justify-between items-center">
-            <h2 className="font-bold text-2xl text-[#002147]">Danh sách ứng viên</h2>
+            <h2 className="font-bold text-2xl text-[#002147]">Quản lý hồ sơ</h2>
             <Button onClick={fetchApplications} disabled={loading}>
               {loading ? "Đang tải..." : "Làm mới"}
             </Button>

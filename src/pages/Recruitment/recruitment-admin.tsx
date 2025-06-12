@@ -127,7 +127,7 @@ function RecruitmentAdmin() {
     <div className="min-h-screen p-8">
       <div className="w-full h-full p-6 bg-white rounded-xl shadow-md border">
         <div className="flex flex-row justify-between items-center">
-          <h2 className="font-bold text-lg mb-4">Tuyển dụng</h2>
+          <h2 className="font-bold text-lg mb-4">Quản lý tuyển dụng</h2>
           <Button
             onClick={() => setIsCreateJobModalOpen(true)}
           >
