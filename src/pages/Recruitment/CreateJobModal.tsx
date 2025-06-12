@@ -4,6 +4,14 @@ import { FaTimes } from "react-icons/fa";
 import { toast } from 'sonner';
 import Switch from "react-switch";
 import TiptapEditor from "../../components/TiptapEditor";
+import { DatePicker } from "../../components/ui/datepicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "../../components/ui/select";
 
 interface Job {
   _id: string;
@@ -33,7 +41,7 @@ interface JobData {
   location: string;
   jobType: string;
   urgent: boolean;
-  deadline: string;
+  deadline: Date | undefined;
 }
 
 function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) {
@@ -45,12 +53,16 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
     location: "",
     jobType: "",
     urgent: false,
-    deadline: "",
+    deadline: undefined,
   };
   const [jobData, setJobData] = useState<JobData>(initialJobData);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setJobData({ ...jobData, [e.target.name]: e.target.value });
+  };
+
+  const handleSelectChange = (field: string, value: string) => {
+    setJobData({ ...jobData, [field]: value });
   };
 
   const handleCloseAndReset = () => {
@@ -71,14 +83,20 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
     }
 
     try {
-      console.log("Sending job data:", jobData);
+      // Convert Date to ISO string for API
+      const submitData = {
+        ...jobData,
+        deadline: jobData.deadline?.toISOString().split('T')[0] || '',
+      };
+      
+      console.log("Sending job data:", submitData);
       const res = await fetch(`${API_URL}/jobs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify(jobData),
+        body: JSON.stringify(submitData),
       });
 
       console.log("Response status:", res.status);
@@ -123,8 +141,8 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
                 name="title"
                 value={jobData.title}
                 onChange={handleChange}
-                className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-[#BEBEBE] rounded-full"
-                placeholder="Nhập nội dung"
+                className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF5733]"
+                placeholder="dvasv"
               />
             </div>
             {/* Hạn cuối */}
@@ -132,13 +150,10 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
               <label className="block text-sm font-semibold text-gray-700">
                 Hạn cuối <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                name="deadline"
-                value={jobData.deadline}
-                onChange={handleChange}
-                className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-[#BEBEBE] rounded-full"
-                placeholder="Nhập hạn cuối"
+              <DatePicker
+                date={jobData.deadline}
+                setDate={(date) => setJobData({ ...jobData, deadline: date })}
+                className="w-full bg-[#F8F8F8] border-none rounded-full"
               />
             </div>
             {/* Loại hình công việc */}
@@ -146,17 +161,19 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
               <label className="block text-sm font-semibold text-gray-700">
                 Loại hình công việc <span className="text-red-500">*</span>
               </label>
-              <select
-                name="jobType"
+              <Select
                 value={jobData.jobType}
-                onChange={handleChange}
-                className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-[#BEBEBE] rounded-full"
+                onValueChange={(value) => handleSelectChange('jobType', value)}
               >
-                <option value="">Chọn loại hình công việc</option>
-                <option value="fulltime">Toàn thời gian</option>
-                <option value="parttime">Bán thời gian</option>
-                <option value="intern">Thực tập</option>
-              </select>
+                <SelectTrigger className="w-full bg-[#F8F8F8] border-none rounded-full">
+                  <SelectValue placeholder="Chọn loại hình công việc" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fulltime">Toàn thời gian</SelectItem>
+                  <SelectItem value="parttime">Bán thời gian</SelectItem>
+                  <SelectItem value="intern">Thực tập</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {/* Tuyển gấp */}
             <div className="flex flex-col">
@@ -183,11 +200,14 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
             <label className="block text-sm font-semibold text-gray-700">
               Mô tả <span className="text-red-500">*</span>
             </label>
-            <TiptapEditor
-              content={jobData.description}
-              onUpdate={(content) => setJobData({ ...jobData, description: content })}
-              placeholder="Nhập mô tả công việc"
-            />
+            <div className="h-[200px] flex flex-col">
+              <TiptapEditor
+                content={jobData.description}
+                onUpdate={(content) => setJobData({ ...jobData, description: content })}
+                placeholder="Nhập mô tả công việc"
+                className="h-full"
+              />
+            </div>
           </div>
 
           {/* Yêu cầu công việc */}
@@ -195,11 +215,14 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
             <label className="block text-sm font-semibold text-gray-700">
               Yêu cầu công việc <span className="text-red-500">*</span>
             </label>
-            <TiptapEditor
-              content={jobData.requirements}
-              onUpdate={(content) => setJobData({ ...jobData, requirements: content })}
-              placeholder="Nhập yêu cầu công việc"
-            />
+            <div className="h-[200px] flex flex-col">
+              <TiptapEditor
+                content={jobData.requirements}
+                onUpdate={(content) => setJobData({ ...jobData, requirements: content })}
+                placeholder="Nhập yêu cầu công việc"
+                className="h-full"
+              />
+            </div>
           </div>
 
           {/* Nút hành động */}

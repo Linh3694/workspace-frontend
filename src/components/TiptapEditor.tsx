@@ -35,7 +35,7 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[120px] p-3',
+        class: 'prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl mx-auto focus:outline-none p-3',
       },
     },
   });
@@ -51,9 +51,9 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   }
 
   return (
-    <div className={`border border-gray-200 rounded-xl bg-[#F8F8F8] ${className}`}>
+    <div className={`border border-gray-200 rounded-xl bg-[#F8F8F8] flex flex-col ${className}`}>
       {/* Toolbar */}
-      <div className="border-b border-gray-200 p-2 flex flex-wrap gap-1">
+      <div className="border-b border-gray-200 p-2 flex flex-wrap gap-1 flex-shrink-0">
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -169,7 +169,9 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
       </div>
       
       {/* Editor Content */}
-      <EditorContent editor={editor} />
+      <div className="flex-1 overflow-hidden">
+        <EditorContent editor={editor} className="h-full" />
+      </div>
     </div>
   );
 };

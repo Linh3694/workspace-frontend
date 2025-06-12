@@ -5,6 +5,14 @@ import Switch from "react-switch";
 import TiptapEditor from "../../components/TiptapEditor";
 import { toast } from 'sonner';
 import { FaDownload, FaEye } from "react-icons/fa6";
+import { DatePicker } from "../../components/ui/datepicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "../../components/ui/select";
 
 interface Job {
   _id: string;
@@ -104,6 +112,17 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
     }) : null);
   };
 
+  const handleSelectChange = (field: string, value: string) => {
+    setEditJob(prev => prev ? ({ ...prev, [field]: value }) : null);
+  };
+
+  const handleDateChange = (date: Date | undefined) => {
+    setEditJob(prev => prev ? ({ 
+      ...prev, 
+      deadline: date ? date.toISOString().split('T')[0] : '' 
+    }) : null);
+  };
+
   const handleQuillChange = (name: string, value: string) => {
     setEditJob(prev => prev ? ({ ...prev, [name]: value }) : null);
   };
@@ -188,7 +207,8 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
                   name="title"
                   value={editJob.title || ''}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-sm text-[#222] rounded-full"
+                  className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF5733]"
+                  placeholder="dvasv"
                 />
               </div>
               
@@ -197,12 +217,10 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
                 <label className="text-sm font-semibold text-gray-700">
                   Hạn cuối <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  name="deadline"
-                  value={editJob.deadline ? new Date(editJob.deadline).toISOString().slice(0, 10) : ''}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-sm text-[#222] rounded-full"
+                <DatePicker
+                  date={editJob.deadline ? new Date(editJob.deadline) : undefined}
+                  setDate={handleDateChange}
+                  className="w-full bg-[#F8F8F8] border-none rounded-full"
                 />
               </div>
               
@@ -211,17 +229,19 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
                 <label className="text-sm font-semibold text-gray-700">
                   Loại hình công việc <span className="text-red-500">*</span>
                 </label>
-                <select 
-                  name="jobType" 
-                  value={editJob.jobType || ''} 
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-sm text-[#222] rounded-full"
+                <Select
+                  value={editJob.jobType || ''}
+                  onValueChange={(value) => handleSelectChange('jobType', value)}
                 >
-                  <option value="">Chọn loại hình công việc</option>
-                  <option value="fulltime">Toàn thời gian</option>
-                  <option value="parttime">Bán thời gian</option>
-                  <option value="intern">Thực tập</option>
-                </select>
+                  <SelectTrigger className="w-full bg-[#F8F8F8] border-none rounded-full">
+                    <SelectValue placeholder="Chọn loại hình công việc" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fulltime">Toàn thời gian</SelectItem>
+                    <SelectItem value="parttime">Bán thời gian</SelectItem>
+                    <SelectItem value="intern">Thực tập</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               {/* Tuyển gấp */}
@@ -245,29 +265,33 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
             </div>
 
             {/* Mô tả */}
-            <div className="flex flex-col gap-2 mb-4 ">
+            <div className="flex flex-col gap-2 mb-4">
               <label className="text-sm font-semibold text-gray-700">
                 Mô tả <span className="text-red-500">*</span>
               </label>
-              <TiptapEditor
-                content={editJob.description || ''}
-                onUpdate={(content) => handleQuillChange('description', content)}
-                placeholder="Nhập mô tả công việc"
-                className="max-h-[200px] overflow-y-auto"
-              />
+              <div className="h-[200px] flex flex-col">
+                <TiptapEditor
+                  content={editJob.description || ''}
+                  onUpdate={(content) => handleQuillChange('description', content)}
+                  placeholder="Nhập mô tả công việc"
+                  className="h-full"
+                />
+              </div>
             </div>
 
             {/* Yêu cầu công việc */}
-            <div className="flex flex-col gap-2 h-[200px]">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-gray-700">
                 Yêu cầu công việc <span className="text-red-500">*</span>
               </label>
-              <TiptapEditor
-                content={editJob.requirements || ''}
-                onUpdate={(content) => handleQuillChange('requirements', content)}
-                placeholder="Nhập yêu cầu công việc"
-                className="max-h-[200px] overflow-y-auto"
-              />
+              <div className="h-[200px] flex flex-col">
+                <TiptapEditor
+                  content={editJob.requirements || ''}
+                  onUpdate={(content) => handleQuillChange('requirements', content)}
+                  placeholder="Nhập yêu cầu công việc"
+                  className="h-full"
+                />
+              </div>
             </div>
           </div>
 
