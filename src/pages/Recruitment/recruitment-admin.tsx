@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { API_URL } from "../../lib/config";
-import { FiEdit, FiTrash2 } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 import { toast } from 'sonner';
 import Switch from "react-switch";
 import CreateJobModal from "./CreateJobModal";
@@ -22,7 +22,7 @@ interface Job {
 function RecruitmentAdmin() {
   const [fileList, setFileList] = useState<Job[]>([]);
   const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
-  const [jobList, setJobList] = useState<Job[]>();
+
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isJobDetailModalOpen, setIsJobDetailModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -72,7 +72,7 @@ function RecruitmentAdmin() {
       const res = await fetch(`${API_URL}/jobs/${jobToDelete._id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
       });
@@ -153,7 +153,7 @@ function RecruitmentAdmin() {
                   <p className="text-sm font-bold text-gray-500">Hạn cuối</p>
                 </th>
                 <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start">
-                  <p className="text-sm font-bold text-gray-500">Ngày sửa</p>
+                  <p className="text-sm font-bold text-gray-500">Ngày đăng</p>
                 </th>
                 <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start">
                   <p className="text-sm font-bold text-gray-500">CVs</p>
@@ -161,7 +161,7 @@ function RecruitmentAdmin() {
                 <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start">
                   <p className="text-sm font-bold text-gray-500">Active</p>
                 </th>
-                <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start">
+                <th className="cursor-pointer border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-end  ">
                   <p className="text-sm font-bold text-gray-500">Hành Động</p>
                 </th>
               </tr>
@@ -220,16 +220,18 @@ function RecruitmentAdmin() {
                   </td>
 
                   <td className="border-white/0 py-3 pr-4">
-                    <div className="flex space-x-2">
-                      <button
+                    <div className="flex justify-end space-x-2">
+                      {/* <button
                         onClick={() => handleOpenJobDetail(job)}
-                        className="flex items-center justify-center w-7 h-7 text-white bg-oxford-blue rounded-lg hover:scale-105 transition"
+                        className="flex items-center justify-center w-8 h-8 text-white bg-blue-600 rounded-lg hover:bg-blue-700 hover:scale-105 transition"
+                        title="Chỉnh sửa"
                       >
                         <FiEdit size={14} />
-                      </button>
+                      </button> */}
                       <button
                         onClick={() => handleRemoveJob(job)}
-                        className="flex items-center justify-center w-7 h-7 text-white bg-orange-red rounded-lg hover:scale-105 transition"
+                        className="flex items-center justify-center w-8 h-8 text-white bg-[#FF5733] rounded-lg hover:bg-red-700 hover:scale-105 transition"
+                        title="Xóa"
                       >
                         <FiTrash2 size={14} />
                       </button>
@@ -246,7 +248,8 @@ function RecruitmentAdmin() {
       <CreateJobModal
         isOpen={isCreateJobModalOpen}
         onClose={() => setIsCreateJobModalOpen(false)}
-        onJobCreated={(newJob: Job) => setJobList([...(jobList || []), newJob])}
+        onJobCreated={(newJob: Job) => setFileList(prev => [...prev, newJob])}
+        onRefreshData={fetchFileList}
       />
       <JobDetailModal
         isOpen={isJobDetailModalOpen}

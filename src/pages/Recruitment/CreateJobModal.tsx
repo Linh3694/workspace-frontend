@@ -31,6 +31,7 @@ interface CreateJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onJobCreated: (job: Job) => void;
+  onRefreshData?: () => void;
 }
 
 interface JobData {
@@ -44,7 +45,7 @@ interface JobData {
   deadline: Date | undefined;
 }
 
-function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) {
+function CreateJobModal({ isOpen, onClose, onJobCreated, onRefreshData }: CreateJobModalProps) {
   const initialJobData: JobData = {
     title: "",
     description: "",
@@ -109,6 +110,12 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
 
       toast.success("Công việc đã được tạo!");
       onJobCreated(responseData.job || responseData);
+      
+      // Refresh lại dữ liệu bảng để có dữ liệu mới nhất
+      if (onRefreshData) {
+        onRefreshData();
+      }
+      
       setJobData(initialJobData);
       onClose();
     } catch {
@@ -141,19 +148,8 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
                 name="title"
                 value={jobData.title}
                 onChange={handleChange}
-                className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF5733]"
-                placeholder="dvasv"
-              />
-            </div>
-            {/* Hạn cuối */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Hạn cuối <span className="text-red-500">*</span>
-              </label>
-              <DatePicker
-                date={jobData.deadline}
-                setDate={(date) => setJobData({ ...jobData, deadline: date })}
-                className="w-full bg-[#F8F8F8] border-none rounded-full"
+                className="w-full px-3 py-2 bg-[#F8F8F8] border-none text-gray-800 rounded-full focus:outline-none "
+                placeholder="Tên công việc"
               />
             </div>
             {/* Loại hình công việc */}
@@ -175,6 +171,17 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
                 </SelectContent>
               </Select>
             </div>
+            {/* Hạn cuối */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Hạn cuối <span className="text-red-500">*</span>
+              </label>
+              <DatePicker
+                date={jobData.deadline}
+                setDate={(date) => setJobData({ ...jobData, deadline: date })}
+              />
+            </div>
+            
             {/* Tuyển gấp */}
             <div className="flex flex-col">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -229,13 +236,13 @@ function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) 
           <div className="flex justify-end mt-6 space-x-4">
             <button
               onClick={handleCloseAndReset}
-              className="px-4 py-2 bg-gray-300 text-gray-700 font-bold rounded-lg"
+              className="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg"
             >
               Hủy
             </button>
             <button
               onClick={handleSubmit}
-              className="px-4 py-2 bg-[#FF5733] text-white font-bold rounded-lg hover:bg-[#ff6b4a] transition"
+              className="px-4 py-2 bg-[#FF5733] text-white font-semibold rounded-lg hover:bg-[#ff6b4a] transition"
             >
               Xác nhận
             </button>
