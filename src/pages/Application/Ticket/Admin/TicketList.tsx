@@ -61,13 +61,9 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
   // State sắp xếp
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
 
-  // State cho modal Assigned
-  const [assignedTicket, setAssignedTicket] = useState<Ticket | null>(null);
-  const [cancelReason, setCancelReason] = useState<string>("");
-
   // Danh sách người dùng & phân loại
-  const [users, setUsers] = useState<User[]>([]);
-  const [technicalUsers, setTechnicalUsers] = useState<User[]>([]);
+  const [, setUsers] = useState<User[]>([]);
+  const [, setTechnicalUsers] = useState<User[]>([]);
 
   // Filter chính: "all" hoặc "assignedToMe"
   const [filter, setFilter] = useState<FilterType>("all");
@@ -178,26 +174,10 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
         (user) => user.role === "technical" || user.role === "admin"
       );
       setTechnicalUsers(validUsers);
-    } catch (error) {
+    } catch {
       toast.error("Có lỗi xảy ra khi tải danh sách người dùng.");
     }
   };
-
-  // Tính màu nền cho từng độ ưu tiên
-  // const getPriorityBackgroundColor = (priority: TicketPriority): string => {
-  //   switch (priority) {
-  //     case "Low":
-  //       return "#d1fae5";
-  //     case "Medium":
-  //       return "#fef9c3";
-  //     case "High":
-  //       return "#e98d9e";
-  //     case "Urgent":
-  //       return "#C13346";
-  //     default:
-  //       return "#f3f4f6";
-  //   }
-  // };
 
   // Dot color
   const getPriorityDotColor = (priority: TicketPriority): string => {
@@ -315,79 +295,6 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
       }
     });
   };
-
-  // Hàm hủy ticket
-  const handleCancel = async (): Promise<void> => {
-    if (!assignedTicket || !cancelReason.trim()) {
-      toast.error("Vui lòng nhập lý do hủy.");
-      return;
-    }
-
-    try {
-      const res = await axios.put(
-        `${API_URL}/tickets/${assignedTicket._id}`,
-        { status: "Cancelled", cancelReason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (res.data.success) {
-        toast.success("Ticket đã được hủy.");
-        setAssignedTicket(null);
-        setCancelReason("");
-        fetchTickets();
-      } else {
-        toast.error("Lỗi khi hủy ticket.");
-      }
-    } catch (error) {
-      console.error("Error cancelling ticket:", error);
-      toast.error("Không thể hủy ticket.");
-    }
-  };
-
-  // Hàm chấp nhận ticket
-  // const handleAccept = async (ticketId: string): Promise<void> => {
-  //   try {
-  //     const res = await axios.put(
-  //       `${API_URL}/tickets/${ticketId}`,
-  //       { 
-  //         status: "Processing",
-  //         assignedTo: currentUser?.id
-  //       },
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-
-  //     if (res.data.success) {
-  //       toast.success("Đã chấp nhận ticket.");
-  //       fetchTickets();
-  //     } else {
-  //       toast.error("Lỗi khi chấp nhận ticket.");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error accepting ticket:", error);
-  //     toast.error("Không thể chấp nhận ticket.");
-  //   }
-  // };
-
-  // Hàm chuyển giao ticket
-  // const handleTransfer = async (ticketId: string, newAssigneeId: string): Promise<void> => {
-  //   try {
-  //     const res = await axios.put(
-  //       `${API_URL}/tickets/${ticketId}`,
-  //       { assignedTo: newAssigneeId },
-  //       { headers: { Authorization: `Bearer ${token}` } }
-  //     );
-
-  //     if (res.data.success) {
-  //       toast.success("Đã chuyển giao ticket.");
-  //       fetchTickets();
-  //     } else {
-  //       toast.error("Lỗi khi chuyển giao ticket.");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error transferring ticket:", error);
-  //     toast.error("Không thể chuyển giao ticket.");
-  //   }
-  // };
 
   // Hàm lấy màu sắc cho status
   const getStatusColor = (status: TicketStatus): string => {
@@ -696,7 +603,6 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
           ticket={selectedTicket}
           currentUser={currentUser}
           onClose={closeTicketModal}
-          handleCancelTicket={handleCancel}
           fetchTicketById={fetchTicketById}
         />
       )}
