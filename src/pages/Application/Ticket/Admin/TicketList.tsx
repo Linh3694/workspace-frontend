@@ -5,6 +5,17 @@ import { API_URL } from "../../../../lib/config";
 import TicketAdminModal from "./DetailModal";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
+import { Input } from "../../../../components/ui/input";
+import { FiSearch } from "react-icons/fi";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../../../../components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -64,6 +75,13 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
   // Bộ lọc nhiều ưu tiên / nhiều trạng thái
   const [selectedPriorities, setSelectedPriorities] = useState<TicketPriority[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<TicketStatus[]>([]);
+  
+  // Search state
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
 
   const token = localStorage.getItem("token");
 
@@ -244,8 +262,32 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
     if (selectedStatuses.length > 0) {
       match = match && selectedStatuses.includes(ticket.status);
     }
+
+    // D) Lọc theo search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      match = match && (
+        ticket.ticketCode.toLowerCase().includes(searchLower) ||
+        ticket.title.toLowerCase().includes(searchLower) ||
+        ticket.creator.fullname.toLowerCase().includes(searchLower) ||
+        ticket.creator.email.toLowerCase().includes(searchLower) ||
+        (ticket.assignedTo?.fullname || "").toLowerCase().includes(searchLower)
+      );
+    }
+
     return match;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTickets = filteredTickets.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedPriorities, selectedStatuses, filter]);
 
   // Hàm chuyển đổi bảng chính
   const handleMainFilterChange = (mainFilter: FilterType): void => {
@@ -303,49 +345,49 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
   };
 
   // Hàm chấp nhận ticket
-  const handleAccept = async (ticketId: string): Promise<void> => {
-    try {
-      const res = await axios.put(
-        `${API_URL}/tickets/${ticketId}`,
-        { 
-          status: "Processing",
-          assignedTo: currentUser?.id
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  // const handleAccept = async (ticketId: string): Promise<void> => {
+  //   try {
+  //     const res = await axios.put(
+  //       `${API_URL}/tickets/${ticketId}`,
+  //       { 
+  //         status: "Processing",
+  //         assignedTo: currentUser?.id
+  //       },
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
 
-      if (res.data.success) {
-        toast.success("Đã chấp nhận ticket.");
-        fetchTickets();
-      } else {
-        toast.error("Lỗi khi chấp nhận ticket.");
-      }
-    } catch (error) {
-      console.error("Error accepting ticket:", error);
-      toast.error("Không thể chấp nhận ticket.");
-    }
-  };
+  //     if (res.data.success) {
+  //       toast.success("Đã chấp nhận ticket.");
+  //       fetchTickets();
+  //     } else {
+  //       toast.error("Lỗi khi chấp nhận ticket.");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error accepting ticket:", error);
+  //     toast.error("Không thể chấp nhận ticket.");
+  //   }
+  // };
 
   // Hàm chuyển giao ticket
-  const handleTransfer = async (ticketId: string, newAssigneeId: string): Promise<void> => {
-    try {
-      const res = await axios.put(
-        `${API_URL}/tickets/${ticketId}`,
-        { assignedTo: newAssigneeId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  // const handleTransfer = async (ticketId: string, newAssigneeId: string): Promise<void> => {
+  //   try {
+  //     const res = await axios.put(
+  //       `${API_URL}/tickets/${ticketId}`,
+  //       { assignedTo: newAssigneeId },
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
 
-      if (res.data.success) {
-        toast.success("Đã chuyển giao ticket.");
-        fetchTickets();
-      } else {
-        toast.error("Lỗi khi chuyển giao ticket.");
-      }
-    } catch (error) {
-      console.error("Error transferring ticket:", error);
-      toast.error("Không thể chuyển giao ticket.");
-    }
-  };
+  //     if (res.data.success) {
+  //       toast.success("Đã chuyển giao ticket.");
+  //       fetchTickets();
+  //     } else {
+  //       toast.error("Lỗi khi chuyển giao ticket.");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error transferring ticket:", error);
+  //     toast.error("Không thể chuyển giao ticket.");
+  //   }
+  // };
 
   // Hàm lấy màu sắc cho status
   const getStatusColor = (status: TicketStatus): string => {
@@ -404,6 +446,16 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
         <h1 className="text-2xl font-bold text-[#002147]">
           Quản lý Ticket
         </h1>
+        <div className="relative w-80">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Tìm kiếm ticket..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Filters */}
@@ -463,32 +515,31 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Mã Ticket</TableHead>
-            <TableHead>Tiêu đề</TableHead>
-            <TableHead>Người tạo</TableHead>
+            <TableHead className="font-bold">Mã Ticket</TableHead>
+            <TableHead className="font-bold">Tiêu đề</TableHead>
+            <TableHead className="font-bold">Người tạo</TableHead>
             <TableHead 
               className="cursor-pointer hover:bg-gray-50"
               onClick={() => handleSort("priority")}
             >
-              Độ ưu tiên {sortConfig.key === "priority" && (
+              <span className="font-bold">Độ ưu tiên</span> {sortConfig.key === "priority" && (
                 <span>{sortConfig.direction === "asc" ? "↑" : "↓"}</span>
               )}
             </TableHead>
-            <TableHead 
+            <TableHead className="font-bold">Người xử lý</TableHead>
+           <TableHead className="font-bold">Ngày tạo</TableHead>
+             <TableHead 
               className="cursor-pointer hover:bg-gray-50"
               onClick={() => handleSort("status")}
             >
-              Trạng thái {sortConfig.key === "status" && (
+              <span className="font-bold">Trạng thái</span> {sortConfig.key === "status" && (
                 <span>{sortConfig.direction === "asc" ? "↑" : "↓"}</span>
               )}
             </TableHead>
-            <TableHead>Người xử lý</TableHead>
-            <TableHead>Ngày tạo</TableHead>
-            <TableHead>Thao tác</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-            {filteredTickets.map((ticket) => (
+            {paginatedTickets.map((ticket) => (
               <TableRow key={ticket._id}>
                 <TableCell>
                   <span className="font-mono text-sm">{ticket.ticketCode}</span>
@@ -519,19 +570,11 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Badge 
-                    variant="secondary"
-                    className={getStatusColor(ticket.status)}
-                  >
-                    {getStatusLabel(ticket.status)}
-                  </Badge>
-                </TableCell>
+                
                 <TableCell>
                   {ticket.assignedTo ? (
                     <div>
                       <p className="font-medium">{ticket.assignedTo.fullname}</p>
-                      <p className="text-sm text-gray-500">{ticket.assignedTo.jobTitle}</p>
                     </div>
                   ) : (
                     <span className="text-gray-400">Chưa phân công</span>
@@ -542,31 +585,97 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
                     {new Date(ticket.createdAt).toLocaleDateString("vi-VN")}
                   </span>
                 </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => openTicketModal(ticket._id)}
-                      size="sm"
-                      variant="default"
-                    >
-                      Xem
-                    </Button>
-                    {ticket.status === "Open" && (
-                      <Button
-                        onClick={() => handleAccept(ticket._id)}
-                        size="sm"
-                        variant="default"
-                        className="bg-green-500 hover:bg-green-600"
-                      >
-                        Nhận
-                      </Button>
-                    )}
-                  </div>
+               <TableCell>
+                  <Badge 
+                    variant="secondary"
+                    className={getStatusColor(ticket.status)}
+                  >
+                    {getStatusLabel(ticket.status)}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}
         </TableBody>
       </Table>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-6">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              
+              {/* First page */}
+              <PaginationItem>
+                <PaginationLink
+                  onClick={() => setCurrentPage(1)}
+                  isActive={currentPage === 1}
+                  className="cursor-pointer"
+                >
+                  1
+                </PaginationLink>
+              </PaginationItem>
+
+              {/* Left ellipsis */}
+              {currentPage > 3 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+
+              {/* Pages around current page */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => {
+                  if (totalPages <= 5) return page > 1 && page < totalPages;
+                  return page > 1 && page < totalPages && Math.abs(page - currentPage) <= 1;
+                })
+                .map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+
+              {/* Right ellipsis */}
+              {currentPage < totalPages - 2 && totalPages > 5 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+
+              {/* Last page */}
+              {totalPages > 1 && (
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(totalPages)}
+                    isActive={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    {totalPages}
+                  </PaginationLink>
+                </PaginationItem>
+              )}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Empty state */}
       {filteredTickets.length === 0 && (

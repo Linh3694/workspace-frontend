@@ -27,6 +27,7 @@ import { Toaster as HotToaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import  TicketList from './pages/Application/Ticket/Admin/TicketList';
+import  Ticket  from './pages/Application/Ticket/User/Ticket';
 import './App.css';
 
 // Wrapper component để truyền currentUser
@@ -34,6 +35,13 @@ const TicketListWrapper = () => {
   const { user } = useAuth();
   const mappedUser = user ? { ...user, id: user._id } : null;
   return <TicketList currentUser={mappedUser} />;
+};
+
+const TicketWrapper = () => {
+  const { user } = useAuth();
+  if (!user) return null;
+  const mappedUser = { ...user, id: user._id };
+  return <Ticket currentUser={mappedUser} />;
 };
 
 function App() {
@@ -177,6 +185,13 @@ function App() {
           <Route path="application/tickets/management" element={
             <RoleProtectedRoute permission="application.tickets.admin">
               <TicketListWrapper />
+            </RoleProtectedRoute>
+          } />
+
+           {/* Application routes */}
+          <Route path="application/tickets" element={
+            <RoleProtectedRoute permission="application.tickets.user">
+              <TicketWrapper />
             </RoleProtectedRoute>
           } />
 

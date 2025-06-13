@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FaRegCircle, FaRegCircleDot } from "react-icons/fa6";
 import { FaCheckCircle } from "react-icons/fa";
-import { API_URL } from "../../../../lib/config";
+import { Input } from "@/components/ui/input";
 
 interface ProgressIndicatorProps {
   step: number;
@@ -155,7 +155,7 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
   };
 
   return (
-    <div className="w-full h-full p-6 bg-white rounded-2xl shadow-lg relative">
+    <div className="w-full p-4 bg-white rounded-2xl shadow-lg relative">
       {/* Icon trang trí */}
       <img
         src="/ticket/icon3.png"
@@ -178,7 +178,7 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
         <div className="w-full h-full flex flex-col items-center justify-between pt-5">
           {/* Bước 1 - Chọn loại ticket */}
           {step === 1 && (
-            <div className="w-full h-full flex flex-col items-center justify-center pb-[20%]">
+            <div className="w-full h-full flex flex-col items-center justify-center">
               <div>
                 <h1 className="text-center text-2xl font-bold text-gray-800 mb-5">
                   Xin chào WISer{" "}
@@ -201,22 +201,22 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
                     label: "Hỗ trợ chung",
                     image: "/ticket/overall.png",
                     description:
-                      ""Hỗ trợ chung" áp dụng cho các yêu cầu hỗ trợ kỹ thuật và vận hành hàng ngày...",
+                      "Dành cho mọi yêu cầu hỗ trợ kỹ thuật hằng ngày: máy tính, mạng nội bộ/Wi-Fi, in ấn, email, phần mềm, tài khoản đăng nhập, v.v."
                   },
                   {
                     type: "event",
                     label: "Hỗ trợ sự kiện",
                     image: "/ticket/event.png",
                     description:
-                      ""Hỗ trợ sự kiện" áp dụng cho các yêu cầu hỗ trợ kỹ thuật...",
+                      "Dành cho nhu cầu hỗ trợ kỹ thuật cho sự kiện: setup âm thanh − ánh sáng, trình chiếu, livestream, ghi hình, mượn thiết bị và hỗ trợ tại chỗ trước, trong, sau sự kiện."
                   },
                   {
                     type: "hrorder",
                     label: "Order Nhân sự",
                     image: "/ticket/hrorder.png",
                     description:
-                      ""Order nhân sự" áp dụng cho các yêu cầu bổ sung nhân sự...",
-                  },
+                      "Dành cho yêu cầu điều phối hoặc bổ sung nhân sự tạm thời: hỗ trợ lớp học, hội thảo, sự kiện, trực quầy, hỗ trợ vận hành theo ca hoặc ngắn hạn."
+                  }
                 ].map(({ type, label, image, description }) => (
                   <div
                     key={type}
@@ -262,7 +262,7 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
                       <label className="text-lg font-semibold text-[#002147]">
                         Tên sự kiện
                       </label>
-                      <input
+                      <Input
                         type="text"
                         placeholder="Nhập nội dung"
                         value={ticketData.title}
@@ -272,7 +272,7 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
                             title: e.target.value,
                           }))
                         }
-                        className="w-full mt-2 p-3 bg-gray-100 rounded-2xl border-none focus:ring-2 focus:ring-[#FF5733] placeholder-gray-400"
+                        className="mt-2"
                       />
                       <p className="text-gray-500 text-sm mt-1">
                         Ngắn gọn, tối đa 100 kí tự
@@ -387,12 +387,12 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
             <div className="w-full flex flex-col items-center">
               <div className="w-full max-w-2xl">
                 <h1 className="text-center text-2xl font-bold text-[#002147] mb-8">
-                  Đính kèm hình ảnh (nếu có)
+                  Bạn hãy cung cấp cho chúng tớ hình ảnh nếu có thể nhé
                 </h1>
                 <ProgressIndicator step={step} />
                 
                 <div className="w-full flex flex-col gap-4">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <div className="border-2 border-dashed border-gray-300 bg-[#F8F8F8] rounded-lg p-8 text-center">
                     <input
                       type="file"
                       multiple
@@ -405,7 +405,7 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
                       htmlFor="file-upload"
                       className="cursor-pointer flex flex-col items-center"
                     >
-                      <div className="text-4xl text-gray-400 mb-4">📁</div>
+                      <img src="/ticket/upload.png" alt="Upload" className="w-16 h-16 object-contain mb-4" />
                       <p className="text-lg font-semibold text-gray-600">
                         Kéo thả hoặc click để chọn file
                       </p>
@@ -445,55 +445,17 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
             <div className="w-full flex flex-col items-center">
               <div className="w-full max-w-2xl">
                 <h1 className="text-center text-2xl font-bold text-[#002147] mb-8">
-                  Xác nhận thông tin và ghi chú
-                </h1>
+Note lại cho chúng tớ những điều cần thiết nhé                </h1>
                 <ProgressIndicator step={step} />
                 
                 <div className="w-full flex flex-col gap-4">
-                  {/* Tóm tắt thông tin */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-[#002147] mb-2">Tóm tắt yêu cầu:</h3>
-                    <p><strong>Loại:</strong> {ticketData.type}</p>
-                    <p><strong>Tiêu đề:</strong> {ticketData.title}</p>
-                    <p><strong>Mô tả:</strong> {ticketData.description}</p>
-                    {ticketData.startDate && (
-                      <p><strong>Ngày bắt đầu:</strong> {ticketData.startDate}</p>
-                    )}
-                    {ticketData.endDate && (
-                      <p><strong>Ngày kết thúc:</strong> {ticketData.endDate}</p>
-                    )}
-                    <p><strong>Số file đính kèm:</strong> {ticketData.images.length}</p>
-                  </div>
-
-                  {/* Độ ưu tiên */}
-                  <div>
-                    <label className="text-lg font-semibold text-[#002147]">
-                      Độ ưu tiên
-                    </label>
-                    <select
-                      value={ticketData.priority}
-                      onChange={(e) =>
-                        setTicketData((prev) => ({
-                          ...prev,
-                          priority: e.target.value,
-                        }))
-                      }
-                      className="w-full mt-2 p-3 bg-gray-100 rounded-2xl border-none focus:ring-2 focus:ring-[#FF5733]"
-                    >
-                      <option value="Low">Thấp</option>
-                      <option value="Medium">Trung bình</option>
-                      <option value="High">Cao</option>
-                      <option value="Urgent">Khẩn cấp</option>
-                    </select>
-                  </div>
-
                   {/* Ghi chú */}
                   <div>
                     <label className="text-lg font-semibold text-[#002147]">
                       Ghi chú thêm (tùy chọn)
                     </label>
                     <textarea
-                      className="w-full h-[80px] mt-2 p-3 bg-gray-100 rounded-2xl border-none focus:ring-2 focus:ring-[#FF5733] placeholder-gray-400"
+                      className="w-full h-[120px] mt-2 p-3 bg-gray-100 rounded-2xl border-none focus:ring-2 focus:ring-[#FF5733] placeholder-gray-400"
                       rows={4}
                       placeholder="Thêm ghi chú nếu cần..."
                       value={ticketData.notes}
@@ -514,7 +476,11 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
           {step === 5 && (
             <div className="w-full h-full flex flex-col items-center justify-center">
               <div className="text-center">
-                <div className="text-6xl text-green-500 mb-4">✅</div>
+                <img 
+                  src="/ticket/final.png" 
+                  alt="Tạo ticket thành công" 
+                  className="mx-auto mb-6 w-44 h-auto object-cover"
+                />
                 <h1 className="text-2xl font-bold text-[#002147] mb-4">
                   Tạo ticket thành công!
                 </h1>
@@ -534,18 +500,15 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
 
           {/* Nút điều hướng */}
           {step < 5 && (
-            <div className="flex justify-between w-full max-w-2xl mt-8">
-              <button
-                onClick={handlePrevious}
-                disabled={step === 1}
-                className={`px-6 py-3 rounded-lg font-semibold ${
-                  step === 1
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-gray-500 text-white hover:bg-gray-600"
-                }`}
-              >
-                Quay lại
-              </button>
+            <div className="flex justify-center gap-4 w-full max-w-2xl mt-8">
+              {step > 1 && (
+                <button
+                  onClick={handlePrevious}
+                  className="w-48 px-6 py-3 rounded-lg font-semibold bg-[#EBEBEB] text-[#757575] hover:bg-gray-300"
+                >
+                  Quay lại
+                </button>
+              )}
               
               {step < 4 ? (
                 <button
@@ -554,10 +517,10 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
                     (step === 1 && !ticketData.type) ||
                     (step === 2 && (!ticketData.title || !ticketData.description))
                   }
-                  className={`px-6 py-3 rounded-lg font-semibold ${
+                  className={`w-48 px-6 py-3 rounded-lg font-semibold ${
                     (step === 1 && !ticketData.type) ||
                     (step === 2 && (!ticketData.title || !ticketData.description))
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      ? "bg-[#EBEBEB] text-[#757575] cursor-not-allowed"
                       : "bg-[#FF5733] text-white hover:bg-[#E64A2E]"
                   }`}
                 >
@@ -567,7 +530,7 @@ const TicketCreate: React.FC<TicketCreateProps> = ({
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !ticketData.title || !ticketData.description}
-                  className={`px-6 py-3 rounded-lg font-semibold ${
+                  className={`w-48 px-6 py-3 rounded-lg font-semibold ${
                     isSubmitting || !ticketData.title || !ticketData.description
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : "bg-[#FF5733] text-white hover:bg-[#E64A2E]"
