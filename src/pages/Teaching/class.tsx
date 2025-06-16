@@ -246,16 +246,36 @@ const ClassComponent: React.FC = () => {
       setUploadingImage(true);
       
       if (imageUploadType === 'student') {
-        // Upload ảnh học sinh - sử dụng PUT /students/:id với field 'avatar'
+        // Upload ảnh học sinh - sử dụng POST endpoint riêng cho photo
         const formData = new FormData();
         formData.append('avatar', selectedImageFile);
-        formData.append('data', JSON.stringify({})); // Data trống vì chỉ cập nhật avatar
+        
+        // Thêm schoolYear hiện tại để lưu ảnh vào Photo model
+        if (selectedSchoolYear) {
+          formData.append('schoolYear', selectedSchoolYear);
+        }
 
-        await api.put(API_ENDPOINTS.STUDENT(updateImageStudentId), formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        // Sử dụng endpoint upload photo riêng biệt
+        try {
+          await api.post(`${API_ENDPOINTS.STUDENTS}/${updateImageStudentId}/photo`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        } catch (error) {
+          console.error('Lỗi upload ảnh với POST /photo, thử PUT thay thế:', error);
+          
+          // Fallback: sử dụng cách cũ nếu route mới không có
+          const fallbackFormData = new FormData();
+          fallbackFormData.append('avatar', selectedImageFile);
+          fallbackFormData.append('data', JSON.stringify({}));
+          
+          await api.put(API_ENDPOINTS.STUDENT(updateImageStudentId), fallbackFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        }
 
         toast({
           title: "Thành công",

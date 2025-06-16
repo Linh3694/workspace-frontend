@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { API_URL, BASE_URL, API_ENDPOINTS } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,7 +151,49 @@ function LibraryManagement() {
       if (!response.ok) throw new Error("Failed to search students");
       const data = await response.json();
       if (Array.isArray(data)) {
-        setStudentSuggestions(data);
+                const studentsWithPhotos = await Promise.all(
+          data.map(async (student: StudentSuggestion) => {
+            let photoUrl = student.photoUrl;
+            
+            // Nếu chưa có ảnh hoặc ảnh rỗng, thử lấy từ API
+            if (!photoUrl || photoUrl.trim() === "") {
+              // Thử lấy từ Photo model trước
+              try {
+                const photoApiUrl = `${API_ENDPOINTS.STUDENTS}/${student._id}/photo/current`;
+                const photoResponse = await fetch(photoApiUrl);
+                
+                if (photoResponse.ok) {
+                  const photoData = await photoResponse.json();
+                  photoUrl = photoData.photoUrl;
+                }
+              } catch {
+                // Ignore photo API errors
+              }
+              
+              // Fallback: nếu vẫn chưa có ảnh, thử Student model
+              if (!photoUrl) {
+                try {
+                  const studentApiUrl = `${API_ENDPOINTS.STUDENTS}/${student._id}`;
+                  const studentResponse = await fetch(studentApiUrl);
+                  
+                  if (studentResponse.ok) {
+                    const studentData = await studentResponse.json();
+                    photoUrl = studentData.avatarUrl;
+                  }
+                } catch {
+                  // Ignore student API errors
+                }
+              }
+            }
+            
+            return {
+              ...student,
+              photoUrl: photoUrl || ""
+            };
+          })
+        );
+        
+        setStudentSuggestions(studentsWithPhotos);
         setShowSuggestions(true);
       }
     } catch (error) {
@@ -161,7 +203,8 @@ function LibraryManagement() {
   };
 
   // Select student from suggestions
-  const handleSelectStudentSuggestion = (student: StudentSuggestion) => {
+  const handleSelectStudentSuggestion = async (student: StudentSuggestion) => {
+    // Set thông tin cơ bản trước
     setStudentInfo({
       studentId: student._id,
       studentCode: student.studentId,
@@ -170,9 +213,56 @@ function LibraryManagement() {
       className: student.className,
       photoUrl: student.photoUrl || "",
     });
+    
     setStudentSuggestions([]);
     setShowSuggestions(false);
     setSearchQuery(student.studentId);
+    
+    // Lấy ảnh học sinh từ API nếu chưa có hoặc ảnh rỗng
+    if (!student.photoUrl || student.photoUrl.trim() === "") {
+      try {
+        let photoUrl = null;
+        
+        // Thử lấy ảnh từ Photo model trước
+        try {
+          const photoApiUrl = `${API_ENDPOINTS.STUDENTS}/${student._id}/photo/current`;
+          const photoResponse = await fetch(photoApiUrl);
+          
+          if (photoResponse.ok) {
+            const photoData = await photoResponse.json();
+            photoUrl = photoData.photoUrl;
+          }
+        } catch {
+          // Ignore photo API errors
+        }
+
+        // Fallback: nếu không có ảnh từ Photo model, thử Student model
+        if (!photoUrl) {
+          try {
+            const studentApiUrl = `${API_ENDPOINTS.STUDENTS}/${student._id}`;
+            const studentResponse = await fetch(studentApiUrl);
+            
+            if (studentResponse.ok) {
+              const studentData = await studentResponse.json();
+              photoUrl = studentData.avatarUrl;
+            }
+          } catch {
+            // Ignore student API errors
+          }
+        }
+        
+        // Cập nhật ảnh nếu tìm thấy
+        if (photoUrl && photoUrl.trim() !== "") {
+          setStudentInfo(prev => ({
+            ...prev,
+            photoUrl: photoUrl
+          }));
+        }
+        
+      } catch {
+        // Ignore errors silently
+      }
+    }
   };
 
   // Confirm borrow
@@ -507,19 +597,41 @@ function LibraryManagement() {
                     value={searchQuery}
                     onChange={(e) => handleSearchStudent(e.target.value)}
                     placeholder="Nhập mã hoặc tên học sinh..."
+                    className="w-full"
                   />
                   
                   {/* Suggestions Dropdown */}
                   {showSuggestions && studentSuggestions.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
                       {studentSuggestions.map((stu) => (
                         <div
                           key={stu._id}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          className="flex items-center gap-3 px-3 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
                           onClick={() => handleSelectStudentSuggestion(stu)}
                         >
-                          <div className="font-medium">{stu.fullName}</div>
-                          <div className="text-sm text-muted-foreground">{stu.studentId}</div>
+                          {/* Avatar học sinh trong dropdown */}
+                          <Avatar className="w-10 h-10 flex-shrink-0">
+                            <AvatarImage
+                              src={stu.photoUrl && stu.photoUrl.trim() !== "" 
+                                ? (stu.photoUrl.startsWith('/') 
+                                    ? `${BASE_URL}${stu.photoUrl}` 
+                                    : `${BASE_URL}/${stu.photoUrl}`)
+                                : undefined}
+                              alt={stu.fullName}
+                            />
+                            <AvatarFallback className="text-xs">
+                              {stu.fullName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          {/* Thông tin học sinh */}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{stu.fullName}</div>
+                            <div className="text-xs text-muted-foreground">{stu.studentId}</div>
+                            {stu.className && (
+                              <div className="text-xs text-blue-600">Lớp: {stu.className}</div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -565,24 +677,23 @@ function LibraryManagement() {
             </div>
 
             {/* Student Photo in Center */}
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <Avatar className="w-40 h-40">
-                <AvatarImage
-                  src={studentInfo.photoUrl ? `${BASE_URL}/${studentInfo.photoUrl}` : undefined}
-                  alt="Student"
-                />
-                <AvatarFallback>
-                  <FiUser size={60} />
-                </AvatarFallback>
-              </Avatar>
-              {studentInfo.name && (
-                <div className="text-center">
-                  <p className="font-semibold text-lg">{studentInfo.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {studentInfo.studentCode}
-                  </p>
-                </div>
-              )}
+            <div className="flex flex-col items-center justify-center space-y-6">
+              <div className="relative">
+                {studentInfo.photoUrl && studentInfo.photoUrl.trim() !== "" ? (
+                  <img
+                    src={studentInfo.photoUrl.startsWith('/') 
+                      ? `${BASE_URL}${studentInfo.photoUrl}` 
+                      : `${BASE_URL}/${studentInfo.photoUrl}`}
+                    alt="Student"
+                    className="w-56 h-72 object-cover rounded-lg border-4 border-gray-200 shadow-lg"
+                  />
+                ) : (
+                  <div className="w-48 h-64 bg-gray-100 rounded-lg border-4 border-gray-200 shadow-lg flex items-center justify-center">
+                    <FiUser size={80} className="text-gray-400" />
+                  </div>
+                )}
+              </div>
+             
             </div>
 
             {/* Step 2: Review Books */}

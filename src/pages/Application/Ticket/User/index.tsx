@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL } from "../../../core/config";
-import { toast } from "react-toastify";
+import { API_URL } from "@/lib/config";
+import { toast } from "sonner";
 import TicketCreate from "./TicketCreate";
 import TicketDetail from "./TicketDetail";
-import TicketList from "./TicketList";
+import TicketList from "./Ticket";
 
 interface User {
   id: string;

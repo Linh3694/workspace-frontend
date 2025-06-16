@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
-import { API_URL, BASE_URL } from "../../../core/config";
-import { toast } from "react-toastify";
+import { API_URL, BASE_URL } from "@/lib/config";
+import { toast } from "sonner";
 
 interface User {
   _id: string;
@@ -14,10 +14,7 @@ interface User {
   badgesCount?: Record<string, number>;
 }
 
-interface SupportTeam {
-  teamName: string;
-  members: User[];
-}
+
 
 const TicketTeam: React.FC = () => {
   const [members, setMembers] = useState<User[]>([]);

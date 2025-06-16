@@ -104,7 +104,7 @@ const Avatar: React.FC<{
   );
 });
 
-const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser, fetchTicketById }) => {
+const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser, fetchTicketById: _ }) => {
   const socketRef = useRef<Socket | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -116,7 +116,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser, fetchTicke
   const [newMessage, setNewMessage] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  // const [uploadProgress, setUploadProgress] = useState(0);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [imageCaption, setImageCaption] = useState("");
   const [isTyping, setIsTyping] = useState(false);

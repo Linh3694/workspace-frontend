@@ -15,15 +15,13 @@ declare global {
   }
 }
 
+// Sử dụng Vite environment variables thay vì Next.js
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 interface RequestOptions {
   headers?: Record<string, string>;
   [key: string]: unknown;
 }
-
-// Lấy API URL từ biến môi trường của Next.js hoặc sử dụng giá trị mặc định
-const API_URL = typeof window !== 'undefined' 
-  ? window.__NEXT_DATA__?.props?.pageProps?.apiUrl || 'https://api-dev.wellspring.edu.vn/api'
-  : 'https://api-dev.wellspring.edu.vn/api';
 
 const api = axios.create({
   baseURL: API_URL,

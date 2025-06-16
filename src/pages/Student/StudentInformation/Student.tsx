@@ -107,6 +107,10 @@ const StudentList: React.FC = () => {
     // Pagination states
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageSize] = useState<number>(10);
+    
+    // Lazy loading state for photos
+    const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
+    const [loadedPhotos, setLoadedPhotos] = useState<Set<string>>(new Set());
 
     // Dialog states
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
@@ -124,6 +128,7 @@ const StudentList: React.FC = () => {
     // Reset page when search term changes
     useEffect(() => {
         setCurrentPage(1);
+        setLoadedPhotos(new Set()); // Clear loaded photos cache khi search
     }, [searchTerm]);
 
     const fetchStudents = async () => {
@@ -132,23 +137,8 @@ const StudentList: React.FC = () => {
             const response = await axios.get(`${API_ENDPOINTS.STUDENTS}?populate=family`);
             const studentsData = Array.isArray(response.data) ? response.data : [];
             
-            // Lấy ảnh hiện tại cho từng học sinh
-            const studentsWithPhotos = await Promise.all(
-                studentsData.map(async (student: Student) => {
-                    try {
-                        const photoResponse = await axios.get(`${API_ENDPOINTS.STUDENTS}/${student._id}/photo/current`);
-                        return {
-                            ...student,
-                            currentPhotoUrl: photoResponse.data.photoUrl
-                        };
-                    } catch {
-                        // Nếu không có ảnh hoặc lỗi, giữ nguyên học sinh
-                        return student;
-                    }
-                })
-            );
-            
-            setStudents(studentsWithPhotos);
+            // Không load ảnh ngay, chỉ set students data
+            setStudents(studentsData);
             setLoading(false);
         } catch (error) {
             console.error('Lỗi khi tải danh sách học sinh:', error);
@@ -158,6 +148,105 @@ const StudentList: React.FC = () => {
                 variant: "destructive"
             });
             setLoading(false);
+        }
+    };
+
+    // Lazy load ảnh cho học sinh trên trang hiện tại
+    const loadPhotosForCurrentPage = async (studentsOnPage: Student[]) => {
+        if (loadingPhotos) return; // Tránh gọi song song
+        
+        try {
+            setLoadingPhotos(true);
+            
+            // Chỉ load ảnh cho những học sinh chưa có ảnh (không có cả currentPhotoUrl và avatarUrl)
+            const studentsNeedPhotos = studentsOnPage.filter(student => 
+                !loadedPhotos.has(student._id) && !student.currentPhotoUrl && !student.avatarUrl
+            );
+            
+            if (studentsNeedPhotos.length === 0) {
+                setLoadingPhotos(false);
+                return;
+            }
+            
+            // Load ảnh theo batch nhỏ
+            const batchSize = 3;
+            const updatedStudents = [...students];
+            
+            for (let i = 0; i < studentsNeedPhotos.length; i += batchSize) {
+                const batch = studentsNeedPhotos.slice(i, i + batchSize);
+                
+                const batchResults = await Promise.allSettled(
+                    batch.map(async (student: Student) => {
+                        try {
+                            console.log(`🔍 Đang tải ảnh cho học sinh: ${student.name} (ID: ${student._id})`);
+                            
+                            let photoUrl = null;
+                            
+                            // Thử lấy ảnh từ Photo model trước
+                            try {
+                                const photoResponse = await axios.get(`${API_ENDPOINTS.STUDENTS}/${student._id}/photo/current`);
+                                console.log(`📸 Photo model response cho ${student.name}:`, photoResponse.data);
+                                photoUrl = photoResponse.data.photoUrl;
+                                console.log(`✅ Tìm thấy ảnh từ Photo model cho ${student.name}: ${photoUrl}`);
+                            } catch (photoError) {
+                                console.log(`⚠️ Không có ảnh trong Photo model cho ${student.name}, thử lấy từ Student model...`, photoError);
+                                
+                                // Fallback: lấy ảnh từ Student model (avatarUrl)
+                                try {
+                                    const studentResponse = await axios.get(`${API_ENDPOINTS.STUDENTS}/${student._id}`);
+                                    photoUrl = studentResponse.data.avatarUrl;
+                                    if (photoUrl) {
+                                        console.log(`✅ Tìm thấy avatarUrl từ Student model cho ${student.name}: ${photoUrl}`);
+                                    }
+                                } catch (avatarError) {
+                                    console.log(`❌ Không thể lấy avatarUrl cho ${student.name}:`, avatarError);
+                                }
+                            }
+                            
+                            if (photoUrl) {
+                                // Cập nhật student trong array
+                                const studentIndex = updatedStudents.findIndex(s => s._id === student._id);
+                                if (studentIndex !== -1) {
+                                    updatedStudents[studentIndex] = {
+                                        ...updatedStudents[studentIndex],
+                                        currentPhotoUrl: photoUrl
+                                    };
+                                }
+                            } else {
+                                console.log(`⚠️ Không tìm thấy ảnh nào cho ${student.name}`);
+                            }
+                            
+                            return { studentId: student._id, success: true, photoUrl };
+                        } catch (error) {
+                            console.error(`🚨 Lỗi không mong đợi khi lấy ảnh cho học sinh ${student.name}:`, error);
+                            
+                            // Mark as attempted even if failed
+                            return { studentId: student._id, success: false };
+                        }
+                    })
+                );
+                
+                // Cập nhật loaded photos set
+                const newLoadedPhotos = new Set(loadedPhotos);
+                batchResults.forEach((result) => {
+                    if (result.status === 'fulfilled') {
+                        newLoadedPhotos.add(result.value.studentId);
+                    }
+                });
+                setLoadedPhotos(newLoadedPhotos);
+                
+                // Cập nhật state
+                setStudents(updatedStudents);
+                
+                // Delay nhỏ giữa các batch
+                if (i + batchSize < studentsNeedPhotos.length) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+        } catch (error) {
+            console.error('Lỗi khi load ảnh:', error);
+        } finally {
+            setLoadingPhotos(false);
         }
     };
 
@@ -205,7 +294,9 @@ const StudentList: React.FC = () => {
                 // Thêm schoolYear hiện tại để lưu ảnh vào Photo model
                 try {
                     const schoolYearResponse = await axios.get(`${API_ENDPOINTS.SCHOOL_YEARS}`);
-                    const currentSchoolYear = schoolYearResponse.data.find((year: { isActive: boolean; _id: string }) => year.isActive);
+                    // Sửa lỗi: truy cập vào schoolYearResponse.data.data thay vì schoolYearResponse.data
+                    const schoolYears = schoolYearResponse.data.data || schoolYearResponse.data;
+                    const currentSchoolYear = schoolYears.find((year: { isActive: boolean; _id: string }) => year.isActive);
                     if (currentSchoolYear) {
                         payload.append('schoolYear', currentSchoolYear._id);
                     }
@@ -221,7 +312,11 @@ const StudentList: React.FC = () => {
                 description: `Thêm học sinh mới thành công${parentAccounts.length > 0 ? ' kèm ' + parentAccounts.length + ' tài khoản phụ huynh' : ''}`,
             });
             setIsCreateDialogOpen(false);
-            await fetchStudents();
+            
+            // Thêm delay ngắn để đảm bảo ảnh đã được lưu
+            setTimeout(async () => {
+                await fetchStudents();
+            }, 1000);
         } catch (error) {
             console.error('Lỗi khi thêm học sinh:', error);
             toast({
@@ -281,7 +376,9 @@ const StudentList: React.FC = () => {
                 // Thêm schoolYear hiện tại để lưu ảnh vào Photo model
                 try {
                     const schoolYearResponse = await axios.get(`${API_ENDPOINTS.SCHOOL_YEARS}`);
-                    const currentSchoolYear = schoolYearResponse.data.find((year: { isActive: boolean; _id: string }) => year.isActive);
+                    // Sửa lỗi: truy cập vào schoolYearResponse.data.data thay vì schoolYearResponse.data
+                    const schoolYears = schoolYearResponse.data.data || schoolYearResponse.data;
+                    const currentSchoolYear = schoolYears.find((year: { isActive: boolean; _id: string }) => year.isActive);
                     if (currentSchoolYear) {
                         payload.append('schoolYear', currentSchoolYear._id);
                     }
@@ -298,7 +395,11 @@ const StudentList: React.FC = () => {
             });
             setIsEditDialogOpen(false);
             setSelectedStudent(null);
-            await fetchStudents();
+            
+            // Thêm delay ngắn để đảm bảo ảnh đã được lưu
+            setTimeout(async () => {
+                await fetchStudents();
+            }, 1000);
         } catch (error) {
             console.error('Lỗi khi cập nhật học sinh:', error);
             toast({
@@ -411,6 +512,13 @@ const StudentList: React.FC = () => {
         setCurrentPage(page);
     };
 
+    // Load ảnh khi trang thay đổi
+    useEffect(() => {
+        if (currentPageStudents.length > 0 && !loading) {
+            loadPhotosForCurrentPage(currentPageStudents);
+        }
+    }, [currentPage, students.length, loading]); // Dependency array
+
     // Pagination display logic
     const getPaginationNumbers = () => {
         const pages = [];
@@ -500,7 +608,7 @@ const StudentList: React.FC = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                            <Button variant="outline" onClick={fetchStudents}>Refresh</Button>
+                           
                             <Button onClick={() => setIsImportDialogOpen(true)}>Nhập từ Excel</Button>
                             <Button onClick={() => setIsCreateDialogOpen(true)}>Thêm học sinh</Button>
                         </div>
@@ -558,23 +666,55 @@ const StudentList: React.FC = () => {
                                                 }
 
                                                 return (
-                                                    <TableRow
+                                        <TableRow
                                                         key={student._id}
                                                     >
-                                                        <TableCell className="font-medium">{student.studentCode}</TableCell>
+                                            <TableCell className="font-medium">{student.studentCode}</TableCell>
                                                                                                 <TableCell>
                                             <div className="flex items-center gap-2">
-                                                {(student.currentPhotoUrl || student.avatarUrl) && (
+                                                {(student.currentPhotoUrl || student.avatarUrl) ? (
                                                     <img
                                                         src={`${BASE_URL}${student.currentPhotoUrl || student.avatarUrl}`}
-                                                        alt={student.name}
+                                                        alt={`Ảnh của ${student.name}`}
                                                         className="w-8 h-8 rounded-full object-cover border"
                                                         onError={(e) => {
                                                             const target = e.target as HTMLImageElement;
+                                                            console.log(`❌ Lỗi load ảnh cho ${student.name}:`, target.src);
+                                                            // Thay vì ẩn hoàn toàn, hiển thị fallback avatar
                                                             target.style.display = 'none';
+                                                            const fallbackDiv = target.nextElementSibling as HTMLElement;
+                                                            if (fallbackDiv && fallbackDiv.classList.contains('fallback-avatar')) {
+                                                                fallbackDiv.style.display = 'flex';
+                                                            }
+                                                        }}
+                                                        onLoad={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            console.log(`✅ Ảnh load thành công cho ${student.name}:`, target.src);
+                                                            // Ẩn fallback khi ảnh load thành công
+                                                            const fallbackDiv = target.nextElementSibling as HTMLElement;
+                                                            if (fallbackDiv && fallbackDiv.classList.contains('fallback-avatar')) {
+                                                                fallbackDiv.style.display = 'none';
+                                                            }
                                                         }}
                                                     />
-                                                )}
+                                                ) : null}
+                                                
+                                                {/* Fallback avatar - hiển thị khi không có ảnh hoặc ảnh lỗi */}
+                                                <div 
+                                                    className={`fallback-avatar w-8 h-8 rounded-full border flex items-center justify-center ${
+                                                        (student.currentPhotoUrl || student.avatarUrl) ? 'hidden' : 
+                                                        loadingPhotos && !loadedPhotos.has(student._id) ? 'bg-gray-200' : 'bg-gray-100'
+                                                    }`}
+                                                    style={{ display: (student.currentPhotoUrl || student.avatarUrl) ? 'none' : 'flex' }}
+                                                >
+                                                    {loadingPhotos && !loadedPhotos.has(student._id) ? (
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                                                    ) : (
+                                                        <span className="text-xs font-semibold text-gray-600">
+                                                            {student.name.charAt(0).toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <span>{student.name}</span>
                                             </div>
                                         </TableCell>
