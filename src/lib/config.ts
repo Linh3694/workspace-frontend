@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
   // Student endpoints
   STUDENTS: `${API_URL}/students`,
   STUDENT: (id: string) => `${API_URL}/students/${id}`,
+  STUDENTS_SEARCH: `${API_URL}/students/search`,
   // Teacher endpoints
   TEACHERS: `${API_URL}/teachers`,
   TEACHER: (id: string) => `${API_URL}/teachers/${id}`,

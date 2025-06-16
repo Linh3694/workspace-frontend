@@ -19,14 +19,12 @@ import {
   SelectValue,
 } from '../../../components/ui/select';
 import { 
-  Plus, 
   Trophy, 
   Edit, 
   Trash2, 
   Users, 
   GraduationCap, 
   Download,
-  FileSpreadsheet
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 
@@ -71,6 +69,28 @@ interface Class {
   classCode: string;
 }
 
+interface SchoolYear {
+  _id: string;
+  code: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  displayName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface StudentData {
+  student: Student;
+  exam?: string;
+  score?: number | string;
+  photo?: Photo;
+  currentClass?: Class;
+  activity?: string[];
+  note?: string;
+  noteEng?: string;
+}
+
 interface AwardRecord {
   _id: string;
   awardCategory: AwardCategory;
@@ -83,16 +103,7 @@ interface AwardRecord {
     month?: number;
     priority?: number;
   };
-  students: Array<{
-    student: Student;
-    exam?: string;
-    score?: number | string;
-    photo?: Photo;
-    currentClass?: Class;
-    activity?: string[];
-    note?: string;
-    noteEng?: string;
-  }>;
+  students: StudentData[];
   awardClasses: Array<{
     class: string;
     note?: string;
@@ -111,38 +122,109 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [records, setRecords] = useState<AwardRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState<boolean>(false);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
-  const [availableSchoolYears, setAvailableSchoolYears] = useState<string[]>([]);
+  const [availableSchoolYears, setAvailableSchoolYears] = useState<SchoolYear[]>([]);
+  const [selectedSubAward, setSelectedSubAward] = useState<string>('');
+  const [availableSubAwards, setAvailableSubAwards] = useState<SubAward[]>([]);
 
-  // Generate school years (current year and previous 5 years)
+  // Fetch school years from backend
   useEffect(() => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let i = 0; i <= 5; i++) {
-      const year = currentYear - i;
-      years.push(`${year}-${year + 1}`);
-    }
-    setAvailableSchoolYears(years);
-    if (years.length > 0) {
-      setSelectedSchoolYear(years[0]); // Set current school year as default
-    }
+    const fetchSchoolYears = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(API_ENDPOINTS.SCHOOL_YEARS, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const schoolYears = response.data?.data || response.data || [];
+        
+        setAvailableSchoolYears(schoolYears);
+        
+        // Set active school year as default, or first one if no active year
+        const activeYear = schoolYears.find((year: SchoolYear) => year.isActive);
+        if (activeYear) {
+          setSelectedSchoolYear(activeYear._id);
+        } else if (schoolYears.length > 0) {
+          setSelectedSchoolYear(schoolYears[0]._id);
+        }
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách năm học:', error);
+        // Fallback to empty if API fails
+        setAvailableSchoolYears([]);
+        setSelectedSchoolYear('');
+      }
+    };
+
+    fetchSchoolYears();
   }, []);
 
+  // Fetch available subAwards when category or school year changes
   useEffect(() => {
     if (selectedCategory && selectedSchoolYear) {
-      fetchRecords(selectedCategory._id, selectedSchoolYear);
+      const subAwardsForYear = selectedCategory.subAwards.filter(
+        (subAward) => subAward.schoolYear === selectedSchoolYear
+      );
+      
+      setAvailableSubAwards(subAwardsForYear);
+      
+      // Auto-select first subAward if available
+      if (subAwardsForYear.length > 0) {
+        // Create unique identifier for subAward
+        const firstSubAward = subAwardsForYear[0];
+        const subAwardId = `${firstSubAward.type}-${firstSubAward.label}-${firstSubAward.semester || ''}-${firstSubAward.month || ''}`;
+        setSelectedSubAward(subAwardId);
+      } else {
+        setSelectedSubAward('');
+      }
+    } else {
+      setAvailableSubAwards([]);
+      setSelectedSubAward('');
     }
   }, [selectedCategory, selectedSchoolYear]);
 
-  const fetchRecords = async (categoryId: string, schoolYear: string) => {
+  useEffect(() => {
+    if (selectedCategory && selectedSchoolYear && selectedSubAward) {
+      // Parse subAwardId to get the actual subAward object
+      const subAward = availableSubAwards.find(sa => {
+        const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+        return subAwardId === selectedSubAward;
+      });
+      
+      if (subAward) {
+        fetchRecords(selectedCategory._id, selectedSchoolYear, subAward);
+      }
+    }
+  }, [selectedCategory, selectedSchoolYear, selectedSubAward, availableSubAwards]);
+
+  const fetchRecords = async (categoryId: string, schoolYear: string, subAward?: SubAward) => {
     try {
       setRecordsLoading(true);
-      const response = await axios.get(API_ENDPOINTS.AWARD_RECORDS, {
-        params: { 
-          awardCategory: categoryId,
-          subAwardSchoolYear: schoolYear
+      const token = localStorage.getItem('token');
+      const params: Record<string, string> = { 
+        awardCategory: categoryId,
+        subAwardSchoolYear: schoolYear
+      };
+      
+      if (subAward) {
+        params.subAwardType = subAward.type;
+        params.subAwardLabel = subAward.label;
+        if (subAward.semester) {
+          params.subAwardSemester = subAward.semester.toString();
         }
+        if (subAward.month) {
+          params.subAwardMonth = subAward.month.toString();
+        }
+      }
+      
+      console.log('📍 Fetching records with params:', params);
+      console.log('📍 SubAward object:', subAward);
+      
+      const response = await axios.get(API_ENDPOINTS.AWARD_RECORDS, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
       });
+      
+      console.log('📍 API Response:', response.data);
       const recordsData = Array.isArray(response.data) ? response.data : [];
+      console.log('📍 Final records:', recordsData);
       setRecords(recordsData);
     } catch (error) {
       console.error('Lỗi khi tải danh sách bản ghi vinh danh:', error);
@@ -166,7 +248,10 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     }
     
     try {
-      await axios.delete(`${API_ENDPOINTS.AWARD_RECORDS}/${recordId}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_ENDPOINTS.AWARD_RECORDS}/${recordId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       // Refresh records after deletion
       if (selectedCategory && selectedSchoolYear) {
         fetchRecords(selectedCategory._id, selectedSchoolYear);
@@ -192,7 +277,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     console.log('Download Excel');
   };
 
-  const renderStudentInfo = (studentData: any) => {
+  const renderStudentInfo = (studentData: StudentData) => {
     const { student, exam, score, activity, note, noteEng } = studentData;
     
     return (
@@ -257,7 +342,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
             </CardDescription>
           </div>
           
-          {/* School Year Selector */}
+          {/* School Year and SubAward Selectors */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Năm học:</span>
@@ -267,13 +352,35 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                 </SelectTrigger>
                 <SelectContent>
                   {availableSchoolYears.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
+                    <SelectItem key={year._id} value={year._id}>
+                      {year.displayName || year.code}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* SubAward Selector */}
+            {availableSubAwards.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Hạng mục:</span>
+                <Select value={selectedSubAward} onValueChange={setSelectedSubAward}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Chọn hạng mục" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSubAwards.map((subAward) => {
+                      const subAwardId = `${subAward.type}-${subAward.label}-${subAward.semester || ''}-${subAward.month || ''}`;
+                      return (
+                        <SelectItem key={subAwardId} value={subAwardId}>
+                          {subAward.label}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
             {/* Action Buttons */}
             {selectedCategory && (

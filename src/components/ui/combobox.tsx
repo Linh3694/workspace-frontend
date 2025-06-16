@@ -53,6 +53,13 @@ export function Combobox({
   const [open, setOpen] = React.useState(false)
   const [internalValue, setInternalValue] = React.useState(value || "")
 
+  // Sync internal value với prop value khi nó thay đổi
+  React.useEffect(() => {
+    if (value !== undefined) {
+      setInternalValue(value)
+    }
+  }, [value])
+
   const currentValues = multiple ? selectedValues : [internalValue]
 
   const handleSelect = (selectedValue: string) => {
@@ -113,7 +120,7 @@ export function Combobox({
                 {options.map((option) => (
                   <CommandItem
                     key={option.value}
-                    value={option.value}
+                    value={option.label}
                     onSelect={() => handleSelect(option.value)}
                   >
                     <CheckIcon

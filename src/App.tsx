@@ -20,6 +20,8 @@ import ReportCard from './pages/Student/ReportCard';
 import Attendance from './pages/Student/Attendance';
 import CommunicationBook from './pages/Student/CommunicationBook';
 import HallOfHonor from './pages/Student/HallOfHonor/HallOfHonor';
+import LibraryData from './pages/Library/libraryData';
+import LibraryManagement from './pages/Library/libraryManagement';
 import { RecruitmentAdmin } from './pages/Recruitment';
 import  ApplicationList  from './pages/Recruitment/ApplicationList';
 import { Toaster } from './components/ui/sonner';
@@ -166,6 +168,18 @@ function App() {
           <Route path="facilities/rooms" element={
             <RoleProtectedRoute permission="facilities.rooms">
               <Room />
+            </RoleProtectedRoute>
+          } />
+
+          {/* Library routes */}
+          <Route path="library/data" element={
+            <RoleProtectedRoute permission="library.data">
+              <LibraryData />
+            </RoleProtectedRoute>
+          } />
+          <Route path="library/books" element={
+            <RoleProtectedRoute permission="library.books">
+              <LibraryManagement />
             </RoleProtectedRoute>
           } />
 

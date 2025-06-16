@@ -135,8 +135,14 @@ export const MENU_SECTIONS: MenuSection[] = [
     ]
   },
   {
-    title: "Cơ sở vật chất",
+    title: "Hành chính - Dịch vụ",
     items: [
+      {
+        title: "Thực đơn",
+        href: "/dashboard/services/menu",
+        description: "Quản lý thực đơn hàng ngày",
+        permission: "services.menu"
+      },
       {
         title: "Quản lý phòng học",
         href: "/dashboard/facilities/rooms",
@@ -146,32 +152,26 @@ export const MENU_SECTIONS: MenuSection[] = [
     ]
   },
   {
-    title: "Dịch vụ học sinh",
+    title: "Thư viện",
     items: [
       {
-        title: "Thực đơn",
-        href: "/dashboard/services/menu",
-        description: "Quản lý thực đơn hàng ngày",
-        permission: "services.menu"
+        title: "Quản lý dữ liệu thư viện",
+        href: "/dashboard/library/data",
+        description: "Quản lý dữ liệu thư viện",
+        permission: "library"
       },
       {
-        title: "Xe đưa đón",
-        href: "/dashboard/services/bus",
-        description: "Quản lý xe đưa đón học sinh",
-        permission: "services.bus"
+        title: "Quản lý Sách",
+        href: "/dashboard/library/books",
+        description: "Quản lý Sách",
+        permission: "library.books"
       },
-      {
-        title: "Bán trú",
-        href: "/dashboard/services/boarding",
-        description: "Quản lý dịch vụ bán trú",
-        permission: "services.boarding"
+       {
+        title: "Báo cáo",
+        href: "/dashboard/library/reports",
+        description: "Báo cáo thư viện",
+        permission: "library.reports"
       },
-      {
-        title: "Hoạt động ngoại khóa",
-        href: "/dashboard/services/activities",
-        description: "Quản lý các hoạt động ngoại khóa",
-        permission: "services.activities"
-      }
     ]
   },
   {

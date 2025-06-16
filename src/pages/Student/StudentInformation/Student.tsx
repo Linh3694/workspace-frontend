@@ -64,7 +64,8 @@ interface Student {
     createdAt: string;
     updatedAt: string;
     avatar?: string;
-    avatarUrl?: string;
+    avatarUrl?: string; // Deprecated - sẽ được thay thế bằng currentPhotoUrl
+    currentPhotoUrl?: string; // Ảnh hiện tại từ Photo model
     family?: {
         _id: string;
         familyCode: string;
@@ -129,7 +130,25 @@ const StudentList: React.FC = () => {
         try {
             setLoading(true);
             const response = await axios.get(`${API_ENDPOINTS.STUDENTS}?populate=family`);
-            setStudents(Array.isArray(response.data) ? response.data : []);
+            const studentsData = Array.isArray(response.data) ? response.data : [];
+            
+            // Lấy ảnh hiện tại cho từng học sinh
+            const studentsWithPhotos = await Promise.all(
+                studentsData.map(async (student: Student) => {
+                    try {
+                        const photoResponse = await axios.get(`${API_ENDPOINTS.STUDENTS}/${student._id}/photo/current`);
+                        return {
+                            ...student,
+                            currentPhotoUrl: photoResponse.data.photoUrl
+                        };
+                    } catch {
+                        // Nếu không có ảnh hoặc lỗi, giữ nguyên học sinh
+                        return student;
+                    }
+                })
+            );
+            
+            setStudents(studentsWithPhotos);
             setLoading(false);
         } catch (error) {
             console.error('Lỗi khi tải danh sách học sinh:', error);
@@ -183,6 +202,16 @@ const StudentList: React.FC = () => {
             // Xử lý trường avatar nếu có
             if (formData.avatar && typeof formData.avatar !== 'string') {
                 payload.append('avatar', formData.avatar);
+                // Thêm schoolYear hiện tại để lưu ảnh vào Photo model
+                try {
+                    const schoolYearResponse = await axios.get(`${API_ENDPOINTS.SCHOOL_YEARS}`);
+                    const currentSchoolYear = schoolYearResponse.data.find((year: { isActive: boolean; _id: string }) => year.isActive);
+                    if (currentSchoolYear) {
+                        payload.append('schoolYear', currentSchoolYear._id);
+                    }
+                } catch (error) {
+                    console.warn('Không thể lấy năm học hiện tại:', error);
+                }
             }
 
             await axios.post(API_ENDPOINTS.STUDENTS, payload);
@@ -249,6 +278,16 @@ const StudentList: React.FC = () => {
             // Xử lý trường avatar nếu có
             if (formData.avatar && typeof formData.avatar !== 'string') {
                 payload.append('avatar', formData.avatar);
+                // Thêm schoolYear hiện tại để lưu ảnh vào Photo model
+                try {
+                    const schoolYearResponse = await axios.get(`${API_ENDPOINTS.SCHOOL_YEARS}`);
+                    const currentSchoolYear = schoolYearResponse.data.find((year: { isActive: boolean; _id: string }) => year.isActive);
+                    if (currentSchoolYear) {
+                        payload.append('schoolYear', currentSchoolYear._id);
+                    }
+                } catch (error) {
+                    console.warn('Không thể lấy năm học hiện tại:', error);
+                }
             }
 
             await axios.put(`${API_ENDPOINTS.STUDENTS}/${formData._id}`, payload);
@@ -461,6 +500,7 @@ const StudentList: React.FC = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             />
+                            <Button variant="outline" onClick={fetchStudents}>Refresh</Button>
                             <Button onClick={() => setIsImportDialogOpen(true)}>Nhập từ Excel</Button>
                             <Button onClick={() => setIsCreateDialogOpen(true)}>Thêm học sinh</Button>
                         </div>
@@ -522,18 +562,22 @@ const StudentList: React.FC = () => {
                                                         key={student._id}
                                                     >
                                                         <TableCell className="font-medium">{student.studentCode}</TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2">
-                                                                {student.avatarUrl && (
-                                                                    <img
-                                                                        src={`${BASE_URL}${student.avatarUrl}`}
-                                                                        alt={student.name}
-                                                                        className="w-8 h-8 rounded-full object-cover border"
-                                                                    />
-                                                                )}
-                                                                <span>{student.name}</span>
-                                                            </div>
-                                                        </TableCell>
+                                                                                                <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                {(student.currentPhotoUrl || student.avatarUrl) && (
+                                                    <img
+                                                        src={`${BASE_URL}${student.currentPhotoUrl || student.avatarUrl}`}
+                                                        alt={student.name}
+                                                        className="w-8 h-8 rounded-full object-cover border"
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            target.style.display = 'none';
+                                                        }}
+                                                    />
+                                                )}
+                                                <span>{student.name}</span>
+                                            </div>
+                                        </TableCell>
                                                         <TableCell>
                                                             {student.gender === 'male' ? 'Nam' :
                                                                 student.gender === 'female' ? 'Nữ' :
