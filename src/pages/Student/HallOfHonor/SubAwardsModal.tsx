@@ -13,7 +13,7 @@ import { Label } from '../../../components/ui/label';
 import { Textarea } from '../../../components/ui/textarea';
 import { Checkbox } from '../../../components/ui/checkbox';
 
-import { Trash2, Save, Edit, X, Plus } from 'lucide-react';
+import { Trash2, Save, Edit, Plus } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import {
   AlertDialog,
@@ -82,7 +82,6 @@ const SubAwardsModal: React.FC<SubAwardsModalProps> = ({
 
   // Edit states
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingType, setEditingType] = useState<string | null>(null);
 
   // Dialog states
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
@@ -118,7 +117,6 @@ const SubAwardsModal: React.FC<SubAwardsModalProps> = ({
       
       // Reset editing state
       setEditingIndex(null);
-      setEditingType(null);
       setCustomForm({ label: '', labelEng: '', schoolYear: '', priority: 1 });
       setCustomDescForm({ label: '', description: '', descriptionEng: '', schoolYear: '', priority: 1 });
       
@@ -555,9 +553,7 @@ const SubAwardsModal: React.FC<SubAwardsModalProps> = ({
                       const hasPeriodicAwards = subAwards.some(award => 
                         ['year', 'semester', 'month', 'schoolYear'].includes(award.type) && award.schoolYear === sy._id
                       );
-                      const awardCount = subAwards.filter(award => 
-                        ['year', 'semester', 'month', 'schoolYear'].includes(award.type) && award.schoolYear === sy._id
-                      ).length;
+
                       
                       return (
                         <div key={sy._id} className={`flex items-center justify-between p-2 rounded-lg ${

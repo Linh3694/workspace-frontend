@@ -306,15 +306,6 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
   };
 
   // Event Handlers
-  const handleSelectTicket = async (ticket: Ticket) => {
-    setSelectedTicket(ticket);
-    await fetchTicketById(ticket._id);
-    setCurrentView("detail");
-  };
-
-  const handleCreateTicket = () => {
-    setCurrentView("create");
-  };
 
   const handleBackToList = () => {
     setCurrentView("list");
@@ -353,7 +344,6 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
             setSelectedBadges={setSelectedBadges}
             handleReopenTicket={handleReopenTicket}
             handleFeedbackAndClose={handleFeedbackAndClose}
-            handleCancelTicket={handleCancelTicket}
             handleUrgent={handleUrgent}
             setShowCancelModal={setShowCancelModal}
             fetchTicketById={fetchTicketById}
@@ -373,12 +363,14 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
         );
 
       default:
-        return (
+        return currentUser ? (
           <TicketList
             currentUser={currentUser}
-            onSelectTicket={handleSelectTicket}
-            onCreateTicket={handleCreateTicket}
           />
+        ) : (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-gray-500">Vui lòng đăng nhập để xem ticket</p>
+          </div>
         );
     }
   };

@@ -8,9 +8,7 @@ import {
   CardTitle
 } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
-import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
-import { Separator } from '../../../components/ui/separator';
 import { Plus, Trophy, Edit } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import CreateCategoryDialog from './CreateCategoryDialog';
@@ -40,53 +38,9 @@ interface AwardCategory {
   updatedAt: string;
 }
 
-interface Student {
-  _id: string;
-  name: string;
-  studentCode: string;
-}
 
-interface Photo {
-  _id: string;
-  student: string;
-  schoolYear: string;
-  url: string;
-}
 
-interface Class {
-  _id: string;
-  className: string;
-  classCode: string;
-}
 
-interface AwardRecord {
-  _id: string;
-  awardCategory: AwardCategory;
-  subAward: {
-    type: string;
-    label: string;
-    labelEng?: string;
-    schoolYear: string;
-    semester?: number;
-    month?: number;
-    priority?: number;
-  };
-  students: Array<{
-    student: Student;
-    exam?: string;
-    score?: number | string;
-    photo?: Photo;
-    currentClass?: Class;
-  }>;
-  awardClasses: Array<{
-    class: string;
-    note?: string;
-    noteEng?: string;
-    classInfo?: Class;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const HallOfHonor: React.FC = () => {
   const [categories, setCategories] = useState<AwardCategory[]>([]);
@@ -168,9 +122,7 @@ const HallOfHonor: React.FC = () => {
     setEditingCategoryForSubAwards(null);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
+
 
   return (
     <div className="w-full mx-auto p-4">

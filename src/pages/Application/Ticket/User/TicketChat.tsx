@@ -176,7 +176,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser, fetchTicke
       }
     });
 
-    socket.on("messageReceived", ({ messageId, userId }) => {
+    socket.on("messageReceived", ({ messageId }) => {
       setMessageStatus((prev) => ({
         ...prev,
         [messageId]: "received",
