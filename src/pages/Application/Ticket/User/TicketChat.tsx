@@ -104,7 +104,7 @@ const Avatar: React.FC<{
   );
 });
 
-const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser, fetchTicketById: _ }) => {
+const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
   const socketRef = useRef<Socket | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
