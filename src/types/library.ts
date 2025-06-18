@@ -54,6 +54,9 @@ export interface Book {
   seriesName: string;
   specialCode: string;
   status?: string;
+  isNewBook?: boolean;
+  isFeaturedBook?: boolean;
+  isAudioBook?: boolean;
 }
 
 export interface ApiResponse<T> {

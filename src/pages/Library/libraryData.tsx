@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
 import type { 
@@ -1231,6 +1232,9 @@ function BookDetailComponent() {
     storageLocation: "",
     seriesName: "",
     specialCode: "",
+    isNewBook: false,
+    isFeaturedBook: false,
+    isAudioBook: false,
   });
 
   const [libraries, setLibraries] = useState<Library[]>([]);
@@ -1305,6 +1309,9 @@ function BookDetailComponent() {
       storageLocation: "",
       seriesName: "",
       specialCode: "",
+      isNewBook: false,
+      isFeaturedBook: false,
+      isAudioBook: false,
     });
     setIsModalOpen(true);
   };
@@ -1331,6 +1338,9 @@ function BookDetailComponent() {
         publishYear: currentBook.publishYear ? Number(currentBook.publishYear) : null,
         pages: currentBook.pages ? Number(currentBook.pages) : null,
         coverPrice: currentBook.coverPrice ? Number(currentBook.coverPrice) : null,
+        isNewBook: currentBook.isNewBook || false,
+        isFeaturedBook: currentBook.isFeaturedBook || false,
+        isAudioBook: currentBook.isAudioBook || false,
       };
 
       if (modalMode === "create") {
@@ -1348,14 +1358,30 @@ function BookDetailComponent() {
           throw new Error(error.error || "Error adding new book");
         }
       } else {
-        // Edit mode - would need book index or ID
-        toast.error("Edit functionality needs implementation");
-        return;
+        // Edit mode - update existing book
+        if (!currentBook.generatedCode) {
+          toast.error("Không tìm thấy mã sách để cập nhật");
+          return;
+        }
+
+        const response = await fetch(
+          `${API_URL}/libraries/books/${encodeURIComponent(currentBook.generatedCode)}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Error updating book");
+        }
       }
 
       setIsModalOpen(false);
       fetchAllBooks();
-      toast.success("Lưu sách thành công!");
+      toast.success(modalMode === "create" ? "Thêm sách thành công!" : "Cập nhật sách thành công!");
     } catch (error) {
       console.error("Error saving book:", error);
       toast.error(getErrorMessage(error));
@@ -1370,7 +1396,7 @@ function BookDetailComponent() {
 
     try {
       const response = await fetch(
-        `${API_URL}/libraries/books/${book.generatedCode}`,
+        `${API_URL}/libraries/books/${encodeURIComponent(book.generatedCode)}`,
         {
           method: "DELETE",
         }
@@ -1408,6 +1434,7 @@ function BookDetailComponent() {
               <TableHead>ISBN</TableHead>
               <TableHead>Tên sách</TableHead>
               <TableHead>Năm XB</TableHead>
+              <TableHead>Đặc điểm</TableHead>
               <TableHead>Tình trạng</TableHead>
               <TableHead className="text-right">Hành động</TableHead>
             </TableRow>
@@ -1419,6 +1446,13 @@ function BookDetailComponent() {
                 <TableCell>{book.isbn}</TableCell>
                 <TableCell>{book.bookTitle}</TableCell>
                 <TableCell>{book.publishYear}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {book.isNewBook && <Badge variant="outline" className="text-xs">Sách mới</Badge>}
+                    {book.isFeaturedBook && <Badge variant="outline" className="text-xs">Nổi bật</Badge>}
+                    {book.isAudioBook && <Badge variant="outline" className="text-xs">Sách nói</Badge>}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <Badge variant={book.status === "available" ? "default" : "secondary"}>
                     {book.status || "Có sẵn"}
@@ -1498,46 +1532,77 @@ function BookDetailComponent() {
                 </div>
               )}
               <Label className="text-base font-medium mb-2">Thông tin sách</Label>
-              <div className="grid grid-cols-2 gap-4 border-b border-gray-200 pb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    ISBN <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nhập mã ISBN"
-                    value={currentBook.isbn || ""}
-                    onChange={(e) => handleChange("isbn", e.target.value)}
-                  />
+              <div className="flex gap-4 border-b border-gray-200 pb-4">
+                <div className="grid grid-cols-2 gap-4 flex-1">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      ISBN <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="Nhập mã ISBN"
+                      value={currentBook.isbn || ""}
+                      onChange={(e) => handleChange("isbn", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Định danh tài liệu <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="Nhập định danh tài liệu"
+                      value={currentBook.documentIdentifier || ""}
+                      onChange={(e) => handleChange("documentIdentifier", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Tên sách <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="Nhập tên sách"
+                      value={currentBook.bookTitle || ""}
+                      onChange={(e) => handleChange("bookTitle", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Ký hiệu phân loại <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="Nhập ký hiệu phân loại"
+                      value={currentBook.classificationSign || ""}
+                      onChange={(e) => handleChange("classificationSign", e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Định danh tài liệu <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nhập định danh tài liệu"
-                    value={currentBook.documentIdentifier || ""}
-                    onChange={(e) => handleChange("documentIdentifier", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Tên sách <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nhập tên sách"
-                    value={currentBook.bookTitle || ""}
-                    onChange={(e) => handleChange("bookTitle", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Ký hiệu phân loại <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nhập ký hiệu phân loại"
-                    value={currentBook.classificationSign || ""}
-                    onChange={(e) => handleChange("classificationSign", e.target.value)}
-                  />
+                <div className="w-48">
+                  <label className="block text-sm font-medium mb-2">Đặc điểm sách:</label>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="bookIsNew"
+                        checked={currentBook.isNewBook || false}
+                        onCheckedChange={(checked) => handleChange("isNewBook", checked)}
+                      />
+                      <label htmlFor="bookIsNew" className="text-sm cursor-pointer">Sách mới</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="bookIsFeatured"
+                        checked={currentBook.isFeaturedBook || false}
+                        onCheckedChange={(checked) => handleChange("isFeaturedBook", checked)}
+                      />
+                      <label htmlFor="bookIsFeatured" className="text-sm cursor-pointer">Sách nổi bật</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="bookIsAudio"
+                        checked={currentBook.isAudioBook || false}
+                        onCheckedChange={(checked) => handleChange("isAudioBook", checked)}
+                      />
+                      <label htmlFor="bookIsAudio" className="text-sm cursor-pointer">Sách nói</label>
+                    </div>
+                  </div>
                 </div>
               </div>
               <Label className="text-base font-medium mb-2">Thông tin xuất bản</Label>

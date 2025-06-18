@@ -155,7 +155,7 @@ export const MENU_SECTIONS: MenuSection[] = [
     title: "Thư viện",
     items: [
       {
-        title: "Quản lý dữ liệu thư viện",
+        title: "Quản lý dữ liệu",
         href: "/dashboard/library/data",
         description: "Quản lý dữ liệu thư viện",
         permission: "library"
@@ -172,6 +172,12 @@ export const MENU_SECTIONS: MenuSection[] = [
         description: "Báo cáo thư viện",
         permission: "library.reports"
       },
+      {
+        title: "Hoạt động",
+        href: "/dashboard/library/activities",
+        description: "Quản lý hoạt động thư viện",
+        permission: "library.activities"
+      }
     ]
   },
   {

@@ -22,6 +22,7 @@ import CommunicationBook from './pages/Student/CommunicationBook';
 import HallOfHonor from './pages/Student/HallOfHonor/HallOfHonor';
 import LibraryData from './pages/Library/libraryData';
 import LibraryManagement from './pages/Library/libraryManagement';
+import LibraryActivities from './pages/Library/libraryActivities';
 import { RecruitmentAdmin } from './pages/Recruitment';
 import  ApplicationList  from './pages/Recruitment/ApplicationList';
 import { Toaster } from './components/ui/sonner';
@@ -180,6 +181,11 @@ function App() {
           <Route path="library/books" element={
             <RoleProtectedRoute permission="library.books">
               <LibraryManagement />
+            </RoleProtectedRoute>
+          } />
+          <Route path="library/activities" element={
+            <RoleProtectedRoute permission="library.activities">
+              <LibraryActivities />
             </RoleProtectedRoute>
           } />
 

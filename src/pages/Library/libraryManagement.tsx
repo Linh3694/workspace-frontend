@@ -598,8 +598,7 @@ function LibraryManagement() {
                     onChange={(e) => handleSearchStudent(e.target.value)}
                     placeholder="Nhập mã hoặc tên học sinh..."
                     className="w-full"
-                  />
-                  
+                  />     
                   {/* Suggestions Dropdown */}
                   {showSuggestions && studentSuggestions.length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
