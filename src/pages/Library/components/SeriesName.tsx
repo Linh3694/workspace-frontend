@@ -20,6 +20,7 @@ export function SeriesNameComponent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -41,6 +42,7 @@ export function SeriesNameComponent() {
   const openCreateModal = () => {
     setModalMode("create");
     setName("");
+    setCode("");
     setIsModalOpen(true);
   };
 
@@ -48,6 +50,7 @@ export function SeriesNameComponent() {
     setModalMode("edit");
     setEditingId(item._id);
     setName(item.name);
+    setCode(item.code || "");
     setIsModalOpen(true);
   };
 
@@ -63,7 +66,7 @@ export function SeriesNameComponent() {
         const response = await fetch(`${API_URL}/libraries/series-names`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, code }),
         });
         
         if (!response.ok) {
@@ -77,7 +80,7 @@ export function SeriesNameComponent() {
         const response = await fetch(`${API_URL}/libraries/series-names/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, code }),
         });
         
         if (!response.ok) {
@@ -89,6 +92,7 @@ export function SeriesNameComponent() {
       }
       
       setName("");
+      setCode("");
       setEditingId(null);
       setIsModalOpen(false);
       fetchData();
@@ -134,6 +138,7 @@ export function SeriesNameComponent() {
             <TableRow>
               <TableHead>STT</TableHead>
               <TableHead>Tên tùng thư</TableHead>
+              <TableHead>Mã tùng thư</TableHead>
               <TableHead className="text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
@@ -142,6 +147,7 @@ export function SeriesNameComponent() {
               <TableRow key={item._id}>
                 <TableCell>{idx + 1}</TableCell>
                 <TableCell>{item.name}</TableCell>
+                <TableCell>{item.code || "Chưa có mã"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
@@ -164,41 +170,55 @@ export function SeriesNameComponent() {
               </TableRow>
             ))}
           </TableBody>
-                  </Table>
-        </CardContent>
+        </Table>
+      </CardContent>
 
-        {/* Modal tạo mới/chỉnh sửa */}
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>
-                {modalMode === "create" ? "Tạo mới tùng thư" : "Chỉnh sửa tùng thư"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="name" className="block text-sm font-medium mb-2">
-                  Tên tùng thư <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nhập tên tùng thư..."
-                />
-              </div>
+      {/* Modal tạo mới/chỉnh sửa */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {modalMode === "create" ? "Tạo mới tùng thư" : "Chỉnh sửa tùng thư"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label htmlFor="name" className="block text-sm font-medium mb-2">
+                Tên tùng thư <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nhập tên tùng thư..."
+              />
             </div>
-            
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                Hủy
-              </Button>
-              <Button onClick={handleModalSave}>
-                {modalMode === "create" ? "Tạo mới" : "Cập nhật"}
-              </Button>
+            <div>
+              <Label htmlFor="code" className="block text-sm font-medium mb-2">
+                Mã tùng thư
+              </Label>
+              <Input
+                id="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Nhập mã tùng thư (tùy chọn)..."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Để trống để hệ thống tự động tạo mã từ tên tùng thư
+              </p>
             </div>
-          </DialogContent>
-        </Dialog>
-      </Card>
-    );
-  } 
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleModalSave}>
+              {modalMode === "create" ? "Tạo mới" : "Cập nhật"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+} 

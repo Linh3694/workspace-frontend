@@ -7,6 +7,7 @@ export interface DocumentType {
 export interface SeriesName {
   _id: string;
   name: string;
+  code?: string;
 }
 
 export interface SpecialCode {

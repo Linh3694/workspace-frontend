@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Calendar } from 'lucide-react';
+import { Plus, Trash2, Search, Calendar, Upload, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { DatePicker } from '@/components/ui/datepicker';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Form,
   FormControl,
@@ -28,16 +29,33 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { API_URL } from '@/lib/config';
 
 // Types
+interface ActivityDay {
+  _id?: string;
+  dayNumber: number;
+  date: string;
+  title: string;
+  description: string;
+  isPublished?: boolean;
+  images: Array<{
+    _id?: string;
+    url: string;
+    caption?: string;
+    uploadedAt?: string;
+  }>;
+}
+
 interface LibraryActivity {
   _id: string;
   title: string;
+  description?: string;
   date: string;
+  days: ActivityDay[];
   images: Array<{
     _id: string;
     url: string;
@@ -52,10 +70,9 @@ interface LibraryActivity {
 
 interface ActivityFormData {
   title: string;
-  date: Date;
-  images: Array<{
-    url: string;
-    caption?: string;
+  days: Array<{
+    title: string;
+    date: Date;
   }>;
 }
 
@@ -70,12 +87,14 @@ const LibraryActivitiesPage: React.FC = () => {
   const [editingActivity, setEditingActivity] = useState<LibraryActivity | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingActivity, setDeletingActivity] = useState<LibraryActivity | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
 
   const form = useForm<ActivityFormData>({
     defaultValues: {
       title: '',
-      date: new Date(),
-      images: []
+      days: [{ title: 'Ngày 1', date: new Date() }]
     }
   });
 
@@ -86,6 +105,7 @@ const LibraryActivitiesPage: React.FC = () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '10',
+        includeHidden: 'true', // Luôn hiển thị tất cả vì đây là giao diện admin
         ...(search && { search })
       });
 
@@ -114,8 +134,15 @@ const LibraryActivitiesPage: React.FC = () => {
         },
         body: JSON.stringify({
           title: data.title,
-          date: data.date.toISOString(),
-          images: data.images,
+          date: data.days[0].date.toISOString(),
+          days: data.days.map((day, index) => ({
+            dayNumber: index + 1,
+            date: day.date.toISOString(),
+            title: day.title,
+            description: '',
+            isPublished: true,
+            images: []
+          })),
           createdBy: 'current-user' // Replace with actual user
         }),
       });
@@ -124,11 +151,9 @@ const LibraryActivitiesPage: React.FC = () => {
       
       toast.success('Tạo hoạt động thành công');
       setIsCreateModalOpen(false);
-      // Reset form về giá trị mặc định
       form.reset({
         title: '',
-        date: new Date(),
-        images: []
+        days: [{ title: 'Ngày 1', date: new Date() }]
       });
       fetchActivities(currentPage, searchTerm);
     } catch (error) {
@@ -149,8 +174,15 @@ const LibraryActivitiesPage: React.FC = () => {
         },
         body: JSON.stringify({
           title: data.title,
-          date: data.date.toISOString(),
-          images: data.images,
+          date: data.days[0].date.toISOString(),
+          days: data.days.map((day, index) => ({
+            dayNumber: index + 1,
+            date: day.date.toISOString(),
+            title: day.title,
+            description: '',
+            isPublished: true,
+            images: []
+          })),
         }),
       });
 
@@ -159,11 +191,9 @@ const LibraryActivitiesPage: React.FC = () => {
       toast.success('Cập nhật hoạt động thành công');
       setIsEditModalOpen(false);
       setEditingActivity(null);
-      // Reset form về giá trị mặc định
       form.reset({
         title: '',
-        date: new Date(),
-        images: []
+        days: [{ title: 'Ngày 1', date: new Date() }]
       });
       fetchActivities(currentPage, searchTerm);
     } catch (error) {
@@ -193,6 +223,91 @@ const LibraryActivitiesPage: React.FC = () => {
     }
   };
 
+  // Delete day
+  const handleDeleteDay = async (activityId: string, dayId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/library-activities/${activityId}/days/${dayId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Lỗi khi xóa ngày');
+      
+      toast.success('Xóa ngày thành công');
+      fetchActivities(currentPage, searchTerm);
+    } catch (error) {
+      console.error('Error deleting day:', error);
+      toast.error('Không thể xóa ngày');
+    }
+  };
+
+  // Upload images for day
+  const handleUploadImages = async (images: Array<{ url: string; caption?: string }>) => {
+    if (!selectedActivityId || !selectedDayId) return;
+
+    try {
+      const response = await fetch(`${API_URL}/library-activities/${selectedActivityId}/days/${selectedDayId}/images`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ images }),
+      });
+
+      if (!response.ok) throw new Error('Lỗi khi thêm ảnh');
+      
+      toast.success('Thêm ảnh thành công');
+      setIsImageModalOpen(false);
+      setSelectedActivityId(null);
+      setSelectedDayId(null);
+      fetchActivities(currentPage, searchTerm);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      toast.error('Không thể thêm ảnh');
+    }
+  };
+
+  // Toggle published status for individual day
+  const handleToggleDayPublished = async (activityId: string, dayId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`${API_URL}/library-activities/${activityId}/days/${dayId}/toggle-published`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isPublished: !currentStatus }),
+      });
+
+      if (!response.ok) throw new Error('Lỗi khi cập nhật trạng thái ngày');
+      
+      toast.success(`${!currentStatus ? 'Xuất bản' : 'Ẩn'} ngày thành công`);
+      fetchActivities(currentPage, searchTerm);
+    } catch (error) {
+      console.error('Error toggling day published status:', error);
+      toast.error('Không thể cập nhật trạng thái ngày');
+    }
+  };
+
+  // Toggle published status for entire activity
+  const handleTogglePublished = async (activityId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`${API_URL}/library-activities/${activityId}/toggle-published`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isPublished: !currentStatus }),
+      });
+
+      if (!response.ok) throw new Error('Lỗi khi cập nhật trạng thái');
+      
+      toast.success(`${!currentStatus ? 'Xuất bản' : 'Ẩn'} hoạt động thành công`);
+      fetchActivities(currentPage, searchTerm);
+    } catch (error) {
+      console.error('Error toggling published status:', error);
+      toast.error('Không thể cập nhật trạng thái');
+    }
+  };
+
   // Handle search
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -205,8 +320,10 @@ const LibraryActivitiesPage: React.FC = () => {
     setEditingActivity(activity);
     form.reset({
       title: activity.title,
-      date: new Date(activity.date),
-      images: activity.images.map(img => ({ url: img.url, caption: img.caption }))
+      days: activity.days.map(day => ({
+        title: day.title,
+        date: new Date(day.date)
+      }))
     });
     setIsEditModalOpen(true);
   };
@@ -217,73 +334,125 @@ const LibraryActivitiesPage: React.FC = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  // Open image modal
+  const openImageModal = (activityId: string, dayId: string) => {
+    setSelectedActivityId(activityId);
+    setSelectedDayId(dayId);
+    setIsImageModalOpen(true);
+  };
+
   useEffect(() => {
     fetchActivities();
   }, []);
 
-  const ActivityForm = ({ onSubmit, submitText }: { onSubmit: (data: ActivityFormData) => void, submitText: string }) => (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          rules={{ required: 'Tiêu đề là bắt buộc' }}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tiêu đề hoạt động</FormLabel>
-              <FormControl>
-                <Input placeholder="Nhập tiêu đề hoạt động..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+  const ActivityForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+    const { fields, append, remove } = useFieldArray({
+      control: form.control,
+      name: "days"
+    });
 
-        <FormField
-          control={form.control}
-          name="date"
-          rules={{ required: 'Ngày hoạt động là bắt buộc' }}
-          render={({ field }) => (
-            <FormItem>
+    const addDay = () => {
+      append({ title: `Ngày ${fields.length + 1}`, date: new Date() });
+    };
+
+    const removeDay = (index: number) => {
+      if (fields.length > 1) {
+        remove(index);
+      }
+    };
+
+    const onSubmit = isEdit ? handleUpdateActivity : handleCreateActivity;
+
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="title"
+            rules={{ required: 'Tiêu đề là bắt buộc' }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tiêu đề hoạt động</FormLabel>
+                <FormControl>
+                  <Input placeholder="Nhập tiêu đề hoạt động..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
               <FormLabel>Ngày hoạt động</FormLabel>
-              <FormControl>
-                <DatePicker
-                  date={field.value}
-                  setDate={field.onChange}
-                  className="w-full"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+              <Button type="button" onClick={addDay} variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Thêm ngày
+              </Button>
+            </div>
 
-        <FormField
-          control={form.control}
-          name="images"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Hình ảnh</FormLabel>
-              <FormControl>
-                <ImageUpload
-                  images={field.value}
-                  onImagesChange={field.onChange}
-                  maxImages={10}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground pb-2 border-b">
+                <div className="col-span-5">Tên ngày</div>
+                <div className="col-span-5">Ngày diễn ra</div>
+                <div className="col-span-2">Thao tác</div>
+              </div>
+              
+              {fields.map((field, index) => (
+                <div key={field.id} className="grid grid-cols-12 gap-4 items-center">
+                  <div className="col-span-5">
+                    <FormField
+                      control={form.control}
+                      name={`days.${index}.title` as const}
+                      render={({ field }) => (
+                        <FormControl>
+                          <Input
+                            placeholder="Tên ngày (VD: Ngày 1 - Khai mạc)"
+                            {...field}
+                          />
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-5">
+                    <FormField
+                      control={form.control}
+                      name={`days.${index}.date` as const}
+                      render={({ field }) => (
+                        <FormControl>
+                          <DatePicker
+                            date={field.value}
+                            setDate={field.onChange}
+                          />
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    {fields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeDay(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-        <DialogFooter>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Đang xử lý...' : submitText}
-          </Button>
-        </DialogFooter>
-      </form>
-    </Form>
-  );
+          <DialogFooter>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Đang xử lý...' : (isEdit ? 'Cập nhật hoạt động' : 'Tạo hoạt động')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
+    );
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -295,38 +464,29 @@ const LibraryActivitiesPage: React.FC = () => {
             Tạo, chỉnh sửa và quản lý các hoạt động của thư viện
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Thêm hoạt động
-        </Button>
       </div>
 
-      {/* Search and Filter */}
+      {/* Activities Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Tìm kiếm và lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
+          <div className="flex justify-between items-center">
+            <CardTitle>Danh sách hoạt động</CardTitle>
+            <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   placeholder="Tìm kiếm theo tiêu đề..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 w-64"
                 />
               </div>
+              <Button onClick={() => setIsCreateModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Thêm hoạt động
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Activities Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách hoạt động</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -343,55 +503,110 @@ const LibraryActivitiesPage: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tiêu đề</TableHead>
-                  <TableHead>Ngày hoạt động</TableHead>
-                  <TableHead>Số hình ảnh</TableHead>
+                  <TableHead>Tên ngày</TableHead>
+                  <TableHead>Ngày diễn ra</TableHead>
+                  <TableHead>Số ảnh</TableHead>
                   <TableHead>Trạng thái</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activities.map((activity) => (
-                  <TableRow key={activity._id}>
-                    <TableCell className="font-medium">
-                      {activity.title}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(activity.date).toLocaleDateString('vi-VN')}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {activity.images.length} ảnh
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={activity.isPublished ? "default" : "secondary"}>
-                        {activity.isPublished ? 'Đã xuất bản' : 'Nháp'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(activity.createdAt).toLocaleDateString('vi-VN')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(activity)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openDeleteDialog(activity)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <React.Fragment key={activity._id}>
+                    {/* Main activity row */}
+                    <TableRow className="bg-muted/50">
+                      <TableCell colSpan={2} className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{activity.title}</span>
+                          <Badge variant="outline">
+                            {activity.days.length} ngày
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {activity.days.reduce((total, day) => total + day.images.length, 0)} ảnh tổng
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={activity.isPublished}
+                            onCheckedChange={() => handleTogglePublished(activity._id, activity.isPublished)}
+                          />
+                          <span className="text-sm font-medium">
+                            {activity.isPublished ? 'Hoạt động đã xuất bản' : 'Hoạt động ở trạng thái nháp'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditModal(activity)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteDialog(activity)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Day rows */}
+                    {activity.days.map((day) => (
+                      <TableRow key={day._id}>
+                        <TableCell className="pl-8">
+                          {day.title}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(day.date).toLocaleDateString('vi-VN')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {day.images.length} ảnh
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={day.isPublished ?? true}
+                              onCheckedChange={() => handleToggleDayPublished(activity._id, day._id!, day.isPublished ?? true)}
+                            />
+                            <span className="text-sm">
+                              {day.isPublished ?? true ? 'Ngày đã xuất bản' : 'Ngày ở trạng thái nháp'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openImageModal(activity._id, day._id!)}
+                            >
+                              <Upload className="h-4 w-4" />
+                             
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteDay(activity._id, day._id!)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                             
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -428,11 +643,9 @@ const LibraryActivitiesPage: React.FC = () => {
         onOpenChange={(open) => {
           setIsCreateModalOpen(open);
           if (!open) {
-            // Reset form khi đóng modal
             form.reset({
               title: '',
-              date: new Date(),
-              images: []
+              days: [{ title: 'Ngày 1', date: new Date() }]
             });
           }
         }}
@@ -441,10 +654,7 @@ const LibraryActivitiesPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Thêm hoạt động mới</DialogTitle>
           </DialogHeader>
-          <ActivityForm 
-            onSubmit={handleCreateActivity} 
-            submitText="Tạo hoạt động" 
-          />
+          <ActivityForm />
         </DialogContent>
       </Dialog>
 
@@ -454,12 +664,10 @@ const LibraryActivitiesPage: React.FC = () => {
         onOpenChange={(open) => {
           setIsEditModalOpen(open);
           if (!open) {
-            // Reset editing state khi đóng modal
             setEditingActivity(null);
             form.reset({
               title: '',
-              date: new Date(),
-              images: []
+              days: [{ title: 'Ngày 1', date: new Date() }]
             });
           }
         }}
@@ -468,10 +676,7 @@ const LibraryActivitiesPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Chỉnh sửa hoạt động</DialogTitle>
           </DialogHeader>
-          <ActivityForm 
-            onSubmit={handleUpdateActivity} 
-            submitText="Cập nhật hoạt động" 
-          />
+          <ActivityForm isEdit={true} />
         </DialogContent>
       </Dialog>
 
@@ -498,6 +703,30 @@ const LibraryActivitiesPage: React.FC = () => {
               disabled={loading}
             >
               {loading ? 'Đang xóa...' : 'Xóa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Upload Modal */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Thêm ảnh cho ngày</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ImageUpload
+              images={[]}
+              onImagesChange={handleUploadImages}
+              maxImages={20}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsImageModalOpen(false)}
+            >
+              Hủy
             </Button>
           </DialogFooter>
         </DialogContent>
