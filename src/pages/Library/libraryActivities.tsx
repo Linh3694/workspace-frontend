@@ -98,14 +98,14 @@ const LibraryActivitiesPage: React.FC = () => {
     }
   });
 
-  // Fetch activities
+  // Fetch activities - Admin interface shows all activities
   const fetchActivities = async (page = 1, search = '') => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '10',
-        includeHidden: 'true', // Luôn hiển thị tất cả vì đây là giao diện admin
+        admin: 'true', // Admin interface - show all activities regardless of published status
         ...(search && { search })
       });
 
@@ -113,12 +113,16 @@ const LibraryActivitiesPage: React.FC = () => {
       if (!response.ok) throw new Error('Lỗi khi tải danh sách hoạt động');
       
       const data = await response.json();
-      setActivities(data.activities);
-      setTotalPages(data.totalPages);
-      setCurrentPage(data.currentPage);
+      setActivities(data.activities || []);
+      setTotalPages(data.totalPages || 1);
+      setCurrentPage(data.currentPage || 1);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast.error('Không thể tải danh sách hoạt động');
+      // Set empty state on error
+      setActivities([]);
+      setTotalPages(1);
+      setCurrentPage(1);
     } finally {
       setLoading(false);
     }
@@ -264,8 +268,8 @@ const LibraryActivitiesPage: React.FC = () => {
       console.error('Error uploading images:', error);
       toast.error('Không thể thêm ảnh');
     }
-  };
-
+      };
+  
   // Toggle published status for individual day
   const handleToggleDayPublished = async (activityId: string, dayId: string, currentStatus: boolean) => {
     try {
@@ -287,28 +291,8 @@ const LibraryActivitiesPage: React.FC = () => {
     }
   };
 
-  // Toggle published status for entire activity
-  const handleTogglePublished = async (activityId: string, currentStatus: boolean) => {
-    try {
-      const response = await fetch(`${API_URL}/library-activities/${activityId}/toggle-published`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isPublished: !currentStatus }),
-      });
-
-      if (!response.ok) throw new Error('Lỗi khi cập nhật trạng thái');
-      
-      toast.success(`${!currentStatus ? 'Xuất bản' : 'Ẩn'} hoạt động thành công`);
-      fetchActivities(currentPage, searchTerm);
-    } catch (error) {
-      console.error('Error toggling published status:', error);
-      toast.error('Không thể cập nhật trạng thái');
-    }
-  };
-
-  // Handle search
+  
+    // Handle search
   const handleSearch = (value: string) => {
     setSearchTerm(value);
     setCurrentPage(1);
@@ -461,7 +445,7 @@ const LibraryActivitiesPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold">Quản lý hoạt động thư viện</h1>
           <p className="text-muted-foreground">
-            Tạo, chỉnh sửa và quản lý các hoạt động của thư viện
+            Tạo, chỉnh sửa và quản lý các hoạt động của thư viện. Giao diện admin hiển thị tất cả hoạt động.
           </p>
         </div>
       </div>
@@ -529,15 +513,9 @@ const LibraryActivitiesPage: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={activity.isPublished}
-                            onCheckedChange={() => handleTogglePublished(activity._id, activity.isPublished)}
-                          />
-                          <span className="text-sm font-medium">
-                            {activity.isPublished ? 'Hoạt động đã xuất bản' : 'Hoạt động ở trạng thái nháp'}
-                          </span>
-                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          Trạng thái theo ngày
+                        </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
