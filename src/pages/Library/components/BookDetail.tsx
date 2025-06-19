@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
@@ -41,11 +41,7 @@ export function BookDetailComponent() {
     specialCode: "",
   });
 
-  const [libraryFeatures, setLibraryFeatures] = useState({
-    isNewBook: false,
-    isFeaturedBook: false,
-    isAudioBook: false,
-  });
+
 
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [selectedLibrary, setSelectedLibrary] = useState<Library | null>(null);
@@ -133,22 +129,14 @@ export function BookDetailComponent() {
       seriesName: "",
       specialCode: "",
     });
-    setLibraryFeatures({
-      isNewBook: false,
-      isFeaturedBook: false,
-      isAudioBook: false,
-    });
+
     setIsModalOpen(true);
   };
 
   const openEditModal = (book: Book) => {
     setModalMode("edit");
     setCurrentBook(book);
-    setLibraryFeatures({
-      isNewBook: book.isNewBook || false,
-      isFeaturedBook: book.isFeaturedBook || false,
-      isAudioBook: book.isAudioBook || false,
-    });
+
     setIsModalOpen(true);
   };
 
@@ -171,20 +159,7 @@ export function BookDetailComponent() {
       };
 
       if (modalMode === "create") {
-        // Cập nhật library với đặc điểm sách
-        const libraryUpdateResponse = await fetch(
-          `${API_URL}/libraries/${selectedLibrary!._id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(libraryFeatures),
-          }
-        );
 
-        if (!libraryUpdateResponse.ok) {
-          const error = await libraryUpdateResponse.json();
-          throw new Error(error.error || "Error updating library features");
-        }
 
         const response = await fetch(
           `${API_URL}/libraries/${selectedLibrary!._id}/books`,
@@ -206,28 +181,7 @@ export function BookDetailComponent() {
           return;
         }
 
-        // Tìm library chứa book này để cập nhật đặc điểm sách
-        const allBooksResponse = await fetch(`${API_URL}/libraries/books`);
-        if (allBooksResponse.ok) {
-          const allBooks = await allBooksResponse.json();
-          const currentBookData = allBooks.find((book: Book) => book.generatedCode === currentBook.generatedCode);
-          if (currentBookData && currentBookData.libraryId) {
-            // Cập nhật library với đặc điểm sách
-            const libraryUpdateResponse = await fetch(
-              `${API_URL}/libraries/${currentBookData.libraryId}`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(libraryFeatures),
-              }
-            );
 
-            if (!libraryUpdateResponse.ok) {
-              const error = await libraryUpdateResponse.json();
-              throw new Error(error.error || "Error updating library features");
-            }
-          }
-        }
 
         const response = await fetch(
           `${API_URL}/libraries/books/${encodeURIComponent(currentBook.generatedCode)}`,
@@ -299,7 +253,7 @@ export function BookDetailComponent() {
               <TableHead>ISBN</TableHead>
               <TableHead>Tên sách</TableHead>
               <TableHead>Năm XB</TableHead>
-              <TableHead>Đặc điểm</TableHead>
+
               <TableHead>Tình trạng</TableHead>
               <TableHead className="text-right">Hành động</TableHead>
             </TableRow>
@@ -311,13 +265,7 @@ export function BookDetailComponent() {
                 <TableCell>{book.isbn}</TableCell>
                 <TableCell>{book.bookTitle}</TableCell>
                 <TableCell>{book.publishYear}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {book.isNewBook && <Badge variant="outline" className="text-xs">Sách mới</Badge>}
-                    {book.isFeaturedBook && <Badge variant="outline" className="text-xs">Nổi bật</Badge>}
-                    {book.isAudioBook && <Badge variant="outline" className="text-xs">Sách nói</Badge>}
-                  </div>
-                </TableCell>
+
                 <TableCell>
                   <Badge variant={book.status === "available" ? "default" : "secondary"}>
                     {book.status || "Có sẵn"}
@@ -451,35 +399,7 @@ export function BookDetailComponent() {
                     />
                   </div>
                 </div>
-                <div className="w-48">
-                  <label className="block text-sm font-medium mb-2">Đặc điểm sách:</label>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="bookIsNew"
-                        checked={libraryFeatures.isNewBook || false}
-                        onCheckedChange={(checked) => setLibraryFeatures(prev => ({ ...prev, isNewBook: !!checked }))}
-                      />
-                      <label htmlFor="bookIsNew" className="text-sm cursor-pointer">Sách mới</label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="bookIsFeatured"
-                        checked={libraryFeatures.isFeaturedBook || false}
-                        onCheckedChange={(checked) => setLibraryFeatures(prev => ({ ...prev, isFeaturedBook: !!checked }))}
-                      />
-                      <label htmlFor="bookIsFeatured" className="text-sm cursor-pointer">Sách nổi bật</label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="bookIsAudio"
-                        checked={libraryFeatures.isAudioBook || false}
-                        onCheckedChange={(checked) => setLibraryFeatures(prev => ({ ...prev, isAudioBook: !!checked }))}
-                      />
-                      <label htmlFor="bookIsAudio" className="text-sm cursor-pointer">Sách nói</label>
-                    </div>
-                  </div>
-                </div>
+
               </div>
               <Label className="text-base font-medium mb-2">Thông tin xuất bản</Label>
               <div className="grid grid-cols-3 gap-4 border-b border-gray-200 pb-4">
