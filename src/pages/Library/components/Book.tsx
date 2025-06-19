@@ -241,22 +241,26 @@ export function BookComponent() {
   const handleModalSave = async () => {
     try {
       const formData = new FormData();
+      
+      // Thêm file ảnh nếu có
       if (coverImageFile) {
         formData.append("file", coverImageFile);
       }
 
-      if (modalMode === "create") {
-        formData.append("authors", selectedAuthors.join(","));
-        formData.append("title", currentLibrary.title || "");
-        formData.append("category", currentLibrary.category || "");
-        formData.append("language", currentLibrary.language || "");
-        formData.append("documentType", currentLibrary.documentType || "");
-        formData.append("specialCode", currentLibrary.specialCode || "");
-        formData.append("seriesName", currentLibrary.seriesName || "");
-        formData.append("isNewBook", String(currentLibrary.isNewBook || false));
-        formData.append("isFeaturedBook", String(currentLibrary.isFeaturedBook || false));
-        formData.append("isAudioBook", String(currentLibrary.isAudioBook || false));
+      // Thêm tất cả dữ liệu khác vào FormData cho cả create và edit mode
+      formData.append("authors", JSON.stringify(selectedAuthors));
+      formData.append("title", currentLibrary.title || "");
+      formData.append("category", currentLibrary.category || "");
+      formData.append("language", currentLibrary.language || "");
+      formData.append("description", currentLibrary.description || "");
+      formData.append("documentType", currentLibrary.documentType || "");
+      formData.append("specialCode", currentLibrary.specialCode || "");
+      formData.append("seriesName", currentLibrary.seriesName || "");
+      formData.append("isNewBook", String(currentLibrary.isNewBook || false));
+      formData.append("isFeaturedBook", String(currentLibrary.isFeaturedBook || false));
+      formData.append("isAudioBook", String(currentLibrary.isAudioBook || false));
 
+      if (modalMode === "create") {
         const response = await fetch(`${API_URL}/libraries`, {
           method: "POST",
           body: formData,
@@ -267,16 +271,10 @@ export function BookComponent() {
           throw new Error(error.error || "Error creating library");
         }
       } else {
-        // Edit mode
-        const payload = {
-          ...currentLibrary,
-          authors: selectedAuthors,
-        };
-
+        // Edit mode - cũng sử dụng FormData để có thể gửi ảnh
         const response = await fetch(`${API_URL}/libraries/${currentLibrary._id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: formData,
         });
 
         if (!response.ok) {
