@@ -50,12 +50,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Prevent double initialization in StrictMode
     if (initialized.current) {
-      console.log('🔍 AuthContext: Already initialized, skipping');
       return;
     }
-    
-    console.log('🔍 AuthContext: Initializing...');
-    initialized.current = true;
+        initialized.current = true;
     initializeAuth();
   }, []);
 
@@ -67,12 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
       
-      console.log('🔍 AuthContext: Checking stored tokens:', { 
-        hasToken: !!token, 
-        hasUserData: !!userData,
-        tokenSample: token ? token.substring(0, 20) + '...' : null
-      });
-      
       if (token && userData && token !== 'authenticated') {
         try {
           // Verify token is still valid by checking expiration
@@ -80,23 +71,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isExpired = tokenPayload.exp && tokenPayload.exp < Date.now() / 1000;
           
           if (!isExpired) {
-            const parsedUser = JSON.parse(userData);
-            console.log('✅ AuthContext: Valid token found, user restored:', {
-              fullname: parsedUser.fullname,
-              role: parsedUser.role
-            });
+            const parsedUser = JSON.parse(userData);           
             
             setUser(parsedUser);
             setIsAuthenticated(true);
             setIsLoading(false);
             return;
           } else {
-            console.log('⚠️ AuthContext: Token expired, clearing storage');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
           }
-        } catch (error) {
-          console.error('❌ AuthContext: Error parsing stored data:', error);
+        } catch {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         }
@@ -108,7 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const account = pca.getAllAccounts()[0];
         
         if (account) {
-          console.log('🔍 AuthContext: Found MSAL account, attempting silent auth...');
           
           const silentRequest: SilentRequest = {
             scopes: ['openid', 'profile', 'email', 'User.Read'],
@@ -118,23 +102,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const response = await pca.acquireTokenSilent(silentRequest);
           
           if (response.accessToken) {
-            console.log('✅ AuthContext: Silent token acquired, authenticating with backend...');
             await authenticateWithBackend(response.accessToken);
             return;
           }
         }
-      } catch (silentError) {
-        console.log('⚠️ AuthContext: Silent authentication failed:', silentError);
+      } catch {
         // This is expected when user needs to login again
       }
-
-      // No valid authentication found
-      console.log('⚠️ AuthContext: No valid authentication found');
       setIsAuthenticated(false);
       setIsLoading(false);
       
-    } catch (error) {
-      console.error('❌ AuthContext: Initialization error:', error);
+    } catch {
       setIsAuthenticated(false);
       setIsLoading(false);
     }
@@ -153,8 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
       
       if (response.ok && data.success) {
-        console.log('✅ AuthContext: Backend authentication successful');
-        
         // Store the system token and user data
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -166,7 +142,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || 'Backend authentication failed');
       }
     } catch (error) {
-      console.error('❌ AuthContext: Backend authentication error:', error);
       await logout();
       throw error;
     }
@@ -190,39 +165,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No access token received from Microsoft');
       }
     } catch (error) {
-      console.error('❌ AuthContext: Microsoft login error:', error);
       setIsLoading(false);
       throw error;
     }
   };
 
-  // Debug effect to track authentication state changes
-  useEffect(() => {
-    console.log('🔄 AuthContext: Authentication state changed:', {
-      isAuthenticated,
-      isLoading,
-      user: user ? { fullname: user.fullname, role: user.role } : null
-    });
-  }, [isAuthenticated, isLoading, user]);
+
 
   const hasPermission = (permission: string): boolean => {
     if (!user || !user.role) {
-      console.log('❌ hasPermission: No user or role');
       return false;
     }
     
     const rolePermissions = ROLE_PERMISSIONS[user.role] || [];
-    console.log('🔍 hasPermission: Checking permission', permission, 'for role', user.role);
     
     // Admin has all permissions
     if (rolePermissions.includes('*')) {
-      console.log('✅ hasPermission: Admin access granted');
       return true;
     }
     
     // Check exact permission
     if (rolePermissions.includes(permission)) {
-      console.log('✅ hasPermission: Exact permission found');
       return true;
     }
     
@@ -231,41 +194,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     for (const wildcardPerm of wildcardPermissions) {
       const basePermission = wildcardPerm.replace('.*', '');
       if (permission.startsWith(basePermission + '.')) {
-        console.log('✅ hasPermission: Wildcard permission matched');
         return true;
       }
     }
     
-    console.log('❌ hasPermission: Permission denied');
     return false;
   };
 
   const hasRole = (role: UserRole): boolean => {
-    const result = user?.role === role;
-    console.log('🔍 hasRole: Checking role', role, 'current role:', user?.role, 'result:', result);
-    return result;
+    return user?.role === role;
   };
 
   const login = (userData: User) => {
-    console.log('✅ AuthContext: Logging in user:', {
-      fullname: userData.fullname,
-      role: userData.role,
-      email: userData.email
-    });
-    
     // Update localStorage and state
     localStorage.setItem('user', JSON.stringify(userData));
     
     setUser(userData);
     setIsAuthenticated(true);
     setIsLoading(false);
-    
-    console.log('✅ AuthContext: Login completed');
   };
 
   const logout = async () => {
-    console.log('🚪 AuthContext: Logging out user');
-    
     try {
       // Clear MSAL cache
       const pca = await getMsalInstance();
@@ -275,8 +224,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Clear local cache
         pca.clearCache();
       }
-    } catch (error) {
-      console.error('⚠️ AuthContext: Error clearing MSAL cache:', error);
+    } catch {
+      // Ignore errors when clearing cache
     }
     
     // Clear localStorage
