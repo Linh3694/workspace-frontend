@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../lib/config';
 import { ArrowLeftIcon } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { loginWithMicrosoft, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -13,6 +15,13 @@ export default function Login() {
   const [loading, setLoading] = useState<boolean>(false);
   const [showForm, setShowForm] = useState<boolean>(false);
   const bannerRef = useRef<HTMLDivElement>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   // Animation effect for banner
   useEffect(() => {
@@ -90,59 +99,8 @@ export default function Login() {
     setError('');
 
     try {
-      // Sử dụng Microsoft Authentication Library (MSAL)
-      const { PublicClientApplication } = await import('@azure/msal-browser');
-      
-      const msalConfig = {
-        auth: {
-          clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '38b5b315-9e8e-4ca8-9b2e-3c0a3b7e9c29',
-          authority: `https://login.microsoftonline.com/${import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common'}`,
-          redirectUri: window.location.origin,
-        },
-        cache: {
-          cacheLocation: 'localStorage' as const,
-          storeAuthStateInCookie: false,
-        }
-      };
-
-      const pca = new PublicClientApplication(msalConfig);
-      await pca.initialize();
-
-      const loginRequest = {
-        scopes: ['openid', 'profile', 'email', 'User.Read'],
-        prompt: 'select_account' as const
-      };
-
-      const response = await pca.loginPopup(loginRequest);
-      
-      if (response.accessToken) {
-        // Gửi token đến backend để xác thực
-        const backendResponse = await fetch(API_ENDPOINTS.MICROSOFT_LOGIN, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${response.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const backendData = await backendResponse.json();
-        
-        if (!backendResponse.ok) {
-          throw new Error(backendData.message || 'Đăng nhập Microsoft thất bại');
-        }
-
-        if (backendData.success) {
-          // Lưu thông tin đăng nhập
-          localStorage.setItem('token', backendData.token);
-          localStorage.setItem('user', JSON.stringify(backendData.user));
-          localStorage.setItem('role', backendData.user.role);
-
-          // Chuyển hướng về dashboard
-          navigate('/dashboard');
-        } else {
-          throw new Error(backendData.message || 'Đăng nhập Microsoft thất bại');
-        }
-      }
+      await loginWithMicrosoft();
+      // Navigation will be handled by the useEffect above when isAuthenticated changes
     } catch (error) {
       console.error('Lỗi đăng nhập Microsoft:', error);
       

@@ -16,46 +16,161 @@ declare global {
 }
 
 // Sử dụng Vite environment variables thay vì Next.js
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL_VITE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 interface RequestOptions {
   headers?: Record<string, string>;
   [key: string]: unknown;
 }
 
+// Create axios instance
 const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  baseURL: API_URL_VITE,
+  timeout: 10000,
 });
 
-// Interceptor để xử lý response
-api.interceptors.response.use(
-  (response) => response.data,
+// Token refresh logic
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token!);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+// Request interceptor to add token
+api.interceptors.request.use(
+  async (config) => {
+    const token = localStorage.getItem('token');
+    if (token && token !== 'authenticated') {
+      // Check if token is expired
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const isExpired = tokenPayload.exp && tokenPayload.exp < Date.now() / 1000;
+        
+        if (isExpired) {
+          console.log('⚠️ API: Token expired, removing from storage');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          return Promise.reject(new Error('Token expired'));
+        }
+        
+        config.headers.Authorization = `Bearer ${token}`;
+      } catch (error) {
+        console.error('❌ API: Error parsing token:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+    return config;
+  },
   (error) => {
-    console.error('API Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Interceptor để xử lý request
-api.interceptors.request.use(
-  (config) => {
-    // Nếu là FormData, không set Content-Type để axios tự xử lý
-    if (config.data instanceof FormData) {
-      delete config.headers['Content-Type'];
-    }
-
-    // Thêm token vào header nếu có
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    return config;
+// Response interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => {
+    return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // If already refreshing, queue the request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Try to get a fresh token from MSAL
+        const { PublicClientApplication } = await import('@azure/msal-browser');
+        
+        const msalConfig = {
+          auth: {
+            clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '38b5b315-9e8e-4ca8-9b2e-3c0a3b7e9c29',
+            authority: `https://login.microsoftonline.com/${import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common'}`,
+            redirectUri: window.location.origin,
+          },
+          cache: {
+            cacheLocation: 'localStorage' as const,
+            storeAuthStateInCookie: false,
+          }
+        };
+
+        const pca = new PublicClientApplication(msalConfig);
+        await pca.initialize();
+        
+        const account = pca.getAllAccounts()[0];
+        
+        if (account) {
+          const silentRequest = {
+            scopes: ['openid', 'profile', 'email', 'User.Read'],
+            account: account,
+          };
+
+          const response = await pca.acquireTokenSilent(silentRequest);
+          
+          if (response.accessToken) {
+            // Get new system token from backend
+            const backendResponse = await fetch(`${API_URL_VITE}/auth/microsoft/login`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${response.accessToken}`,
+                'Content-Type': 'application/json',
+              },
+            });
+
+            const backendData = await backendResponse.json();
+            
+            if (backendResponse.ok && backendData.success) {
+              localStorage.setItem('token', backendData.token);
+              localStorage.setItem('user', JSON.stringify(backendData.user));
+              
+              processQueue(null, backendData.token);
+              
+              // Retry the original request
+              originalRequest.headers.Authorization = `Bearer ${backendData.token}`;
+              return api(originalRequest);
+            }
+          }
+        }
+      } catch (refreshError) {
+        console.error('❌ API: Token refresh failed:', refreshError);
+        processQueue(refreshError, null);
+      } finally {
+        isRefreshing = false;
+      }
+
+      // If refresh failed, redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );
@@ -64,7 +179,7 @@ api.interceptors.request.use(
 const apiClient = {
   async get<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${API_URL_VITE}${endpoint}`, {
       ...options,
       method: 'GET',
       headers: {
@@ -99,7 +214,7 @@ const apiClient = {
     const token = localStorage.getItem('token');
     try {
       console.log('API POST request to:', endpoint);
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${API_URL_VITE}${endpoint}`, {
         ...options,
         method: 'POST',
         headers: {
@@ -144,7 +259,7 @@ const apiClient = {
 
   async put<T>(endpoint: string, body: unknown, options: RequestOptions = {}): Promise<T> {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${API_URL_VITE}${endpoint}`, {
       ...options,
       method: 'PUT',
       headers: {
@@ -178,7 +293,7 @@ const apiClient = {
 
   async delete<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${API_URL_VITE}${endpoint}`, {
       ...options,
       method: 'DELETE',
       headers: {
