@@ -34,6 +34,9 @@ export interface Library {
   documentType: string;
   specialCode: string;
   seriesName: string;
+  isNewBook?: boolean;
+  isFeaturedBook?: boolean;
+  isAudioBook?: boolean;
 }
 
 export interface Book {

@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
-import type { Library, Book } from "@/types/library";
+import type { Library, Book, SpecialCode } from "@/types/library";
 
 // Utility function to handle errors
 const getErrorMessage = (error: unknown): string => {
@@ -38,6 +39,9 @@ export function BookDetailComponent() {
     storageLocation: "",
     seriesName: "",
     specialCode: "",
+  });
+
+  const [libraryFeatures, setLibraryFeatures] = useState({
     isNewBook: false,
     isFeaturedBook: false,
     isAudioBook: false,
@@ -47,6 +51,7 @@ export function BookDetailComponent() {
   const [selectedLibrary, setSelectedLibrary] = useState<Library | null>(null);
   const [librarySearchTerm, setLibrarySearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Library[]>([]);
+  const [specialCodes, setSpecialCodes] = useState<SpecialCode[]>([]);
 
   const fetchAllBooks = async () => {
     try {
@@ -71,9 +76,21 @@ export function BookDetailComponent() {
     }
   };
 
+  const fetchSpecialCodes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/libraries/special-codes`);
+      if (!response.ok) throw new Error("Failed to fetch special codes");
+      const result = await response.json();
+      setSpecialCodes(result);
+    } catch (error) {
+      console.error("Error fetching special codes:", error);
+    }
+  };
+
   useEffect(() => {
     fetchAllBooks();
     fetchLibraries();
+    fetchSpecialCodes();
   }, []);
 
   const handleLibrarySearch = (term: string) => {
@@ -115,6 +132,8 @@ export function BookDetailComponent() {
       storageLocation: "",
       seriesName: "",
       specialCode: "",
+    });
+    setLibraryFeatures({
       isNewBook: false,
       isFeaturedBook: false,
       isAudioBook: false,
@@ -125,6 +144,11 @@ export function BookDetailComponent() {
   const openEditModal = (book: Book) => {
     setModalMode("edit");
     setCurrentBook(book);
+    setLibraryFeatures({
+      isNewBook: book.isNewBook || false,
+      isFeaturedBook: book.isFeaturedBook || false,
+      isAudioBook: book.isAudioBook || false,
+    });
     setIsModalOpen(true);
   };
 
@@ -144,12 +168,24 @@ export function BookDetailComponent() {
         publishYear: currentBook.publishYear ? Number(currentBook.publishYear) : null,
         pages: currentBook.pages ? Number(currentBook.pages) : null,
         coverPrice: currentBook.coverPrice ? Number(currentBook.coverPrice) : null,
-        isNewBook: currentBook.isNewBook || false,
-        isFeaturedBook: currentBook.isFeaturedBook || false,
-        isAudioBook: currentBook.isAudioBook || false,
       };
 
       if (modalMode === "create") {
+        // Cập nhật library với đặc điểm sách
+        const libraryUpdateResponse = await fetch(
+          `${API_URL}/libraries/${selectedLibrary!._id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(libraryFeatures),
+          }
+        );
+
+        if (!libraryUpdateResponse.ok) {
+          const error = await libraryUpdateResponse.json();
+          throw new Error(error.error || "Error updating library features");
+        }
+
         const response = await fetch(
           `${API_URL}/libraries/${selectedLibrary!._id}/books`,
           {
@@ -168,6 +204,29 @@ export function BookDetailComponent() {
         if (!currentBook.generatedCode) {
           toast.error("Không tìm thấy mã sách để cập nhật");
           return;
+        }
+
+        // Tìm library chứa book này để cập nhật đặc điểm sách
+        const allBooksResponse = await fetch(`${API_URL}/libraries/books`);
+        if (allBooksResponse.ok) {
+          const allBooks = await allBooksResponse.json();
+          const currentBookData = allBooks.find((book: Book) => book.generatedCode === currentBook.generatedCode);
+          if (currentBookData && currentBookData.libraryId) {
+            // Cập nhật library với đặc điểm sách
+            const libraryUpdateResponse = await fetch(
+              `${API_URL}/libraries/${currentBookData.libraryId}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(libraryFeatures),
+              }
+            );
+
+            if (!libraryUpdateResponse.ok) {
+              const error = await libraryUpdateResponse.json();
+              throw new Error(error.error || "Error updating library features");
+            }
+          }
         }
 
         const response = await fetch(
@@ -268,8 +327,8 @@ export function BookDetailComponent() {
                   <div className="flex justify-end gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
                       onClick={() => openEditModal(book)}
+                      className="bg-primary text-white hover:bg-primary/90"
                     >
                     Sửa
                     </Button>
@@ -330,11 +389,21 @@ export function BookDetailComponent() {
                     <label className="block text-sm font-medium mb-2">
                       Quy ước sách <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      placeholder="Nhập quy ước sách..."
+                    <Select
                       value={currentBook.specialCode || ""}
-                      onChange={(e) => handleChange("specialCode", e.target.value)}
-                    />
+                      onValueChange={(value) => handleChange("specialCode", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn quy ước sách..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {specialCodes.map((code) => (
+                          <SelectItem key={code._id} value={code.code}>
+                            {code.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -388,24 +457,24 @@ export function BookDetailComponent() {
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="bookIsNew"
-                        checked={currentBook.isNewBook || false}
-                        onCheckedChange={(checked) => handleChange("isNewBook", checked)}
+                        checked={libraryFeatures.isNewBook || false}
+                        onCheckedChange={(checked) => setLibraryFeatures(prev => ({ ...prev, isNewBook: !!checked }))}
                       />
                       <label htmlFor="bookIsNew" className="text-sm cursor-pointer">Sách mới</label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="bookIsFeatured"
-                        checked={currentBook.isFeaturedBook || false}
-                        onCheckedChange={(checked) => handleChange("isFeaturedBook", checked)}
+                        checked={libraryFeatures.isFeaturedBook || false}
+                        onCheckedChange={(checked) => setLibraryFeatures(prev => ({ ...prev, isFeaturedBook: !!checked }))}
                       />
                       <label htmlFor="bookIsFeatured" className="text-sm cursor-pointer">Sách nổi bật</label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="bookIsAudio"
-                        checked={currentBook.isAudioBook || false}
-                        onCheckedChange={(checked) => handleChange("isAudioBook", checked)}
+                        checked={libraryFeatures.isAudioBook || false}
+                        onCheckedChange={(checked) => setLibraryFeatures(prev => ({ ...prev, isAudioBook: !!checked }))}
                       />
                       <label htmlFor="bookIsAudio" className="text-sm cursor-pointer">Sách nói</label>
                     </div>

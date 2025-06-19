@@ -5,15 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { FiPlus, FiX } from "react-icons/fi";
 import { toast } from "sonner";
 import type { 
   DocumentType, 
   SeriesName, 
-  SpecialCode, 
+  // SpecialCode, 
   Author, 
   Library
 } from "@/types/library";
@@ -37,11 +39,14 @@ export function BookComponent() {
     documentType: "",
     specialCode: "",
     seriesName: "",
+    isNewBook: false,
+    isFeaturedBook: false,
+    isAudioBook: false,
   });
 
   const [allAuthors, setAllAuthors] = useState<Author[]>([]);
   const [allDocumentTypes, setAllDocumentTypes] = useState<DocumentType[]>([]);
-  const [allSpecialCodes, setAllSpecialCodes] = useState<SpecialCode[]>([]);
+  // const [allSpecialCodes, setAllSpecialCodes] = useState<SpecialCode[]>([]);
   const [allSeriesNames, setAllSeriesNames] = useState<SeriesName[]>([]);
   
   // States for author input
@@ -53,6 +58,7 @@ export function BookComponent() {
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const fetchLibraries = async () => {
     try {
@@ -75,7 +81,7 @@ export function BookComponent() {
         fetch(`${API_URL}/libraries/series-names`),
       ]);
 
-      const [authors, docTypes, specialCodes, series] = await Promise.all([
+      const [authors, docTypes, , series] = await Promise.all([
         authorsRes.json(),
         docTypesRes.json(),
         specialCodesRes.json(),
@@ -84,7 +90,7 @@ export function BookComponent() {
 
       setAllAuthors(authors);
       setAllDocumentTypes(docTypes);
-      setAllSpecialCodes(specialCodes);
+      // setAllSpecialCodes(specialCodes);
       setAllSeriesNames(series);
     } catch (error) {
       console.error("Error fetching dropdown data:", error);
@@ -155,6 +161,41 @@ export function BookComponent() {
     }
   };
 
+  // Handle drag & drop for cover image
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find(file => file.type.startsWith('image/'));
+    
+    if (imageFile) {
+      handleImageFileSelect(imageFile);
+    } else {
+      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png)");
+    }
+  };
+
+  const handleImageFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png)");
+      return;
+    }
+    
+    setCoverImageFile(file);
+    setCoverImagePreview(URL.createObjectURL(file));
+  };
+
   const openCreateModal = () => {
     setModalMode("create");
     setCurrentLibrary({
@@ -167,6 +208,9 @@ export function BookComponent() {
       documentType: "",
       specialCode: "",
       seriesName: "",
+      isNewBook: false,
+      isFeaturedBook: false,
+      isAudioBook: false,
     });
     setSelectedAuthors([]);
     setAuthorInput("");
@@ -209,6 +253,9 @@ export function BookComponent() {
         formData.append("documentType", currentLibrary.documentType || "");
         formData.append("specialCode", currentLibrary.specialCode || "");
         formData.append("seriesName", currentLibrary.seriesName || "");
+        formData.append("isNewBook", String(currentLibrary.isNewBook || false));
+        formData.append("isFeaturedBook", String(currentLibrary.isFeaturedBook || false));
+        formData.append("isAudioBook", String(currentLibrary.isAudioBook || false));
 
         const response = await fetch(`${API_URL}/libraries`, {
           method: "POST",
@@ -286,6 +333,7 @@ export function BookComponent() {
               <TableHead>Tác giả</TableHead>
               <TableHead>Thể loại</TableHead>
               <TableHead>Ngôn ngữ</TableHead>
+              <TableHead>Đặc điểm</TableHead>
               <TableHead className="text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
@@ -297,12 +345,19 @@ export function BookComponent() {
                 <TableCell>{lib.authors?.join(", ")}</TableCell>
                 <TableCell>{lib.category}</TableCell>
                 <TableCell>{lib.language}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {lib.isNewBook && <Badge variant="outline" className="text-xs">Sách mới</Badge>}
+                    {lib.isFeaturedBook && <Badge variant="outline" className="text-xs">Nổi bật</Badge>}
+                    {lib.isAudioBook && <Badge variant="outline" className="text-xs">Sách nói</Badge>}
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
                       onClick={() => openEditModal(lib)}
+                      className="bg-primary text-white hover:bg-primary/90"
                     >
                       Sửa
                     </Button>
@@ -333,7 +388,7 @@ export function BookComponent() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Tên sách <span className="text-red-500">*</span>
+                    Tên đầu sách <span className="text-red-500">*</span>
                   </label>
                   <Input
                     value={currentLibrary.title || ""}
@@ -407,15 +462,28 @@ export function BookComponent() {
                     </div>
                   )}
                 </div>
+              
+               
+                
                 <div>
-                  <label className="block text-sm font-medium mb-2">Thể loại:</label>
-                  <Input
-                    value={currentLibrary.category || ""}
-                    onChange={(e) => handleModalChange("category", e.target.value)}
-                    placeholder="Nhập thể loại..."
-                  />
+                  <label className="block text-sm font-medium mb-2">Tùng thư:</label>
+                  <Select
+                    value={currentLibrary.seriesName || ""}
+                    onValueChange={(value) => handleModalChange("seriesName", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn tùng thư..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allSeriesNames.map((sn) => (
+                        <SelectItem key={sn._id} value={sn.name}>
+                          {sn.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div>
+                 <div>
                   <label className="block text-sm font-medium mb-2">Ngôn ngữ:</label>
                   <Input
                     value={currentLibrary.language || ""}
@@ -446,57 +514,53 @@ export function BookComponent() {
                   </Select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Quy ước sách:</label>
-                  <Select
-                    value={currentLibrary.specialCode || ""}
-                    onValueChange={(value) => handleModalChange("specialCode", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn quy ước sách..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allSpecialCodes.map((sc) => (
-                        <SelectItem key={sc._id} value={sc.name}>
-                          {sc.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tùng thư:</label>
-                  <Select
-                    value={currentLibrary.seriesName || ""}
-                    onValueChange={(value) => handleModalChange("seriesName", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn tùng thư..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allSeriesNames.map((sn) => (
-                        <SelectItem key={sn._id} value={sn.name}>
-                          {sn.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
                   <label className="block text-sm font-medium mb-2">Ảnh bìa:</label>
                   <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary"
+                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all duration-300 ${
+                      isDragOver 
+                        ? 'border-primary bg-primary/5 scale-105' 
+                        : 'border-gray-300 hover:border-primary'
+                    }`}
                     onClick={() => coverImageInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                   >
                     {coverImagePreview ? (
-                      <img
-                        src={coverImagePreview}
-                        alt="Preview"
-                        className="h-32 mx-auto object-contain"
-                      />
+                      <div className="relative">
+                        <img
+                          src={coverImagePreview}
+                          alt="Preview"
+                          className="h-28 mx-auto object-contain"
+                        />
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCoverImageFile(null);
+                            setCoverImagePreview(null);
+                          }}
+                        >
+                          <FiX size={12} />
+                        </button>
+                      </div>
                     ) : (
-                      <div className="text-gray-500">
-                        <p>Kéo thả hoặc chọn ảnh bìa từ máy tính</p>
-                        <p className="text-xs mt-1">Định dạng hỗ trợ: .jpg, .jpeg, .png</p>
+                      <div className="space-y-1">
+                        <div className="mx-auto h-10 w-10 text-gray-400">
+                          <svg fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" />
+                          </svg>
+                        </div>
+                        <div className="text-gray-500">
+                          <p className="text-sm font-medium">Kéo thả hoặc chọn ảnh bìa từ máy tính</p>
+                          <p className="text-xs mt-1">Định dạng hỗ trợ: .jpg, .jpeg, .png</p>
+                        </div>
+                        {isDragOver && (
+                          <div className="text-primary font-medium animate-pulse">
+                            Thả ảnh vào đây...
+                          </div>
+                        )}
                       </div>
                     )}
                     <input
@@ -506,13 +570,44 @@ export function BookComponent() {
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (!file) return;
-                        setCoverImageFile(file);
-                        setCoverImagePreview(URL.createObjectURL(file));
+                        if (file) {
+                          handleImageFileSelect(file);
+                        }
                       }}
                     />
                   </div>
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Đặc điểm sách:</label>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="libraryIsNew"
+                        checked={currentLibrary.isNewBook || false}
+                        onCheckedChange={(checked) => handleModalChange("isNewBook", !!checked)}
+                      />
+                      <label htmlFor="libraryIsNew" className="text-sm cursor-pointer">Sách mới</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="libraryIsFeatured"
+                        checked={currentLibrary.isFeaturedBook || false}
+                        onCheckedChange={(checked) => handleModalChange("isFeaturedBook", !!checked)}
+                      />
+                      <label htmlFor="libraryIsFeatured" className="text-sm cursor-pointer">Sách nổi bật</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="libraryIsAudio"
+                        checked={currentLibrary.isAudioBook || false}
+                        onCheckedChange={(checked) => handleModalChange("isAudioBook", !!checked)}
+                      />
+                      <label htmlFor="libraryIsAudio" className="text-sm cursor-pointer">Sách nói</label>
+                    </div>
+                  </div>
+                </div>
+                
               </div>
             </div>
             
