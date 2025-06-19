@@ -166,12 +166,6 @@ export const MENU_SECTIONS: MenuSection[] = [
         description: "Quản lý Sách",
         permission: "library.books"
       },
-       {
-        title: "Báo cáo",
-        href: "/dashboard/library/reports",
-        description: "Báo cáo thư viện",
-        permission: "library.reports"
-      },
       {
         title: "Hoạt động",
         href: "/dashboard/library/activities",

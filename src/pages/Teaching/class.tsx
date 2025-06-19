@@ -364,8 +364,6 @@ const ClassComponent: React.FC = () => {
         label: `${s.studentCode} - ${s.name}`
       }));
       setStudentsOptions(options);
-      console.log('Fetched studentsOptions:', options);
-      console.log('Sample student option:', options[0]); // Debug thêm để kiểm tra format
     } catch (err) {
       console.error('Error fetching students for enrollment:', err);
       toast({
@@ -484,7 +482,6 @@ const ClassComponent: React.FC = () => {
   }, [selectedSchoolYear]);
 
   useEffect(() => {
-    console.log('Selected class changed:', selectedClass);
     if (selectedClass) {
       setValue("className", selectedClass.className || "");
       setValue("schoolYear", selectedClass.schoolYear?._id || "");
@@ -524,8 +521,6 @@ const ClassComponent: React.FC = () => {
         console.error('Invalid response from API:', response);
         schoolYearsData = [];
       }
-      
-      console.log('Processed school years data:', schoolYearsData);
       setSchoolYears(schoolYearsData);
       
       if (schoolYearsData.length > 0) {
@@ -671,7 +666,6 @@ const ClassComponent: React.FC = () => {
         classesData = [];
       }
       
-      console.log('Fetched classes data:', classesData);
       setClasses(classesData);
     } catch (error: unknown) {
       console.error('Error fetching classes:', error);
@@ -688,8 +682,6 @@ const ClassComponent: React.FC = () => {
 
   const handleCreateOrUpdateClass = async (formData: ClassFormData) => {
     try {
-      console.log('Creating/Updating class with data:', formData);
-
       if (selectedClass) {
         await api.put<Class>(API_ENDPOINTS.CLASS(selectedClass._id), formData);
         toast({
@@ -1266,7 +1258,6 @@ const ClassComponent: React.FC = () => {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            console.log('Selected image file:', file.name);
                             handleImageFileSelect(file);
                           }
                         }}
@@ -1363,7 +1354,6 @@ const ClassComponent: React.FC = () => {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          console.log('Selected ZIP file:', file.name);
                           handleZipFileSelect(file);
                         }
                       }}
@@ -1596,7 +1586,6 @@ const ClassComponent: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              console.log('Class data before update:', cls);
                               if (cls) {
                                 setSelectedClass(cls);
                                 setIsDialogOpen(true);

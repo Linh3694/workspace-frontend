@@ -13,6 +13,7 @@ export interface SpecialCode {
   _id: string;
   name: string;
   code: string;
+  language: string;
 }
 
 export interface Author {
