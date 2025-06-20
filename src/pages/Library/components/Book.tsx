@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
 import { FiPlus, FiX } from "react-icons/fi";
 import { toast } from "sonner";
@@ -35,7 +37,18 @@ export function BookComponent() {
     coverImage: "",
     category: "",
     language: "",
-    description: "",
+    description: {
+      linkEmbed: "",
+      content: ""
+    },
+    introduction: {
+      linkEmbed: "",
+      content: ""
+    },
+    audioBook: {
+      linkEmbed: "",
+      content: ""
+    },
     documentType: "",
     specialCode: "",
     seriesName: "",
@@ -43,6 +56,11 @@ export function BookComponent() {
     isFeaturedBook: false,
     isAudioBook: false,
   });
+  
+  // Description modal states
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
+  const [descriptionActiveTab, setDescriptionActiveTab] = useState<'description' | 'introduction' | 'audiobook'>('description');
+  const [currentDescriptionLibrary, setCurrentDescriptionLibrary] = useState<Library | null>(null);
 
   const [allAuthors, setAllAuthors] = useState<Author[]>([]);
   const [allDocumentTypes, setAllDocumentTypes] = useState<DocumentType[]>([]);
@@ -204,7 +222,18 @@ export function BookComponent() {
       coverImage: "",
       category: "",
       language: "",
-      description: "",
+      description: {
+        linkEmbed: "",
+        content: ""
+      },
+      introduction: {
+        linkEmbed: "",
+        content: ""
+      },
+      audioBook: {
+        linkEmbed: "",
+        content: ""
+      },
       documentType: "",
       specialCode: "",
       seriesName: "",
@@ -252,7 +281,9 @@ export function BookComponent() {
       formData.append("title", currentLibrary.title || "");
       formData.append("category", currentLibrary.category || "");
       formData.append("language", currentLibrary.language || "");
-      formData.append("description", currentLibrary.description || "");
+      formData.append("description", JSON.stringify(currentLibrary.description || { linkEmbed: "", content: "" }));
+      formData.append("introduction", JSON.stringify(currentLibrary.introduction || { linkEmbed: "", content: "" }));
+      formData.append("audioBook", JSON.stringify(currentLibrary.audioBook || { linkEmbed: "", content: "" }));
       formData.append("documentType", currentLibrary.documentType || "");
       formData.append("specialCode", currentLibrary.specialCode || "");
       formData.append("seriesName", currentLibrary.seriesName || "");
@@ -311,6 +342,13 @@ export function BookComponent() {
     }
   };
 
+  // Open description modal
+  const openDescriptionModal = (library: Library) => {
+    setCurrentDescriptionLibrary(library);
+    setDescriptionActiveTab('description');
+    setIsDescriptionModalOpen(true);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -352,6 +390,13 @@ export function BookComponent() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => openDescriptionModal(lib)}
+                      className="flex items-center gap-1"
+                    >
+                      Mô tả
+                    </Button>
                     <Button
                       size="sm"
                       onClick={() => openEditModal(lib)}
@@ -607,14 +652,231 @@ export function BookComponent() {
                 </div>
                 
               </div>
-            </div>
-            
-            <div className="flex justify-end gap-2 mt-6">
+                        </div>
+
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
               <Button variant="outline" onClick={() => setIsModalOpen(false)}>
                 Hủy
               </Button>
               <Button onClick={handleModalSave}>
                 Lưu
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Description Modal */}
+        <Dialog open={isDescriptionModalOpen} onOpenChange={setIsDescriptionModalOpen}>
+          <DialogContent className="max-w-5xl h-[62vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle>
+                Mô tả sách: {currentDescriptionLibrary?.title}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {/* Tabs Component */}
+            <Tabs 
+              value={descriptionActiveTab} 
+              onValueChange={(value) => setDescriptionActiveTab(value as 'description' | 'introduction' | 'audiobook')}
+              className="flex-1 flex flex-col"
+            >
+              <div className="flex justify-center mb-4">
+                <TabsList className="grid w-full max-w-md grid-cols-3">
+                  <TabsTrigger value="description">Mô tả</TabsTrigger>
+                  <TabsTrigger value="introduction">Giới thiệu sách</TabsTrigger>
+                  <TabsTrigger value="audiobook">Sách nói</TabsTrigger>
+                </TabsList>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <TabsContent value="description" className="space-y-4 h-full mt-0">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Link embed
+                    </label>
+                    <Input
+                      type="url"
+                      placeholder="Nhập URL embed từ Voiz FM, Spotify, YouTube..."
+                      value={currentDescriptionLibrary?.description?.linkEmbed || ''}
+                      onChange={(e) => {
+                        if (currentDescriptionLibrary) {
+                          setCurrentDescriptionLibrary({
+                            ...currentDescriptionLibrary,
+                            description: {
+                              ...currentDescriptionLibrary.description,
+                              linkEmbed: e.target.value
+                            }
+                          });
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Ví dụ: https://voiz.vn/play/461/ hoặc các URL embed khác
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Mô tả <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      className="h-[200px] resize-none"
+                      placeholder="Nhập nội dung mô tả sách..."
+                      value={currentDescriptionLibrary?.description?.content || ''}
+                      onChange={(e) => {
+                        if (currentDescriptionLibrary) {
+                          setCurrentDescriptionLibrary({
+                            ...currentDescriptionLibrary,
+                            description: {
+                              ...currentDescriptionLibrary.description,
+                              content: e.target.value
+                            }
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="introduction" className="space-y-4 h-full mt-0">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Link embed
+                    </label>
+                    <Input
+                      type="url"
+                      placeholder="Nhập URL embed từ Voiz FM, Spotify, YouTube..."
+                      value={currentDescriptionLibrary?.introduction?.linkEmbed || ''}
+                      onChange={(e) => {
+                        if (currentDescriptionLibrary) {
+                          setCurrentDescriptionLibrary({
+                            ...currentDescriptionLibrary,
+                            introduction: {
+                              ...currentDescriptionLibrary.introduction,
+                              linkEmbed: e.target.value
+                            }
+                          });
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Ví dụ: https://voiz.vn/play/461/ hoặc các URL embed khác
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Giới thiệu sách <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      className="h-[200px] resize-none"
+                      placeholder="Nhập nội dung giới thiệu chi tiết về sách..."
+                      value={currentDescriptionLibrary?.introduction?.content || ''}
+                      onChange={(e) => {
+                        if (currentDescriptionLibrary) {
+                          setCurrentDescriptionLibrary({
+                            ...currentDescriptionLibrary,
+                            introduction: {
+                              ...currentDescriptionLibrary.introduction,
+                              content: e.target.value
+                            }
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="audiobook" className="space-y-4 h-full mt-0">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Link embed
+                    </label>
+                    <Input
+                      type="url"
+                      placeholder="Nhập URL embed từ Voiz FM, Spotify, YouTube..."
+                      value={currentDescriptionLibrary?.audioBook?.linkEmbed || ''}
+                      onChange={(e) => {
+                        if (currentDescriptionLibrary) {
+                          setCurrentDescriptionLibrary({
+                            ...currentDescriptionLibrary,
+                            audioBook: {
+                              ...currentDescriptionLibrary.audioBook,
+                              linkEmbed: e.target.value
+                            }
+                          });
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Ví dụ: https://voiz.vn/play/461/ hoặc các URL embed khác
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Mô tả <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      className="h-[200px] resize-none"
+                      placeholder="Nhập nội dung mô tả sách nói..."
+                      value={currentDescriptionLibrary?.audioBook?.content || ''}
+                      onChange={(e) => {
+                        if (currentDescriptionLibrary) {
+                          setCurrentDescriptionLibrary({
+                            ...currentDescriptionLibrary,
+                            audioBook: {
+                              ...currentDescriptionLibrary.audioBook,
+                              content: e.target.value
+                            }
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDescriptionModalOpen(false)}
+              >
+                Đóng
+              </Button>
+              <Button 
+                onClick={async () => {
+                  if (!currentDescriptionLibrary) return;
+                  
+                  try {
+                    const response = await fetch(`${API_URL}/libraries/${currentDescriptionLibrary._id}`, {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        description: currentDescriptionLibrary.description,
+                        introduction: currentDescriptionLibrary.introduction,
+                        audioBook: currentDescriptionLibrary.audioBook,
+                      }),
+                    });
+
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(error.error || "Error updating library");
+                    }
+
+                    setIsDescriptionModalOpen(false);
+                    fetchLibraries();
+                    toast.success("Cập nhật mô tả thành công!");
+                  } catch (error) {
+                    console.error("Error updating description:", error);
+                    toast.error(getErrorMessage(error));
+                  }
+                }}
+              >
+                Lưu thay đổi
               </Button>
             </div>
           </DialogContent>

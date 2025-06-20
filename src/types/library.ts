@@ -30,7 +30,19 @@ export interface Library {
   coverImage?: string;
   category: string;
   language: string;
-  description: string;
+  // Cấu trúc mới cho 3 tab
+  description: {
+    linkEmbed?: string;
+    content?: string;
+  };
+  introduction: {
+    linkEmbed?: string;
+    content?: string;
+  };
+  audioBook: {
+    linkEmbed?: string;
+    content?: string;
+  };
   documentType: string;
   specialCode: string;
   seriesName: string;
