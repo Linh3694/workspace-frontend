@@ -149,8 +149,8 @@ export function SpecialCodeComponent() {
           <TableHeader>
             <TableRow>
               <TableHead>STT</TableHead>
-              <TableHead>Tên quy ước</TableHead>
-              <TableHead>Kho</TableHead>
+              <TableHead>Mã đặc biệt</TableHead>
+              <TableHead>Nơi lưu trữ</TableHead>
               <TableHead>Ngôn ngữ</TableHead>
               <TableHead className="text-right">Hành động</TableHead>
             </TableRow>
@@ -184,63 +184,63 @@ export function SpecialCodeComponent() {
               </TableRow>
             ))}
           </TableBody>
-                  </Table>
-        </CardContent>
+        </Table>
+      </CardContent>
 
-        {/* Modal tạo mới/chỉnh sửa */}
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {modalMode === "create" ? "Tạo mới đăng ký cá biệt" : "Chỉnh sửa đăng ký cá biệt"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="name" className="block text-sm font-medium mb-2">
-                  Tên quy ước <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nhập tên quy ước..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="code" className="block text-sm font-medium mb-2">
-                  Kho <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Nhập kho..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="language" className="block text-sm font-medium mb-2">
-                  Ngôn ngữ <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="language"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  placeholder="Nhập ngôn ngữ..."
-                />
-              </div>
+      {/* Modal tạo mới/chỉnh sửa */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {modalMode === "create" ? "Tạo mới đăng ký cá biệt" : "Chỉnh sửa đăng ký cá biệt"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label htmlFor="name" className="block text-sm font-medium mb-2">
+                Mã đặc biệt <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nhập mã đặc biệt..."
+              />
             </div>
-            
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                Hủy
-              </Button>
-              <Button onClick={handleModalSave}>
-                {modalMode === "create" ? "Tạo mới" : "Cập nhật"}
-              </Button>
+            <div>
+              <Label htmlFor="code" className="block text-sm font-medium mb-2">
+                Nơi lưu trữ <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Nhập nơi lưu trữ..."
+              />
             </div>
-          </DialogContent>
-        </Dialog>
-      </Card>
-    );
-  } 
+            <div>
+              <Label htmlFor="language" className="block text-sm font-medium mb-2">
+                Ngôn ngữ <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="language"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                placeholder="Nhập ngôn ngữ..."
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleModalSave}>
+              {modalMode === "create" ? "Tạo mới" : "Cập nhật"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+} 

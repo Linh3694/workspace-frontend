@@ -39,6 +39,7 @@ export function BookDetailComponent() {
     storageLocation: "",
     seriesName: "",
     specialCode: "",
+    specialCodeId: "",
   });
 
 
@@ -128,6 +129,7 @@ export function BookDetailComponent() {
       storageLocation: "",
       seriesName: "",
       specialCode: "",
+      specialCodeId: "",
     });
 
     setIsModalOpen(true);
@@ -135,7 +137,14 @@ export function BookDetailComponent() {
 
   const openEditModal = (book: Book) => {
     setModalMode("edit");
-    setCurrentBook(book);
+    
+    // Tìm specialCodeId dựa trên specialCode của book
+    const matchingSpecialCode = specialCodes.find(sc => sc.name === book.specialCode);
+    
+    setCurrentBook({
+      ...book,
+      specialCodeId: matchingSpecialCode?._id || ""
+    });
 
     setIsModalOpen(true);
   };
@@ -335,19 +344,19 @@ export function BookDetailComponent() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      Quy ước sách <span className="text-red-500">*</span>
+                      Mã đặc biệt <span className="text-red-500">*</span>
                     </label>
                     <Select
-                      value={currentBook.specialCode || ""}
-                      onValueChange={(value) => handleChange("specialCode", value)}
+                      value={currentBook.specialCodeId || ""}
+                      onValueChange={(value) => handleChange("specialCodeId", value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Chọn quy ước sách..." />
+                        <SelectValue placeholder="Chọn mã đặc biệt..." />
                       </SelectTrigger>
                       <SelectContent>
                         {specialCodes.map((code) => (
-                          <SelectItem key={code._id} value={code.code}>
-                            {code.name}
+                          <SelectItem key={code._id} value={code._id}>
+                            {code.name} ({code.code})
                           </SelectItem>
                         ))}
                       </SelectContent>

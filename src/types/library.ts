@@ -70,6 +70,7 @@ export interface Book {
   storageLocation: string;
   seriesName: string;
   specialCode: string;
+  specialCodeId?: string;
   status?: string;
   isNewBook?: boolean;
   isFeaturedBook?: boolean;
