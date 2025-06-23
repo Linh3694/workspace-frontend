@@ -752,7 +752,7 @@ const ClassComponent: React.FC = () => {
     }
     try {
       // Gửi đồng thời nhiều request
-      await Promise.all(
+      const results = await Promise.allSettled(
         selectedStudentIds.map((stuId) =>
           api.post(API_ENDPOINTS.ENROLLMENTS, {
             student: stuId,
@@ -761,13 +761,32 @@ const ClassComponent: React.FC = () => {
           })
         )
       );
-      toast({
-        title: "Thành công",
-        description: `Đã thêm ${selectedStudentIds.length} học sinh vào lớp`,
-      });
+
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (successful > 0) {
+        toast({
+          title: "Thành công",
+          description: `Đã thêm ${successful} học sinh vào lớp${failed > 0 ? `, ${failed} học sinh thất bại` : ''}`,
+        });
+      }
+
+      if (failed > 0 && successful === 0) {
+        const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+        toast({
+          title: "Lỗi",
+          description: firstError?.reason?.response?.data?.message || firstError?.reason?.message || "Không thể thêm học sinh",
+          variant: "destructive",
+        });
+      }
+
+      // Refresh class data để cập nhật số lượng học sinh
+      await fetchClasses();
       // Xóa lựa chọn cũ
       setSelectedStudentIds([]);
     } catch (err: unknown) {
+      console.error('Enroll error:', err);
       toast({
         title: "Lỗi",
         description: err instanceof Error ? err.message : "Không thể thêm học sinh",
