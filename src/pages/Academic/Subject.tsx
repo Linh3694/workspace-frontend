@@ -49,6 +49,9 @@ interface ExcelRowData {
   GradeLevelCodes?: string;
   NeedFunctionRoom?: string;
   RoomCodes?: string;
+  IsParentSubject?: string;
+  ParentSubjectCode?: string;
+  Description?: string;
 }
 
 /** Trả về danh sách phòng học của một subject */
@@ -135,6 +138,9 @@ const SubjectComponent: React.FC = () => {
             ?.split(",")
             .map((c: string) => c.trim())
             .filter(Boolean) || [],
+          isParentSubject: /true/i.test(row.IsParentSubject?.toString() || ""),
+          parentSubjectCode: row.ParentSubjectCode?.toString().trim() || undefined,
+          description: row.Description?.toString().trim() || undefined,
         });
         return acc;
       }, []);
@@ -186,6 +192,9 @@ const SubjectComponent: React.FC = () => {
         gradeLevelCodes: GradeLevelCodes,
         needFunctionRoom: /true/i.test(row.NeedFunctionRoom?.toString() || ""),
         roomCodes: row.RoomCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [],
+        isParentSubject: /true/i.test(row.IsParentSubject?.toString() || ""),
+        parentSubjectCode: row.ParentSubjectCode?.toString().trim() || undefined,
+        description: row.Description?.toString().trim() || undefined,
       });
       return acc;
     }, []);
@@ -788,7 +797,7 @@ const SubjectComponent: React.FC = () => {
               <DialogHeader>
                 <DialogTitle>Nhập môn học từ Excel</DialogTitle>
                 <DialogDescription>
-                  File cần có các cột: Name, Code, SchoolCode, GradeLevelCodes, NeedFunctionRoom, RoomCodes.
+                  File cần có các cột: Name, Code, SchoolCode, GradeLevelCodes, NeedFunctionRoom, RoomCodes, IsParentSubject, ParentSubjectCode, Description.
                 </DialogDescription>
               </DialogHeader>
 
