@@ -69,6 +69,8 @@ interface GradeLevel {
 const schoolSchema = z.object({
   name: z.string().min(1, "Tên trường là bắt buộc"),
   code: z.string().min(1, "Mã trường là bắt buộc"),
+  type: z.string().optional(),
+  description: z.string().optional(),
 });
 
 const schema = z.object({
@@ -106,6 +108,8 @@ const GradeLevelComponent: React.FC = () => {
     defaultValues: {
       name: "",
       code: "",
+      type: "",
+      description: "",
     },
   });
 
@@ -294,7 +298,7 @@ const GradeLevelComponent: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-4 rounded-lg">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý khối lớp</h1>
         <div className="flex gap-2">
@@ -322,6 +326,22 @@ const GradeLevelComponent: React.FC = () => {
                   <Input id="code" {...schoolForm.register("code")} />
                   {schoolForm.formState.errors.code && (
                     <p className="text-red-500 text-sm">{schoolForm.formState.errors.code.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="type">Loại trường</Label>
+                  <Input id="type" {...schoolForm.register("type")} placeholder="VD: Tiểu học, THCS, THPT..." />
+                  {schoolForm.formState.errors.type && (
+                    <p className="text-red-500 text-sm">{schoolForm.formState.errors.type.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Mô tả</Label>
+                  <Input id="description" {...schoolForm.register("description")} placeholder="Mô tả về trường..." />
+                  {schoolForm.formState.errors.description && (
+                    <p className="text-red-500 text-sm">{schoolForm.formState.errors.description.message}</p>
                   )}
                 </div>
 
