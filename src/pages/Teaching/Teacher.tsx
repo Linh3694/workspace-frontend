@@ -127,6 +127,8 @@ interface ComboboxOption {
   label: string;
 }
 
+
+
 const schema = z.object({
   fullname: z.string().min(1, "Họ và tên là bắt buộc"),
   email: z.string().email("Email không hợp lệ"),
@@ -274,39 +276,33 @@ const TeacherComponent: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.TEACHERS);
+      console.log('Teachers response:', response);
+      
       let teachersData: Teacher[] = [];
-
-      // Kiểm tra và xử lý response theo nhiều cấp
-      if (response) {
-        if (Array.isArray(response)) {
-          teachersData = response;
-        } else if (typeof response === 'object') {
-          if (Array.isArray(response.data)) {
-            teachersData = response.data;
-          } else if (response.data?.data && Array.isArray(response.data.data)) {
-            teachersData = response.data.data;
-          } else if (response.data && !Array.isArray(response.data)) {
-            // Trường hợp response.data là object nhưng không phải array
-            console.warn('Response data is not an array:', response.data);
-            teachersData = [];
-          }
+      
+      // Sử dụng type assertion an toàn
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response as any;
+      
+      if (Array.isArray(responseData)) {
+        teachersData = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          teachersData = responseData.data;
+        } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          teachersData = responseData.data.data;
         }
       }
       
-      // Đảm bảo teachersData là array trước khi filter
-      if (!Array.isArray(teachersData)) {
-        console.warn('teachersData is not an array:', teachersData);
-        teachersData = [];
-      }
-      
       // Lọc và kiểm tra dữ liệu
-      const validTeachers = teachersData.filter(teacher => {
+      const validTeachers = Array.isArray(teachersData) ? teachersData.filter(teacher => {
         const isValid = teacher &&
           typeof teacher === 'object' &&
           teacher._id &&
           teacher.fullname;   
         return isValid;
-      });
+      }) : [];
+      
       setTeachers(validTeachers);
     } catch (error: unknown) {
       console.error('Error fetching teachers:', error);
@@ -323,34 +319,92 @@ const TeacherComponent: React.FC = () => {
 
   const fetchSubjects = async () => {
     try {
-      const data = await api.get<Subject[]>(API_ENDPOINTS.SUBJECTS);
-      setSubjects(data.data);
+      const response = await api.get<Subject[]>(API_ENDPOINTS.SUBJECTS);
+      console.log('Subjects response:', response);
+      
+      let subjectsData: Subject[] = [];
+      
+      // Sử dụng type assertion an toàn
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response as any;
+      
+      if (Array.isArray(responseData)) {
+        subjectsData = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          subjectsData = responseData.data;
+        } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          subjectsData = responseData.data.data;
+        }
+      }
+      
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
     } catch (error: unknown) {
+      console.error('Error fetching subjects:', error);
       toast({
         title: "Lỗi",
         description: error instanceof Error ? error.message : "Có lỗi xảy ra khi tải danh sách môn học",
         variant: "destructive"
       });
+      setSubjects([]);
     }
   };
 
   const fetchSchools = async () => {
     try {
       const response = await api.get<School[]>(API_ENDPOINTS.SCHOOLS);
+      console.log('Schools response:', response);
+      
+      let schoolsData: School[] = [];
+      
+      // Sử dụng type assertion an toàn
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response as any;
+      
+      if (Array.isArray(responseData)) {
+        schoolsData = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          schoolsData = responseData.data;
+        } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          schoolsData = responseData.data.data;
+        }
+      }
+      
+      if (!Array.isArray(schoolsData)) {
+        schoolsData = [];
+      }
+      
       // Ensure schools have their grade levels
       const schoolsWithGrades = await Promise.all(
-        response.data.map(async (school: School) => {
-          const schoolDetails = await api.get<School>(API_ENDPOINTS.SCHOOL(school._id));
-          return schoolDetails.data;
+        schoolsData.map(async (school: School) => {
+          try {
+            const schoolDetails = await api.get<School>(API_ENDPOINTS.SCHOOL(school._id));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const detailsData = schoolDetails as any;
+            
+            if (detailsData?.data) {
+              return detailsData.data;
+            } else if (detailsData?._id) {
+              return detailsData;
+            }
+            
+            return school; // fallback to original school data
+          } catch (error) {
+            console.error(`Error fetching details for school ${school._id}:`, error);
+            return school; // fallback to original school data
+          }
         })
       );
       setSchools(schoolsWithGrades);
     } catch (error: unknown) {
+      console.error('Error fetching schools:', error);
       toast({
         title: "Lỗi",
         description: error instanceof Error ? error.message : "Có lỗi xảy ra khi tải danh sách trường học",
         variant: "destructive"
       });
+      setSchools([]);
     }
   };
 
