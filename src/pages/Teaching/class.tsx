@@ -774,10 +774,36 @@ const ClassComponent: React.FC = () => {
 
       if (failed > 0 && successful === 0) {
         const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+        const errorData = firstError?.reason?.response?.data;
+        let errorMessage = "Không thể thêm học sinh";
+        
+        // Xử lý chi tiết lỗi từ backend
+        if (errorData) {
+          if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else if (typeof errorData === 'object' && errorData !== null) {
+            const obj = errorData as { message?: string; error?: string; errors?: string[] };
+            if (obj.errors && Array.isArray(obj.errors)) {
+              errorMessage = obj.errors.join('; ');
+            } else {
+              errorMessage = obj.message || obj.error || errorMessage;
+            }
+          }
+        } else if (firstError?.reason?.message) {
+          errorMessage = firstError.reason.message;
+        }
+        
         toast({
           title: "Lỗi",
-          description: firstError?.reason?.response?.data?.message || firstError?.reason?.message || "Không thể thêm học sinh",
+          description: errorMessage,
           variant: "destructive",
+        });
+      } else if (failed > 0 && successful > 0) {
+        // Show detailed results when there are mixed results
+        toast({
+          title: "Hoàn thành với một số lỗi",
+          description: `${successful} học sinh đã được thêm thành công, ${failed} học sinh thất bại`,
+          variant: "default",
         });
       }
 
@@ -812,6 +838,15 @@ const ClassComponent: React.FC = () => {
       return;
     }
 
+    if (!enrollSchoolYear) {
+      toast({
+        title: "Lỗi", 
+        description: "Vui lòng chọn năm học trước khi import",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setUploadingEnrollExcel(true);
       
@@ -831,11 +866,19 @@ const ClassComponent: React.FC = () => {
         description: "Import enrollment từ Excel thành công",
       });
 
-      // Clear file
+      // Clear file và đóng dialog
       setEnrollExcelFile(null);
       if (enrollExcelFileInputRef.current) {
         enrollExcelFileInputRef.current.value = '';
       }
+      
+      // Refresh classes data để cập nhật số lượng học sinh
+      await fetchClasses();
+      
+      // Đóng dialog sau khi thành công
+      setIsEnrollDialogOpen(false);
+      setEnrollSchoolYear("");
+      setEnrollClassId("");
       
     } catch (error: unknown) {
       console.error('Enroll Excel error:', error);
@@ -1445,18 +1488,30 @@ const ClassComponent: React.FC = () => {
 
                   </div>
                   <div className="space-y-2 mt-4">
-                    <Label htmlFor="enrollStudent">Học sinh</Label>
+                    <Label htmlFor="enrollStudent">Học sinh *</Label>
                     <Combobox
                       multiple
                       selectedValues={selectedStudentIds}
                       onChange={setSelectedStudentIds}
                       options={studentsOptions}
                       placeholder="Chọn học sinh"
+                      searchPlaceholder="Tìm kiếm học sinh..."
                       emptyText="Không có học sinh"
                       className="w-full"
                     />
+                    {selectedStudentIds.length > 0 && (
+                      <p className="text-sm text-blue-600">
+                        ✓ Đã chọn {selectedStudentIds.length} học sinh
+                      </p>
+                    )}
                   </div>
-                  <Button className="mt-4" onClick={handleEnrollManual} >Enroll</Button>
+                  <Button 
+                    className="mt-4" 
+                    onClick={handleEnrollManual}
+                    disabled={!enrollSchoolYear || !enrollClassId || selectedStudentIds.length === 0}
+                  >
+                    Enroll
+                  </Button>
                 </div>
                 <hr className="my-6" />
                 {/* Excel enroll section */}
@@ -1464,7 +1519,22 @@ const ClassComponent: React.FC = () => {
                   <h3 className="text-lg font-medium">2. Enroll bằng file Excel</h3>
                   <div className="mt-4 space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="enrollExcelFile">File Excel</Label>
+                      <Label htmlFor="enrollExcelSchoolYear">Năm học *</Label>
+                      <Select value={enrollSchoolYear} onValueChange={setEnrollSchoolYear}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn năm học" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {schoolYears.map((year) => (
+                            <SelectItem key={year._id} value={year._id}>
+                              {year.code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="enrollExcelFile">File Excel *</Label>
                       <div className="flex gap-2">
                         <Input 
                           type="file" 
@@ -1491,7 +1561,7 @@ const ClassComponent: React.FC = () => {
                     </div>
                     <Button 
                       onClick={handleEnrollExcel}
-                      disabled={!enrollExcelFile || uploadingEnrollExcel}
+                      disabled={!enrollExcelFile || !enrollSchoolYear || uploadingEnrollExcel}
                     >
                       {uploadingEnrollExcel ? "Đang import..." : "Import Enrollments"}
                     </Button>
