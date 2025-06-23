@@ -119,6 +119,14 @@ const FamilyList: React.FC = () => {
       const response = await axios.get(API_ENDPOINTS.FAMILIES);
       console.log('Dữ liệu gia đình từ API:', response.data);
 
+      // Debug để xem chi tiết cấu trúc dữ liệu
+      if (response.data.length > 0) {
+        console.log('Sample family structure:', JSON.stringify(response.data[0], null, 2));
+        if (response.data[0].parents?.length > 0) {
+          console.log('Sample parent structure:', JSON.stringify(response.data[0].parents[0], null, 2));
+        }
+      }
+
       // Đảm bảo trường parents luôn là array và đầy đủ
       const processedFamilies = response.data.map((family: Family) => {
         if (!family.parents || !Array.isArray(family.parents)) {
@@ -145,6 +153,8 @@ const FamilyList: React.FC = () => {
     let newFamilyId: string;
 
     try {
+      console.log('Bắt đầu tạo gia đình với dữ liệu:', formData);
+      
       // 1. Tạo Family trước
       const familyResponse = await axios.post(
         API_ENDPOINTS.FAMILIES,
@@ -156,22 +166,26 @@ const FamilyList: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       newFamilyId = familyResponse.data._id;
+      console.log('Family đã tạo thành công với ID:', newFamilyId);
 
       // 2. Thêm từng parent vào, bắt lỗi riêng cho mỗi parent
       const addedParents = [];
-      for (const parent of formData.parents) {
+              for (const parent of formData.parents) {
         try {
+          console.log('Đang xử lý parent:', parent);
           let createdParentId: string;
           // Nếu tick tạo user
           if (parent.createUser) {
             if (!parent.password) {
               throw new Error(`Thiếu mật khẩu cho phụ huynh ${parent.fullname}`);
             }
+            console.log('Tạo user cho parent:', parent.fullname);
             // Tạo user
             const userRes = await axios.post(
               API_ENDPOINTS.USERS,
               {
                 username: parent.phone,
+                phone: parent.phone,
                 password: parent.password,
                 email: parent.email,
                 fullname: parent.fullname,
@@ -179,6 +193,8 @@ const FamilyList: React.FC = () => {
               },
               { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log('User tạo thành công:', userRes.data);
+            
             // Tạo parent với user
             const parentRes = await axios.post(
               API_ENDPOINTS.PARENTS,
@@ -190,8 +206,10 @@ const FamilyList: React.FC = () => {
               },
               { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log('Parent với user tạo thành công:', parentRes.data);
             createdParentId = parentRes.data._id;
           } else {
+            console.log('Tạo parent không có user:', parent.fullname);
             // Tạo parent không có user
             const parentRes = await axios.post(
               API_ENDPOINTS.PARENTS,
@@ -202,10 +220,12 @@ const FamilyList: React.FC = () => {
               },
               { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log('Parent không có user tạo thành công:', parentRes.data);
             createdParentId = parentRes.data._id;
           }
 
           // Gắn parent vào Family
+          console.log('Gắn parent vào family:', { parentId: createdParentId, relationship: parent.relationship });
           await axios.post(
             `${API_ENDPOINTS.FAMILIES}/${newFamilyId}/add-parent`,
             {
@@ -214,6 +234,7 @@ const FamilyList: React.FC = () => {
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          console.log('Đã gắn parent vào family thành công');
 
           addedParents.push(parent.fullname);
         } catch (err: unknown) {
@@ -235,6 +256,20 @@ const FamilyList: React.FC = () => {
         });
       }
       setIsCreateDialogOpen(false);
+      // Reset form data
+      setFormData({
+        familyCode: '',
+        parents: [{
+          fullname: '',
+          phone: '',
+          email: '',
+          relationship: 'Bố',
+          createUser: false,
+          username: '',
+          password: ''
+        }],
+        address: ''
+      });
       await fetchFamilies();
     } catch (err: unknown) {
       console.error('Lỗi khi tạo gia đình:', err);
@@ -300,7 +335,7 @@ const FamilyList: React.FC = () => {
             if (!parent.password) throw new Error(`Thiếu mật khẩu cho ${parent.fullname}`);
             const userRes = await axios.post(
               API_ENDPOINTS.USERS,
-              { username: parent.phone, password: parent.password, email: parent.email, fullname: parent.fullname, role: 'parent' },
+              { username: parent.phone, phone: parent.phone, password: parent.password, email: parent.email, fullname: parent.fullname, role: 'parent' },
               { headers: { Authorization: `Bearer ${token}` } }
             );
             const pRes = await axios.post(
@@ -551,7 +586,12 @@ const FamilyList: React.FC = () => {
 
   const filteredFamilies = families.filter(family =>
     family.familyCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    family.parents.some(p => p.parent.fullname.toLowerCase().includes(searchTerm.toLowerCase()))
+    family.parents.some(p => {
+      if (p.parent && typeof p.parent === 'object') {
+        return p.parent.fullname?.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      return false;
+    })
   );
 
   return (
