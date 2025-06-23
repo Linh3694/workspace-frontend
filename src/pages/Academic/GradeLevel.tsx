@@ -130,10 +130,7 @@ const GradeLevelComponent: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      console.log('Fetching schools from:', API_ENDPOINTS.SCHOOLS);
       const response = await api.get<{ data: School[] }>(API_ENDPOINTS.SCHOOLS);
-      console.log('Schools response:', response);
-
       // Kiểm tra và lấy dữ liệu từ response
       let schoolsData: School[] = [];
       if (response?.data?.data && Array.isArray(response.data.data)) {
@@ -141,8 +138,6 @@ const GradeLevelComponent: React.FC = () => {
       } else if (Array.isArray(response.data)) {
         schoolsData = response.data;
       }
-
-      console.log('Processed schools data:', schoolsData);
       setSchools(schoolsData);
     } catch (error: unknown) {
       console.error('Error fetching schools:', error);
@@ -159,8 +154,6 @@ const GradeLevelComponent: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get<{ data: GradeLevel[] }>(API_ENDPOINTS.GRADE_LEVELS);
-      console.log('Grade levels response:', response);
-
       let gradeLevelsData: GradeLevel[] = [];
       if (response?.data?.data && Array.isArray(response.data.data)) {
         gradeLevelsData = response.data.data;
@@ -191,8 +184,6 @@ const GradeLevelComponent: React.FC = () => {
           school: formData.schoolId,
           qualities: formData.qualities,
         });
-        console.log('Update response:', response);
-
         // Kiểm tra response
         if (!response?.data) {
           throw new Error("Không nhận được dữ liệu từ server");
@@ -209,8 +200,6 @@ const GradeLevelComponent: React.FC = () => {
           schoolId: formData.schoolId,
           qualities: formData.qualities,
         });
-        console.log('Create response:', response);
-
         // Kiểm tra response
         if (!response?.data) {
           throw new Error("Không nhận được dữ liệu từ server");
@@ -258,10 +247,7 @@ const GradeLevelComponent: React.FC = () => {
 
   const handleCreateSchool = async (data: SchoolFormData) => {
     try {
-      console.log('Creating school with data:', data);
       const response = await api.post<{ data: School }>(API_ENDPOINTS.SCHOOLS, data);
-      console.log('Create school response:', response);
-
       if (!response?.data?.data) {
         throw new Error("Không nhận được dữ liệu từ server");
       }
@@ -297,10 +283,13 @@ const GradeLevelComponent: React.FC = () => {
     setIsDialogOpen(false);
   };
 
+  // Debug render
   return (
     <div className="space-y-6 bg-white p-4 rounded-lg">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Quản lý khối lớp</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Quản lý khối lớp</h1>
+        </div>
         <div className="flex gap-2">
           <Dialog open={isSchoolDialogOpen} onOpenChange={setIsSchoolDialogOpen}>
             <DialogTrigger asChild>
@@ -352,15 +341,19 @@ const GradeLevelComponent: React.FC = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                setSelectedGradeLevel(null);
-                clearErrors();
-              }}>
-                Thêm khối
-              </Button>
-            </DialogTrigger>
+          <Button onClick={() => {
+            setSelectedGradeLevel(null);
+            clearErrors();
+            setIsDialogOpen(true);
+          }}>
+            Thêm khối
+          </Button>
+
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+              handleCloseDialog();
+            }
+          }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{selectedGradeLevel ? "Cập nhật khối lớp" : "Thêm khối lớp mới"}</DialogTitle>
@@ -485,7 +478,6 @@ const GradeLevelComponent: React.FC = () => {
                     <TableCell>{Array.isArray(gradeLevel.qualities) ? gradeLevel.qualities.join(", ") : "N/A"}</TableCell>
                   <TableCell className="text-right">
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => {
                         setSelectedGradeLevel(gradeLevel);
