@@ -331,14 +331,25 @@ const CurriculumComponent: React.FC = () => {
   };
 
   const handleAddSubject = async () => {
-    if (!selectedCurriculum || !selectedSubject) return;
+    if (!selectedCurriculum || !selectedSubject) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn môn học",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
-      const periodsPerWeek = (document.getElementById('periodsPerWeek') as HTMLInputElement)?.value;
-      if (!periodsPerWeek || parseInt(periodsPerWeek) < 1) {
+      // Kiểm tra xem môn học đã có trong chương trình chưa
+      const isSubjectAlreadyExists = selectedCurriculum.subjects.some(
+        s => s.subject?._id === selectedSubject
+      );
+      
+      if (isSubjectAlreadyExists) {
         toast({
           title: "Lỗi",
-          description: "Số tiết học/tuần phải lớn hơn 0",
+          description: "Môn học này đã có trong chương trình",
           variant: "destructive"
         });
         return;
@@ -347,19 +358,10 @@ const CurriculumComponent: React.FC = () => {
       const endpoint = `${API_ENDPOINTS.CURRICULUM(selectedCurriculum._id)}/subjects`;
       await api.post(endpoint, {
         subjectId: selectedSubject,
-        periodsPerWeek: parseInt(periodsPerWeek)
+        periodsPerWeek: 1 // Giá trị mặc định
       });
 
       await fetchCurriculums();
-
-      const subject = subjects.find(s => s._id === selectedSubject);
-      if (subject) {
-        const response = await api.get<{ data: Subject }>(`${API_ENDPOINTS.SUBJECTS}/${selectedSubject}`);
-        const updatedSubject = Array.isArray(response) ? response[0] : response.data.data;
-        setSubjects(prevSubjects =>
-          prevSubjects.map(s => s._id === selectedSubject ? updatedSubject : s)
-        );
-      }
 
       setIsSubjectDialogOpen(false);
       setSelectedSubject("");
@@ -368,9 +370,10 @@ const CurriculumComponent: React.FC = () => {
         description: "Thêm môn học vào chương trình thành công"
       });
     } catch (error: unknown) {
+      console.error('Error adding subject:', error);
       toast({
         title: "Lỗi",
-        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi thêm môn học',
         variant: "destructive"
       });
     }
@@ -490,11 +493,17 @@ const CurriculumComponent: React.FC = () => {
                     <SelectValue placeholder="Chọn hệ học" />
                   </SelectTrigger>
                   <SelectContent>
-                    {systems.map((system) => (
-                      <SelectItem key={system._id} value={system._id}>
-                        {system.name}
-                      </SelectItem>
-                    ))}
+                    {systems.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">Không có hệ học</div>
+                    ) : (
+                      systems
+                        .filter((system) => system?._id && system?.name) // Lọc ra các system hợp lệ
+                        .map((system) => (
+                          <SelectItem key={system._id} value={system._id}>
+                            {system.name}
+                          </SelectItem>
+                        ))
+                    )}
                   </SelectContent>
                 </Select>
                 {errors.educationalSystem && <p className="text-red-500 text-sm">{errors.educationalSystem.message}</p>}
@@ -629,36 +638,37 @@ const CurriculumComponent: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Thêm môn học vào chương trình</DialogTitle>
-            <DialogDescription>Chọn môn học và số tiết học mỗi tuần</DialogDescription>
+            <DialogDescription>Chọn môn học để thêm vào chương trình học</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="subject">Môn học</Label>
-                <Select
-                  value={selectedSubject}
-                  onValueChange={setSelectedSubject}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn môn học" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.length === 0 ? (
-                      <SelectItem value="" disabled>Không có môn học</SelectItem>
-                    ) : (
-                      subjects.map((subject) => (
+            <div className="space-y-2">
+              <Label htmlFor="subject">Môn học</Label>
+              <Select
+                value={selectedSubject}
+                onValueChange={setSelectedSubject}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn môn học" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground">Không có môn học</div>
+                  ) : (
+                    subjects
+                      .filter((subject) => subject?._id && subject?.name) // Lọc ra các subject hợp lệ
+                      .map((subject) => (
                         <SelectItem key={subject._id} value={subject._id}>
                           {subject.name}
                         </SelectItem>
                       ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
-              <Button onClick={handleAddSubject}>Thêm môn học</Button>
+              <Button onClick={handleAddSubject} disabled={!selectedSubject}>
+                Thêm môn học
+              </Button>
             </DialogFooter>
           </div>
         </DialogContent>
