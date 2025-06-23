@@ -233,19 +233,26 @@ const SubjectComponent: React.FC = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await api.get<{ data: Subject[] }>(API_ENDPOINTS.SUBJECTS);
-      if (response && response.data && Array.isArray(response.data)) {
-        setSubjects(response.data);
-      } else {
-        console.error('Invalid response format:', response);
-        setSubjects([]);
+      const response = await api.get(API_ENDPOINTS.SUBJECTS);
+      console.log('Subjects response:', response);
+      
+      // Xử lý các format response khác nhau
+      let subjectsData: Subject[] = [];
+      if (Array.isArray(response)) {
+        subjectsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        subjectsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        subjectsData = response.data.data;
       }
+      
+      setSubjects(subjectsData);
     } catch (error: unknown) {
       console.error('Error fetching subjects:', error);
       setSubjects([]);
       toast({
         title: "Lỗi",
-        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tải môn học',
         variant: "destructive"
       });
     }
@@ -253,17 +260,26 @@ const SubjectComponent: React.FC = () => {
 
   const fetchCurriculums = async () => {
     try {
-      const response = await api.get<{ data: Curriculum[] }>(API_ENDPOINTS.CURRICULUMS);
-      if (response && response.data && Array.isArray(response.data)) {
-        setCurriculums(response.data);
-      } else {
-        console.error('Invalid curriculums response format:', response);
-        setCurriculums([]);
+      const response = await api.get(API_ENDPOINTS.CURRICULUMS);
+      console.log('Curriculums response:', response);
+      
+      // Xử lý các format response khác nhau
+      let curriculumsData: Curriculum[] = [];
+      if (Array.isArray(response)) {
+        curriculumsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        curriculumsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        curriculumsData = response.data.data;
       }
+      
+      setCurriculums(curriculumsData);
     } catch (error: unknown) {
+      console.error('Error fetching curriculums:', error);
+      setCurriculums([]);
       toast({
         title: "Lỗi",
-        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tải chương trình học',
         variant: "destructive"
       });
     }
@@ -271,18 +287,28 @@ const SubjectComponent: React.FC = () => {
 
   const fetchRooms = async () => {
     try {
-      const response = await api.get<{ data: Room[] }>(API_ENDPOINTS.ROOMS);
-      if (response && response.data && Array.isArray(response.data)) {
-      // Lọc ra các phòng không phải homeroom
-        setRooms(response.data.filter((room: Room) => !room.isHomeroom));
-      } else {
-        console.error('Invalid rooms response format:', response);
-        setRooms([]);
+      const response = await api.get(API_ENDPOINTS.ROOMS);
+      console.log('Rooms response:', response);
+      
+      // Xử lý các format response khác nhau
+      let roomsData: Room[] = [];
+      if (Array.isArray(response)) {
+        roomsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        roomsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        roomsData = response.data.data;
       }
+      
+      // Lọc ra các phòng không phải homeroom
+      const filteredRooms = roomsData.filter((room: Room) => !room.isHomeroom);
+      setRooms(filteredRooms);
     } catch (error: unknown) {
+      console.error('Error fetching rooms:', error);
+      setRooms([]);
       toast({
         title: "Lỗi",
-        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tải danh sách phòng',
         variant: "destructive"
       });
     }
@@ -290,14 +316,23 @@ const SubjectComponent: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      const response = await api.get<{ data: School[] }>(API_ENDPOINTS.SCHOOLS);
-      if (response && response.data && Array.isArray(response.data)) {
-        setSchools(response.data);
-      } else {
-        console.error('Invalid schools response format:', response);
-        setSchools([]);
+      const response = await api.get(API_ENDPOINTS.SCHOOLS);
+      console.log('Schools response:', response);
+      
+      // Xử lý các format response khác nhau
+      let schoolsData: School[] = [];
+      if (Array.isArray(response)) {
+        schoolsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        schoolsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        schoolsData = response.data.data;
       }
+      
+      setSchools(schoolsData);
     } catch (error: unknown) {
+      console.error('Error fetching schools:', error);
+      setSchools([]);
       toast({
         title: "Lỗi",
         description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tải danh sách trường',
@@ -308,35 +343,52 @@ const SubjectComponent: React.FC = () => {
 
   const fetchGradeLevels = async (schoolId: string) => {
     try {
-      const response = await api.get<{ data: GradeLevel[] }>(`${API_ENDPOINTS.GRADE_LEVELS}?school=${schoolId}`);
-      if (response && response.data && Array.isArray(response.data)) {
-        const sorted = response.data.sort((a, b) => a.order - b.order);
-        setFilteredGradeLevels(sorted);
-      } else {
-        console.error('Invalid grade levels response format:', response);
-        setFilteredGradeLevels([]);
+      const response = await api.get(`${API_ENDPOINTS.GRADE_LEVELS}?school=${schoolId}`);
+      console.log('Grade levels response:', response);
+      
+      // Xử lý các format response khác nhau
+      let gradeLevelsData: GradeLevel[] = [];
+      if (Array.isArray(response)) {
+        gradeLevelsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        gradeLevelsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        gradeLevelsData = response.data.data;
       }
+      
+      const sorted = gradeLevelsData.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setFilteredGradeLevels(sorted);
     } catch (error: unknown) {
       console.error('Error fetching grade levels:', error);
+      setFilteredGradeLevels([]);
       toast({
         title: "Lỗi",
         description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tải danh sách khối lớp',
         variant: "destructive"
       });
-      setFilteredGradeLevels([]);
     }
   };
 
   const fetchParentSubjects = async () => {
     try {
       console.log('Fetching parent subjects...');
-      const response = await api.get<{ data: Subject[] }>(`${API_ENDPOINTS.SUBJECTS}/parent`);
+      const response = await api.get(`${API_ENDPOINTS.SUBJECTS}/parent`);
       console.log('Parent subjects response:', response);
-      if (response && response.data && Array.isArray(response.data)) {
-        setParentSubjects(response.data);
+      
+      // Xử lý các format response khác nhau
+      let parentSubjectsData: Subject[] = [];
+      if (Array.isArray(response)) {
+        parentSubjectsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        parentSubjectsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        parentSubjectsData = response.data.data;
       }
+      
+      setParentSubjects(parentSubjectsData);
     } catch (error) {
       console.error('Error fetching parent subjects:', error);
+      setParentSubjects([]);
       toast({
         title: "Lỗi",
         description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tải danh sách môn học cha',
@@ -583,11 +635,17 @@ const SubjectComponent: React.FC = () => {
                       <SelectValue placeholder="Chọn trường" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.isArray(schools) && schools.map((school) => (
-                        <SelectItem key={school._id} value={school._id}>
-                          {school.name}
-                        </SelectItem>
-                      ))}
+                      {schools.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">Không có trường nào</div>
+                      ) : (
+                        schools
+                          .filter((school) => school?._id && school?.name)
+                          .map((school) => (
+                            <SelectItem key={school._id} value={school._id}>
+                              {school.name}
+                            </SelectItem>
+                          ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -643,11 +701,17 @@ const SubjectComponent: React.FC = () => {
                         <SelectValue placeholder="Chọn môn học cha" />
                       </SelectTrigger>
                       <SelectContent>
-                        {parentSubjects.map((subject) => (
-                          <SelectItem key={subject._id} value={subject._id}>
-                            {subject.name}
-                          </SelectItem>
-                        ))}
+                        {parentSubjects.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground">Không có môn học cha nào</div>
+                        ) : (
+                          parentSubjects
+                            .filter((subject) => subject?._id && subject?.name)
+                            .map((subject) => (
+                              <SelectItem key={subject._id} value={subject._id}>
+                                {subject.name}
+                              </SelectItem>
+                            ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -915,11 +979,17 @@ const SubjectComponent: React.FC = () => {
                     <SelectValue placeholder="Chọn chương trình học" />
                   </SelectTrigger>
                   <SelectContent>
-                    {curriculums.map((curriculum) => (
-                      <SelectItem key={curriculum._id} value={curriculum._id}>
-                        {curriculum.name}
-                      </SelectItem>
-                    ))}
+                    {curriculums.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">Không có chương trình học nào</div>
+                    ) : (
+                      curriculums
+                        .filter((curriculum) => curriculum?._id && curriculum?.name)
+                        .map((curriculum) => (
+                          <SelectItem key={curriculum._id} value={curriculum._id}>
+                            {curriculum.name}
+                          </SelectItem>
+                        ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
