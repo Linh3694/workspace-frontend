@@ -42,10 +42,10 @@ const translateRole = (role: string): string => {
   const roleTranslations: { [key: string]: string } = {
     'superadmin': 'Quản trị viên cấp cao',
     'admin': 'Quản trị viên',
-    // 'teacher': 'Giáo viên',
-    // 'parent': 'Phụ huynh',
+    'teacher': 'Giáo viên',
+    'parent': 'Phụ huynh',
     // 'registrar': 'Giáo vụ',
-    // 'admission': 'Tuyển sinh',
+    'admission': 'Tuyển sinh',
     'bos': 'Ban đào tạo',
     // 'principal': 'Hiệu trưởng',
     // 'service': 'Dịch vụ',
