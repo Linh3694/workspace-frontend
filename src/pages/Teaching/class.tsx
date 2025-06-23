@@ -785,6 +785,12 @@ const ClassComponent: React.FC = () => {
       await fetchClasses();
       // Xóa lựa chọn cũ
       setSelectedStudentIds([]);
+      // Đóng dialog sau khi thành công
+      if (successful > 0) {
+        setIsEnrollDialogOpen(false);
+        setEnrollSchoolYear("");
+        setEnrollClassId("");
+      }
     } catch (err: unknown) {
       console.error('Enroll error:', err);
       toast({
