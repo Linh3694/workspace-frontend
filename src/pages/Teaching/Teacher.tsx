@@ -189,9 +189,6 @@ const TeacherComponent: React.FC = () => {
 
   useEffect(() => {
     const gradeLevels = watch("gradeLevels") || [];
-    console.log('Current gradeLevels:', gradeLevels);
-    console.log('Current classesList state:', classesList);
-
     if (gradeLevels.length > 0) {
       fetchClassesForGradeLevels(gradeLevels);
     } else {
@@ -252,21 +249,14 @@ const TeacherComponent: React.FC = () => {
     try {
       const selectedSchool = schools.find(s => s._id === schoolId);
       if (!selectedSchool) {
-        console.log('No school found with ID:', schoolId);
         setGradeLevels([]);
         return;
       }
-      console.log('Fetching grade levels for school:', selectedSchool.name);
-
       const response = await api.get<GradeLevel[]>(`${API_ENDPOINTS.GRADE_LEVELS}?school=${schoolId}`);
-      console.log('Grade levels API response:', response);
-
       if (response) {
         const sortedLevels = response.data.sort((a, b) => a.order - b.order);
-        console.log('Sorted grade levels:', sortedLevels);
         setGradeLevels(sortedLevels);
       } else {
-        console.log('No grade levels data in response');
         setGradeLevels([]);
       }
     } catch (error: unknown) {
@@ -284,8 +274,6 @@ const TeacherComponent: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get(API_ENDPOINTS.TEACHERS);
-      console.log('Raw API response:', response);
-
       let teachersData: Teacher[] = [];
 
       // Kiểm tra và xử lý response theo nhiều cấp
@@ -297,26 +285,28 @@ const TeacherComponent: React.FC = () => {
             teachersData = response.data;
           } else if (response.data?.data && Array.isArray(response.data.data)) {
             teachersData = response.data.data;
+          } else if (response.data && !Array.isArray(response.data)) {
+            // Trường hợp response.data là object nhưng không phải array
+            console.warn('Response data is not an array:', response.data);
+            teachersData = [];
           }
         }
       }
-
-      console.log('Teachers data before filtering:', teachersData);
-
+      
+      // Đảm bảo teachersData là array trước khi filter
+      if (!Array.isArray(teachersData)) {
+        console.warn('teachersData is not an array:', teachersData);
+        teachersData = [];
+      }
+      
       // Lọc và kiểm tra dữ liệu
       const validTeachers = teachersData.filter(teacher => {
         const isValid = teacher &&
           typeof teacher === 'object' &&
           teacher._id &&
-          teacher.fullname;
-
-        if (!isValid) {
-          console.log('Invalid teacher data:', teacher);
-        }
+          teacher.fullname;   
         return isValid;
       });
-
-      console.log('Final processed teachers:', validTeachers);
       setTeachers(validTeachers);
     } catch (error: unknown) {
       console.error('Error fetching teachers:', error);
@@ -370,20 +360,11 @@ const TeacherComponent: React.FC = () => {
         setClassesList([]);
         return;
       }
-
-      console.log('Fetching classes for grades:', gradeIds);
-
       const response = await api.get<{ data: Class[] }>(
         `${API_ENDPOINTS.CLASSES}?gradeLevels=${gradeIds.join(",")}`
       );
-
-      // Log toàn bộ response để debug
-      console.log('Full API response:', response);
-
       // Lấy dữ liệu trực tiếp từ response.data
       const classesData = response.data || [];
-      console.log('Classes data to process:', classesData);
-
       // Kiểm tra xem dữ liệu có đúng cấu trúc không
       if (Array.isArray(classesData)) {
         // Map trực tiếp dữ liệu từ response
@@ -397,8 +378,6 @@ const TeacherComponent: React.FC = () => {
             order: cls.gradeLevel.order
           }
         }));
-
-        console.log('Processed classes:', processedClasses);
         setClassesList(processedClasses);
       } else {
         // Nếu dữ liệu nằm trong property 'data'
@@ -413,8 +392,6 @@ const TeacherComponent: React.FC = () => {
             order: cls.gradeLevel.order
           }
         }));
-
-        console.log('Processed classes from data property:', processedClasses);
         setClassesList(processedClasses);
       }
     } catch (error) {
@@ -466,7 +443,6 @@ const TeacherComponent: React.FC = () => {
       setAvailableSubjectsForClass({});
     }
   }, [selectedTeacher, subjects]); // thêm `subjects` vào dependency
-  console.log(availableSubjectsForClass)
 
   // Handle subject assignment update
   const handleUpdateSubjectAssignment = async () => {
@@ -507,9 +483,6 @@ const TeacherComponent: React.FC = () => {
           gradeLevels: formData.gradeLevels || [],
           classes: selectedClasses,
         };
-
-        console.log('Updating teaching info:', teachingData);
-
         await api.put<Teacher>(API_ENDPOINTS.TEACHER(selectedTeacher._id), teachingData);
 
         toast({
@@ -646,7 +619,6 @@ const TeacherComponent: React.FC = () => {
                     <div className="grid gap-2">
                       {classesList && classesList.length > 0 ? (
                         classesList.map(cls => {
-                          console.log('Rendering class item:', cls);
                           return (
                             <div key={cls._id} className="flex items-center space-x-2">
                               <Checkbox
