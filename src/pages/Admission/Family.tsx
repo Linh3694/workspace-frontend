@@ -118,15 +118,6 @@ const FamilyList: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get(API_ENDPOINTS.FAMILIES);
-      console.log('Dữ liệu gia đình từ API:', response.data);
-
-      // Debug để xem chi tiết cấu trúc dữ liệu
-      if (response.data.length > 0) {
-        console.log('Sample family structure:', JSON.stringify(response.data[0], null, 2));
-        if (response.data[0].parents?.length > 0) {
-          console.log('Sample parent structure:', JSON.stringify(response.data[0].parents[0], null, 2));
-        }
-      }
 
       // Đảm bảo trường parents luôn là array và đầy đủ
       const processedFamilies = response.data.map((family: Family) => {
@@ -140,9 +131,19 @@ const FamilyList: React.FC = () => {
       setLoading(false);
     } catch (error) {
       console.error('Lỗi khi tải danh sách gia đình:', error);
+      
+      // Lấy error message từ response của server
+      let errorMessage = "Không thể tải danh sách gia đình. Vui lòng thử lại sau.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError<{ message: string }>;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+      
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách gia đình. Vui lòng thử lại sau.",
+        description: errorMessage,
         variant: "destructive"
       });
       setLoading(false);
@@ -153,9 +154,7 @@ const FamilyList: React.FC = () => {
     setLoading(true);
     let newFamilyId: string;
 
-    try {
-      console.log('Bắt đầu tạo gia đình với dữ liệu:', formData);
-      
+    try {      
       // 1. Tạo Family trước
       const familyResponse = await axios.post(
         API_ENDPOINTS.FAMILIES,
@@ -167,20 +166,17 @@ const FamilyList: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       newFamilyId = familyResponse.data._id;
-      console.log('Family đã tạo thành công với ID:', newFamilyId);
 
       // 2. Thêm từng parent vào, bắt lỗi riêng cho mỗi parent
       const addedParents = [];
               for (const parent of formData.parents) {
         try {
-          console.log('Đang xử lý parent:', parent);
           let createdParentId: string;
           // Nếu tick tạo user
           if (parent.createUser) {
             if (!parent.password) {
               throw new Error(`Thiếu mật khẩu cho phụ huynh ${parent.fullname}`);
             }
-            console.log('Tạo user cho parent:', parent.fullname);
             // Tạo user
             const userRes = await axios.post(
               API_ENDPOINTS.USERS,
@@ -194,7 +190,6 @@ const FamilyList: React.FC = () => {
               },
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            console.log('User tạo thành công:', userRes.data);
             
             // Tạo parent với user
             const parentRes = await axios.post(
@@ -207,10 +202,8 @@ const FamilyList: React.FC = () => {
               },
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            console.log('Parent với user tạo thành công:', parentRes.data);
             createdParentId = parentRes.data._id;
           } else {
-            console.log('Tạo parent không có user:', parent.fullname);
             // Tạo parent không có user
             const parentRes = await axios.post(
               API_ENDPOINTS.PARENTS,
@@ -221,12 +214,9 @@ const FamilyList: React.FC = () => {
               },
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            console.log('Parent không có user tạo thành công:', parentRes.data);
             createdParentId = parentRes.data._id;
           }
-
           // Gắn parent vào Family
-          console.log('Gắn parent vào family:', { parentId: createdParentId, relationship: parent.relationship });
           await axios.post(
             `${API_ENDPOINTS.FAMILIES}/${newFamilyId}/add-parent`,
             {
@@ -235,14 +225,25 @@ const FamilyList: React.FC = () => {
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          console.log('Đã gắn parent vào family thành công');
 
           addedParents.push(parent.fullname);
         } catch (err: unknown) {
           console.error(`Lỗi khi thêm phụ huynh ${parent.fullname}:`, err);
+          
+          // Lấy error message từ response của server
+          let errorMessage = "Không thể thêm phụ huynh.";
+          if (err && typeof err === 'object' && 'response' in err) {
+            const axiosError = err as AxiosError<{ message: string }>;
+            if (axiosError.response?.data?.message) {
+              errorMessage = axiosError.response.data.message;
+            }
+          } else if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          
           toast({
-            title: `Phụ huynh ${parent.fullname}`,
-            description: err instanceof Error ? err.message : "Không thể thêm phụ huynh.",
+            title: `Lỗi với phụ huynh ${parent.fullname}`,
+            description: errorMessage,
             variant: "destructive"
           });
           // Tiếp tục với parent tiếp theo
@@ -274,9 +275,21 @@ const FamilyList: React.FC = () => {
       await fetchFamilies();
     } catch (err: unknown) {
       console.error('Lỗi khi tạo gia đình:', err);
+      
+      // Lấy error message từ response của server
+      let errorMessage = "Không thể tạo gia đình. Vui lòng thử lại.";
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as AxiosError<{ message: string }>;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
       toast({
         title: "Lỗi",
-        description: err instanceof Error ? err.message : "Không thể tạo gia đình. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -289,13 +302,33 @@ const FamilyList: React.FC = () => {
 
     try {
       setLoading(true);
-      console.log("Đang cập nhật gia đình với dữ liệu:", formData);
-
       // Cập nhật thông tin cơ bản của gia đình
-      await axios.put(`${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}`, {
-        familyCode: formData.familyCode,
-        address: formData.address
-      });
+      try {
+        await axios.put(`${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}`, {
+          familyCode: formData.familyCode,
+          address: formData.address
+        });
+      } catch (err: unknown) {
+        console.error('Lỗi khi cập nhật thông tin cơ bản gia đình:', err);
+        
+        // Lấy error message từ response của server
+        let errorMessage = "Không thể cập nhật thông tin cơ bản gia đình.";
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosError = err as AxiosError<{ message: string }>;
+          if (axiosError.response?.data?.message) {
+            errorMessage = axiosError.response.data.message;
+          }
+        } else if (err instanceof Error) {
+          errorMessage = err.message;
+        }
+        
+        toast({
+          title: "Lỗi",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        return; // Dừng lại nếu không thể cập nhật thông tin cơ bản
+      }
 
       // Lấy danh sách userId của parent cũ (chỉ những parent đã có userId)
       const oldParentIds = selectedFamily.parents
@@ -308,76 +341,143 @@ const FamilyList: React.FC = () => {
         .filter(Boolean);
 
       // Chỉ xóa những parent cũ không còn trong danh sách mới
+      const removedParents = [];
       for (const oldId of oldParentIds) {
         if (!newParentIds.includes(oldId)) {
-          await axios.delete(`${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/remove-parent/${oldId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        }
-      }
-
-      // Xử lý từng phụ huynh: update hoặc tạo mới rồi add
-      for (const parent of formData.parents) {
-        if (parent.parentId) {
-          // Update parent hiện có
-          await axios.put(
-            `${API_ENDPOINTS.PARENTS}/${parent.parentId}`,
-            { fullname: parent.fullname, phone: parent.phone, email: parent.email },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          await axios.patch(
-            `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/update-parent/${parent.parentId}`,
-            { relationship: parent.relationship },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-        } else {
-          // Tạo user nếu tick
-          if (parent.createUser) {
-            if (!parent.password) throw new Error(`Thiếu mật khẩu cho ${parent.fullname}`);
-            const userRes = await axios.post(
-              API_ENDPOINTS.USERS,
-              { username: parent.phone, phone: parent.phone, password: parent.password, email: parent.email, fullname: parent.fullname, role: 'parent' },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const pRes = await axios.post(
-              API_ENDPOINTS.PARENTS,
-              { user: userRes.data._id, fullname: parent.fullname, phone: parent.phone, email: parent.email },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const parentId = pRes.data._id;
-            await axios.post(
-              `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
-              { parentId, relationship: parent.relationship },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-          } else {
-            const pRes = await axios.post(
-              API_ENDPOINTS.PARENTS,
-              { fullname: parent.fullname, phone: parent.phone, email: parent.email },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const parentId = pRes.data._id;
-            await axios.post(
-              `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
-              { parentId, relationship: parent.relationship },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
+          try {
+            await axios.delete(`${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/remove-parent/${oldId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            removedParents.push(oldId);
+          } catch (err: unknown) {
+            console.error(`Lỗi khi xóa parent ${oldId}:`, err);
+            
+            // Lấy error message từ response của server
+            let errorMessage = "Không thể xóa phụ huynh cũ.";
+            if (err && typeof err === 'object' && 'response' in err) {
+              const axiosError = err as AxiosError<{ message: string }>;
+              if (axiosError.response?.data?.message) {
+                errorMessage = axiosError.response.data.message;
+              }
+            } else if (err instanceof Error) {
+              errorMessage = err.message;
+            }
+            
+            toast({
+              title: "Cảnh báo",
+              description: `Không thể xóa phụ huynh cũ: ${errorMessage}`,
+              variant: "destructive"
+            });
+            // Tiếp tục với operations khác
           }
         }
       }
 
-      toast({
-        title: "Thành công",
-        description: "Cập nhật thông tin gia đình thành công",
-      });
+      // Xử lý từng phụ huynh: update hoặc tạo mới rồi add
+      const processedParents = [];
+      for (const parent of formData.parents) {
+        try {
+          if (parent.parentId) {
+            // Update parent hiện có
+            await axios.put(
+              `${API_ENDPOINTS.PARENTS}/${parent.parentId}`,
+              { fullname: parent.fullname, phone: parent.phone, email: parent.email },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            await axios.patch(
+              `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/update-parent/${parent.parentId}`,
+              { relationship: parent.relationship },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            processedParents.push(parent.fullname);
+          } else {
+            // Tạo user nếu tick
+            if (parent.createUser) {
+              if (!parent.password) throw new Error(`Thiếu mật khẩu cho ${parent.fullname}`);
+              const userRes = await axios.post(
+                API_ENDPOINTS.USERS,
+                { username: parent.phone, phone: parent.phone, password: parent.password, email: parent.email, fullname: parent.fullname, role: 'parent' },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              const pRes = await axios.post(
+                API_ENDPOINTS.PARENTS,
+                { user: userRes.data._id, fullname: parent.fullname, phone: parent.phone, email: parent.email },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              const parentId = pRes.data._id;
+              await axios.post(
+                `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
+                { parentId, relationship: parent.relationship },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+            } else {
+              const pRes = await axios.post(
+                API_ENDPOINTS.PARENTS,
+                { fullname: parent.fullname, phone: parent.phone, email: parent.email },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              const parentId = pRes.data._id;
+              await axios.post(
+                `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
+                { parentId, relationship: parent.relationship },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+            }
+            processedParents.push(parent.fullname);
+          }
+        } catch (err: unknown) {
+          console.error(`Lỗi khi xử lý phụ huynh ${parent.fullname}:`, err);
+          
+          // Lấy error message từ response của server
+          let errorMessage = "Không thể xử lý phụ huynh.";
+          if (err && typeof err === 'object' && 'response' in err) {
+            const axiosError = err as AxiosError<{ message: string }>;
+            if (axiosError.response?.data?.message) {
+              errorMessage = axiosError.response.data.message;
+            }
+          } else if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          
+          toast({
+            title: `Lỗi với phụ huynh ${parent.fullname}`,
+            description: errorMessage,
+            variant: "destructive"
+          });
+          // Tiếp tục với parent tiếp theo
+        }
+      }
+
+      // Hiển thị kết quả
+      if (processedParents.length > 0) {
+        toast({
+          title: "Thành công",
+          description: `Cập nhật thông tin gia đình và ${processedParents.length} phụ huynh thành công`,
+        });
+      } else {
+        toast({
+          title: "Thành công", 
+          description: "Cập nhật thông tin gia đình thành công",
+        });
+      }
       setIsEditDialogOpen(false);
       setSelectedFamily(null);
       await fetchFamilies();
     } catch (error) {
       console.error('Lỗi khi cập nhật gia đình:', error);
+      
+      // Lấy error message từ response của server
+      let errorMessage = "Không thể cập nhật thông tin gia đình. Vui lòng thử lại sau.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError<{ message: string }>;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+      
       toast({
         title: "Lỗi",
-        description: "Không thể cập nhật thông tin gia đình. Vui lòng thử lại sau.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -388,8 +488,6 @@ const FamilyList: React.FC = () => {
   const handleDeleteFamily = async (familyId: string) => {
     try {
       setLoading(true);
-      console.log('Đang xóa family với ID:', familyId);
-      console.log('Token:', token);
       const response = await axios.delete(`${API_ENDPOINTS.FAMILIES}/${familyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -425,9 +523,19 @@ const FamilyList: React.FC = () => {
       await fetchFamilies();
     } catch (error) {
       console.error('Lỗi khi xoá học sinh khỏi gia đình:', error);
+      
+      // Lấy error message từ response của server
+      let errorMessage = "Không thể xoá học sinh khỏi gia đình. Vui lòng thử lại.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError<{ message: string }>;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+      
       toast({
         title: "Lỗi",
-        description: "Không thể xoá học sinh khỏi gia đình. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -437,7 +545,6 @@ const FamilyList: React.FC = () => {
 
 
   const editFamily = (family: Family) => {
-    console.log('Thông tin gia đình cần sửa:', family);
     setSelectedFamily(family);
 
     // Đảm bảo family.parents là một mảng
@@ -546,7 +653,17 @@ const FamilyList: React.FC = () => {
       fetchFamilies();
     } catch (error) {
       console.error('Lỗi cập nhật trạng thái:', error);
-      toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái tài khoản", variant: "destructive" });
+      
+      // Lấy error message từ response của server
+      let errorMessage = "Không thể cập nhật trạng thái tài khoản";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError<{ message: string }>;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+      
+      toast({ title: "Lỗi", description: errorMessage, variant: "destructive" });
     }
   };
 
@@ -581,9 +698,19 @@ const FamilyList: React.FC = () => {
       });
     } catch (error) {
       console.error('Lỗi khi làm mới dữ liệu:', error);
+      
+      // Lấy error message từ response của server
+      let errorMessage = "Không thể làm mới dữ liệu. Vui lòng thử lại.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError<{ message: string }>;
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+      
       toast({
         title: "Lỗi",
-        description: "Không thể làm mới dữ liệu. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
