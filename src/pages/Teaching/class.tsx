@@ -751,10 +751,10 @@ const ClassComponent: React.FC = () => {
       return;
     }
     try {
-      // Gửi đồng thời nhiều request
+      // Gửi đồng thời nhiều request sử dụng upsert endpoint để tránh duplicate key error
       const results = await Promise.allSettled(
         selectedStudentIds.map((stuId) =>
-          api.post(API_ENDPOINTS.ENROLLMENTS, {
+          api.post(`${API_ENDPOINTS.ENROLLMENTS}/upsert`, {
             student: stuId,
             class: enrollClassId,
             schoolYear: enrollSchoolYear,
