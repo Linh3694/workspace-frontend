@@ -44,27 +44,13 @@ import * as z from "zod";
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
-
-interface School {
-  _id: string;
-  name: string;
-  code?: string;
-  gradeLevels?: string[];
-  educationalSystems?: string[];
-  curriculums?: string[];
-}
-
-type Quality = "Level 1" | "Level 2" | "Level 3" | "Level 4";
-
-interface GradeLevel {
-  _id: string;
-  name: string;
-  code: string;
-  description?: string;
-  order: number;
-  qualities: Quality[];
-  school: School;
-}
+import type { 
+  School, 
+  GradeLevel, 
+  Quality, 
+  SchoolFormData, 
+  GradeLevelFormData 
+} from "../../types/school.types";
 
 const schoolSchema = z.object({
   name: z.string().min(1, "Tên trường là bắt buộc"),
@@ -79,9 +65,6 @@ const schema = z.object({
   schoolId: z.string().min(1, "Trường là bắt buộc"),
   qualities: z.array(z.enum(["Level 1", "Level 2", "Level 3", "Level 4"] as const)).min(1, "Chọn ít nhất một chất lượng"),
 });
-
-type SchoolFormData = z.infer<typeof schoolSchema>;
-type GradeLevelFormData = z.infer<typeof schema>;
 
 const GradeLevelComponent: React.FC = () => {
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([]);

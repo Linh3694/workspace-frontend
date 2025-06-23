@@ -43,30 +43,17 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "../../components/ui/alert-dialog";
-
-interface School {
-  _id: string;
-  name: string;
-  code: string;
-  type: string;
-}
-
-interface EducationalSystem {
-  _id: string;
-  name: string;
-  description?: string;
-  school: School;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { 
+  School, 
+  EducationalSystem, 
+  EducationalSystemFormData 
+} from "../../types/school.types";
 
 const schema = z.object({
   name: z.string().min(1, "Tên hệ học là bắt buộc"),
   description: z.string().optional(),
   school: z.string().min(1, "Trường học là bắt buộc"),
 });
-
-type EducationalSystemFormData = z.infer<typeof schema>;
 
 const EducationalSystemComponent: React.FC = () => {
   const [systems, setSystems] = useState<EducationalSystem[]>([]);

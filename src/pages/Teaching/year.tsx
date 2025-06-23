@@ -39,16 +39,7 @@ import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
 import { DatePicker } from "../../components/ui/datepicker";
-
-interface SchoolYear {
-  _id: string;
-  code: string;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { SchoolYear, SchoolYearFormData } from "../../types/school.types";
 
 const schema = z.object({
   code: z.string().min(1, "Mã năm học là bắt buộc"),
@@ -60,8 +51,6 @@ const schema = z.object({
   }),
   isActive: z.boolean(),
 });
-
-type SchoolYearFormData = z.infer<typeof schema>;
 
 const YearComponent = () => {
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);

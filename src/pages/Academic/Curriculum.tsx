@@ -44,6 +44,12 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import { FaAngleRight, FaAngleDown } from "react-icons/fa6";
+import type { 
+  Curriculum, 
+  Subject, 
+  CurriculumFormData 
+} from "../../types/curriculum.types";
+import type { EducationalSystem } from "../../types/school.types";
 
 
 /** Simple error boundary to catch runtime errors within Curriculum screen */
@@ -58,7 +64,7 @@ class CurriculumErrorBoundary extends React.Component<{ children: React.ReactNod
     return { hasError: true };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // You can also log the error to an error reporting service
     console.error('Error caught in CurriculumErrorBoundary:', error, errorInfo);
   }
@@ -77,32 +83,7 @@ class CurriculumErrorBoundary extends React.Component<{ children: React.ReactNod
   }
 }
 
-interface EducationalSystem {
-  _id: string;
-  name: string;
-}
 
-interface Subject {
-  _id: string;
-  name: string;
-  code: string;
-}
-
-interface CurriculumSubject {
-  subject: Subject;
-  periodsPerWeek: number;
-}
-
-interface Curriculum {
-  _id: string;
-  name: string;
-  educationalSystem: EducationalSystem;
-  gradeLevel: string;
-  subjects: CurriculumSubject[];
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const schema = z.object({
   name: z.string().min(1, "Tên chương trình học là bắt buộc"),
@@ -110,8 +91,6 @@ const schema = z.object({
   gradeLevel: z.string().optional(),
   description: z.string().optional(),
 });
-
-type CurriculumFormData = z.infer<typeof schema>;
 
 const CurriculumComponent: React.FC = () => {
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
@@ -138,7 +117,11 @@ const CurriculumComponent: React.FC = () => {
   const toggleExpand = (id: string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };

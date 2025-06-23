@@ -34,90 +34,21 @@ import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
 import { Checkbox } from "../../components/ui/checkbox";
+import type { 
+  Subject, 
+  Curriculum, 
+  SubjectFormData 
+} from "../../types/curriculum.types";
+import type { Room } from "../../types/room.types";
+import type { School, GradeLevel } from "../../types/school.types";
 
-
-interface Subject {
-  _id: string;
-  name: string;
-  code: string;
-  school: {
-    _id: string;
-    name: string;
-    code: string;
-    type: string;
-  };
-  gradeLevels: Array<{
-    _id: string;
-    name: string;
-    code: string;
-  }>;
-  needFunctionRoom: boolean;
-  rooms: Array<{
-    _id: string;
-    name: string;
-    type: string;
-  }>;
-  curriculums: Array<{
-    curriculum: {
-      _id: string;
-      name: string;
-    };
-  }>;
-  isParentSubject: boolean;
-  parentSubject?: {
-    _id: string;
-    name: string;
-    code: string;
-  };
-  subSubjects: Array<{
-    _id: string;
-    name: string;
-    code: string;
-  }>;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface Curriculum {
-  _id: string;
-  name: string;
-  gradeLevel?: string;
-  description?: string;
-}
-
-interface Room {
-  _id: string;
-  name: string;
-  type: string;
-  isHomeroom?: boolean;
-}
-
-interface GradeLevel {
-  _id: string;
-  name: string;
-  code: string;
-  order: number;
-  school: string;
-}
-
-interface School {
-  _id: string;
-  name: string;
-  code: string;
-  type: string;
-}
-
-interface SubjectFormData {
-  name: string;
-  code: string;
-  school: string;
-  gradeLevels: string[];
-  needFunctionRoom: boolean;
-  rooms: string[];
-  isParentSubject: boolean;
-  parentSubject?: string;
-  description?: string;
+interface ExcelRowData {
+  Name?: string;
+  Code?: string;
+  SchoolCode?: string;
+  GradeLevelCodes?: string;
+  NeedFunctionRoom?: string;
+  RoomCodes?: string;
 }
 
 /** Trả về danh sách phòng học của một subject */
@@ -127,7 +58,7 @@ const renderRoomNames = (subj: Partial<Subject>): string[] => {
     return ["Homeroom"];
   }
   if (Array.isArray(subj.rooms) && subj.rooms.length > 0) {
-    return subj.rooms.map((r: any) => r.name);
+    return subj.rooms.map((r: Room) => r.name);
   }
   // Cần phòng chức năng nhưng chưa gán phòng
   return ["—"];
@@ -179,15 +110,15 @@ const SubjectComponent: React.FC = () => {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { type: "array" });
       const sheet = wb.Sheets[wb.SheetNames[0]];
-      const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      const raw: ExcelRowData[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-      const payload = raw.reduce<any[]>((acc, row, idx) => {
+      const payload = raw.reduce<Record<string, unknown>[]>((acc, row, idx) => {
         const Name = row.Name?.toString().trim();
         const SchoolCode = row.SchoolCode?.toString().trim();
         const GradeLevelCodes = row.GradeLevelCodes?.toString()
-          .split(",")
+          ?.split(",")
           .map((c: string) => c.trim())
-          .filter(Boolean);
+          .filter(Boolean) || [];
 
         if (!Name || !SchoolCode || !GradeLevelCodes.length) {
           console.warn(`Row ${idx + 2} skipped – missing required fields`);
@@ -199,11 +130,11 @@ const SubjectComponent: React.FC = () => {
           code: row.Code?.toString().trim() || undefined,
           schoolCode: SchoolCode,
           gradeLevelCodes: GradeLevelCodes,
-          needFunctionRoom: /true/i.test(row.NeedFunctionRoom?.toString()),
+          needFunctionRoom: /true/i.test(row.NeedFunctionRoom?.toString() || ""),
           roomCodes: row.RoomCodes?.toString()
-            .split(",")
+            ?.split(",")
             .map((c: string) => c.trim())
-            .filter(Boolean),
+            .filter(Boolean) || [],
         });
         return acc;
       }, []);
@@ -222,23 +153,14 @@ const SubjectComponent: React.FC = () => {
       });
       fetchSubjects();
       setIsImportDialogOpen(false);
-    } catch (err: any) {
-      setImportError(err.message || "Nhập môn học thất bại");
+    } catch (err: unknown) {
+      setImportError(err instanceof Error ? err.message : "Nhập môn học thất bại");
     } finally {
       setImportLoading(false);
       (e.target as HTMLInputElement).value = "";
     }
   };
-  /**
-   * Import Subjects from Excel and send valid rows to backend
-   * Expected headers in Excel (row 1):
-   *  - Name (text, required)
-   *  - Code (text, optional – must be unique if present)
-   *  - SchoolCode (text, required) – code of the School document
-   *  - GradeLevelCodes (comma‑separated list, required) – codes of GradeLevel docs
-   *  - NeedFunctionRoom (TRUE/FALSE, default FALSE)
-   *  - RoomCodes (comma‑separated list, optional) – codes of Room docs, used only when NeedFunctionRoom=true
-   */
+  
   const handleImportSubjects = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -246,12 +168,12 @@ const SubjectComponent: React.FC = () => {
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data, { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const raw: ExcelRowData[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-    const payload = raw.reduce<any[]>((acc, row, idx) => {
+    const payload = raw.reduce<Record<string, unknown>[]>((acc, row, idx) => {
       const Name = row.Name?.toString().trim();
       const SchoolCode = row.SchoolCode?.toString().trim();
-      const GradeLevelCodes = row.GradeLevelCodes?.toString().split(',').map((c: string) => c.trim()).filter(Boolean);
+      const GradeLevelCodes = row.GradeLevelCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [];
       if (!Name || !SchoolCode || !GradeLevelCodes.length) {
         console.warn(`Row ${idx + 2} skipped – missing required fields`);
         return acc; // skip invalid rows
@@ -262,8 +184,8 @@ const SubjectComponent: React.FC = () => {
         code: row.Code?.toString().trim() || undefined,
         schoolCode: SchoolCode,
         gradeLevelCodes: GradeLevelCodes,
-        needFunctionRoom: /true/i.test(row.NeedFunctionRoom?.toString()),
-        roomCodes: row.RoomCodes?.toString().split(',').map((c: string) => c.trim()).filter(Boolean),
+        needFunctionRoom: /true/i.test(row.NeedFunctionRoom?.toString() || ""),
+        roomCodes: row.RoomCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [],
       });
       return acc;
     }, []);
@@ -279,8 +201,8 @@ const SubjectComponent: React.FC = () => {
       await api.post(`${API_ENDPOINTS.SUBJECTS}/bulk-upload`, payload);
       toast({ title: 'Thành công', description: `Đã nhập ${payload.length} môn học` });
       fetchSubjects();
-    } catch (err: any) {
-      toast({ title: 'Lỗi', description: err.message || 'Nhập môn học thất bại', variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Lỗi', description: err instanceof Error ? err.message : 'Nhập môn học thất bại', variant: 'destructive' });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -915,14 +837,14 @@ const SubjectComponent: React.FC = () => {
                       {parent.subSubjects.map((sub) => {
                         // Tìm subject con đầy đủ thông tin (có thể đã có sẵn trong mảng subjects)
                         const child =
-                          subjects.find((s) => s._id === sub._id) || (sub as any);
+                          subjects.find((s) => s._id === sub._id) || (sub as Subject);
 
                         return (
                           <TableRow key={child._id}>
                             <TableCell className="pl-8">{child.name}</TableCell>
                             <TableCell>{child.school?.name || "—"}</TableCell>
                             <TableCell>
-                              {child.gradeLevels?.map((l: any) => l.name).join(", ") ||
+                              {child.gradeLevels?.map((l: GradeLevel) => l.name).join(", ") ||
                                 "—"}
                             </TableCell>
                             <TableCell>
@@ -932,7 +854,7 @@ const SubjectComponent: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               {child.curriculums
-                                ?.map((c: any) => c.curriculum?.name)
+                                ?.map((c: { curriculum: { _id: string; name: string; } }) => c.curriculum?.name)
                                 .join(", ") || "—"}
                             </TableCell>
                             <TableCell className="text-right space-x-2">
