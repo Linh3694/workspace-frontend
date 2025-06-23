@@ -56,8 +56,8 @@ const translateRole = (role: string): string => {
 const availableRoles = [
   { value: 'superadmin', label: 'Quản trị viên cấp cao' },
   { value: 'admin', label: 'Quản trị viên' },
-  // { value: 'teacher', label: 'Giáo viên' },
-  // { value: 'parent', label: 'Phụ huynh' },
+  { value: 'teacher', label: 'Giáo viên' },
+  { value: 'parent', label: 'Phụ huynh' },
   // { value: 'registrar', label: 'Phòng đăng ký' },
   // { value: 'admission', label: 'Phòng tuyển sinh' },
   { value: 'bos', label: 'Ban đào tạo' },
@@ -73,6 +73,7 @@ const availableRoles = [
 interface BaseUser {
   username?: string;
   email: string;
+  phone?: string;
   role: string;
   fullname: string;
   active: boolean;
@@ -103,6 +104,7 @@ interface UserDialogProps {
 const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, mode, userData }: UserDialogProps) => {
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
+    phone: '',
     role: 'user',
     fullname: '',
     active: true,
@@ -120,6 +122,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     if (open && userData) {
       setFormData({
         email: userData.email,
+        phone: userData.phone,
         role: userData.role,
         fullname: userData.fullname,
         active: userData.active ?? true,
@@ -136,6 +139,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
       // Reset form khi dialog đóng
       setFormData({
         email: '',
+        phone: '',
         role: 'user',
         fullname: '',
         active: true,
@@ -208,6 +212,20 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                       value={formData.email}
                       onChange={handleInputChange}
                       className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="phone" className="text-right">
+                      Số điện thoại
+                    </Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone || ''}
+                      onChange={handleInputChange}
+                      className="col-span-3"
+                      placeholder="0912345678"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">

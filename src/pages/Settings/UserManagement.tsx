@@ -62,6 +62,7 @@ const translateRole = (role: string): string => {
 interface User {
   _id: string;
   email: string;
+  phone?: string;
   role: string;
   fullname: string;
   active: boolean;
@@ -73,6 +74,7 @@ interface User {
 
 interface UserFormData {
   email: string;
+  phone?: string;
   role: string;
   fullname: string;
   password?: string;
@@ -131,6 +133,7 @@ const UserManagement = () => {
     const filtered = users.filter(user => 
       (user.fullname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.phone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       translateRole(user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -305,6 +308,7 @@ const UserManagement = () => {
         const submissionData = {
           ...data,
           email: data.email.trim().toLowerCase(),
+          phone: data.phone?.trim() || undefined,
           fullname: data.fullname.trim(),
           role: data.role.trim(),
           school: data.role === 'teacher' ? data.school : undefined // Assign school for teachers
@@ -340,6 +344,7 @@ const UserManagement = () => {
 
         const updateData = {
           email: data.email.trim().toLowerCase(),
+          phone: data.phone?.trim() || undefined,
           fullname: data.fullname.trim(),
           role: data.role.trim(),
           active: data.active,
@@ -505,6 +510,7 @@ const UserManagement = () => {
             <TableRow>
               <TableHead className="font-semibold">Họ tên</TableHead>
               <TableHead className="font-semibold">Email</TableHead>
+              <TableHead className="font-semibold">Số điện thoại</TableHead>
               <TableHead className="font-semibold">Vai trò</TableHead>
               <TableHead className="font-semibold">Ngày tạo</TableHead>
               <TableHead className="text-right font-semibold">Hành Động</TableHead>
@@ -529,6 +535,7 @@ const UserManagement = () => {
                   </div>
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
+                <TableCell>{user.phone || '-'}</TableCell>
                 <TableCell>{translateRole(user.role)}</TableCell>
                 <TableCell>
                   {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: vi })}
@@ -611,6 +618,7 @@ const UserManagement = () => {
         mode={dialogMode}
         userData={selectedUser ? {
           email: selectedUser.email,
+          phone: selectedUser.phone,
           role: selectedUser.role,
           fullname: selectedUser.fullname,
           active: selectedUser.active,
