@@ -101,6 +101,40 @@ const SubjectComponent: React.FC = () => {
   const prevSchoolIdRef = useRef<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Mapping function để chuyển đổi grade level codes
+  const mapGradeLevelCodes = (codes: string[]): string[] => {
+    const mapping: Record<string, string> = {
+      'K1': 'Khối 1',
+      'K2': 'Khối 2', 
+      'K3': 'Khối 3',
+      'K4': 'Khối 4',
+      'K5': 'Khối 5',
+      // Thêm mapping cho các khối khác nếu cần
+      'K6': 'Khối 6',
+      'K7': 'Khối 7',
+      'K8': 'Khối 8',
+      'K9': 'Khối 9',
+      'K10': 'Khối 10',
+      'K11': 'Khối 11',
+      'K12': 'Khối 12',
+    };
+    
+    return codes.map(code => mapping[code] || code);
+  };
+
+  // Mapping function để chuyển đổi school codes
+  const mapSchoolCode = (code: string): string => {
+    const mapping: Record<string, string> = {
+      'TiH': 'TiH', // Giữ nguyên code
+      'TH': 'TiH',
+      'Trường Tiểu Học': 'TiH', // Map tên về code
+      'THCS': 'THCS',
+      'THPT': 'THPT',
+    };
+    
+    return mapping[code] || code;
+  };
+
   /** Đọc file Excel, validate và gửi lên backend */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -117,11 +151,15 @@ const SubjectComponent: React.FC = () => {
 
       const payload = raw.reduce<Record<string, unknown>[]>((acc, row, idx) => {
         const Name = row.Name?.toString().trim();
-        const SchoolCode = row.SchoolCode?.toString().trim();
-        const GradeLevelCodes = row.GradeLevelCodes?.toString()
+        const rawSchoolCode = row.SchoolCode?.toString().trim();
+        const SchoolCode = mapSchoolCode(rawSchoolCode || '');
+        const rawGradeLevelCodes = row.GradeLevelCodes?.toString()
           ?.split(",")
           .map((c: string) => c.trim())
           .filter(Boolean) || [];
+        
+        // Map grade level codes từ K1, K2... sang Khối 1, Khối 2...
+        const GradeLevelCodes = mapGradeLevelCodes(rawGradeLevelCodes);
 
         if (!Name || !SchoolCode || !GradeLevelCodes.length) {
           console.warn(`Row ${idx + 2} skipped – missing required fields`);
@@ -178,8 +216,13 @@ const SubjectComponent: React.FC = () => {
 
     const payload = raw.reduce<Record<string, unknown>[]>((acc, row, idx) => {
       const Name = row.Name?.toString().trim();
-      const SchoolCode = row.SchoolCode?.toString().trim();
-      const GradeLevelCodes = row.GradeLevelCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [];
+      const rawSchoolCode = row.SchoolCode?.toString().trim();
+      const SchoolCode = mapSchoolCode(rawSchoolCode || '');
+      const rawGradeLevelCodes = row.GradeLevelCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [];
+      
+      // Map grade level codes từ K1, K2... sang Khối 1, Khối 2...
+      const GradeLevelCodes = mapGradeLevelCodes(rawGradeLevelCodes);
+      
       if (!Name || !SchoolCode || !GradeLevelCodes.length) {
         console.warn(`Row ${idx + 2} skipped – missing required fields`);
         return acc; // skip invalid rows
