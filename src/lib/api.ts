@@ -16,7 +16,7 @@ declare global {
 }
 
 // Sử dụng Vite environment variables thay vì Next.js
-const API_URL_VITE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL_VITE = import.meta.env.VITE_API_URL || 'https://api-dev.wellspring.edu.vn/api';
 
 interface RequestOptions {
   headers?: Record<string, string>;
