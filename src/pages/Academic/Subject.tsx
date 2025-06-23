@@ -866,7 +866,7 @@ const SubjectComponent: React.FC = () => {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">File mẫu</Label>
                   <Button variant="outline" asChild>
-                    <a href="/Template/subject-example.xlsx" download>
+                    <a href="/Template/Subject-sample.xlsx" download>
                       Tải file mẫu
                     </a>
                   </Button>
