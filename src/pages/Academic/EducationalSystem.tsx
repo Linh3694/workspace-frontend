@@ -220,7 +220,7 @@ const EducationalSystemComponent: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-lg">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý hệ học</h1>
         <Dialog

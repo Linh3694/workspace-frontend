@@ -461,7 +461,7 @@ const CurriculumComponent: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-lg">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý chương trình học</h1>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {

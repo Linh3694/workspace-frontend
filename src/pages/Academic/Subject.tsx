@@ -626,7 +626,7 @@ const SubjectComponent: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-lg">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý môn học</h1>
         <div className="flex gap-2 items-center">

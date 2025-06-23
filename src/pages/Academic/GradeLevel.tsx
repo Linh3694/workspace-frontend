@@ -285,7 +285,7 @@ const GradeLevelComponent: React.FC = () => {
 
   // Debug render
   return (
-    <div className="space-y-6 bg-white p-4 rounded-lg">
+    <div className="space-y-6 bg-white p-6 rounded-lg">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold">Quản lý khối lớp</h1>
