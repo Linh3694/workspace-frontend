@@ -147,22 +147,24 @@ const EducationalSystemComponent: React.FC = () => {
         description: formData.description,
         schoolId: formData.school,
       };
+      
       if (selectedSystem?._id) {
         await api.put(
           API_ENDPOINTS.EDUCATIONAL_SYSTEM(selectedSystem._id),
-        payload
-      );
-      toast({
-        title: "Thành công",
-        description: "Cập nhật hệ học thành công"
-      });
-    } else {
-      await api.post(API_ENDPOINTS.EDUCATIONAL_SYSTEMS, payload);
-      toast({
-        title: "Thành công",
-        description: "Thêm hệ học thành công"
-      });
-    }
+          payload
+        );
+        toast({
+          title: "Thành công",
+          description: "Cập nhật hệ học thành công"
+        });
+      } else {
+        await api.post(API_ENDPOINTS.EDUCATIONAL_SYSTEMS, payload);
+        toast({
+          title: "Thành công",
+          description: "Thêm hệ học thành công"
+        });
+      }
+      
       await fetchSystems();
       setIsDialogOpen(false);
     } catch (error: unknown) {
@@ -187,7 +189,7 @@ const EducationalSystemComponent: React.FC = () => {
 
   const handleDeleteSystem = async () => {
     try {
-      if (selectedSystem) {
+      if (selectedSystem?._id) {
         await api.delete(API_ENDPOINTS.EDUCATIONAL_SYSTEM(selectedSystem._id));
         toast({
           title: "Thành công",
@@ -195,6 +197,7 @@ const EducationalSystemComponent: React.FC = () => {
         });
         await fetchSystems();
         setIsDeleteDialogOpen(false);
+        setSelectedSystem(null);
       }
     } catch (error: unknown) {
       console.error('Error deleting system:', error);
