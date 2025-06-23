@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import {
   Table,
   TableBody,
@@ -92,6 +92,7 @@ const FamilyList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
   const [selectedFamily, setSelectedFamily] = useState<Family | null>(null);
   const [formData, setFormData] = useState<FamilyFormData>({
     familyCode: '',
@@ -387,7 +388,12 @@ const FamilyList: React.FC = () => {
   const handleDeleteFamily = async (familyId: string) => {
     try {
       setLoading(true);
-      await axios.delete(`${API_ENDPOINTS.FAMILIES}/${familyId}`);
+      console.log('Đang xóa family với ID:', familyId);
+      console.log('Token:', token);
+      const response = await axios.delete(`${API_ENDPOINTS.FAMILIES}/${familyId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('Phản hồi từ server:', response.data);
       toast({
         title: "Thành công",
         description: "Xóa gia đình thành công",
@@ -395,9 +401,10 @@ const FamilyList: React.FC = () => {
       await fetchFamilies();
     } catch (error) {
       console.error('Lỗi khi xóa gia đình:', error);
+      const errorMessage = (error as AxiosError<{ message: string }>)?.response?.data?.message || "Không thể xóa gia đình. Vui lòng thử lại sau.";
       toast({
         title: "Lỗi",
-        description: "Không thể xóa gia đình. Vui lòng thử lại sau.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -594,6 +601,19 @@ const FamilyList: React.FC = () => {
     })
   );
 
+  const confirmDeleteFamily = (family: Family) => {
+    setSelectedFamily(family);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (selectedFamily) {
+      await handleDeleteFamily(selectedFamily._id);
+      setIsDeleteDialogOpen(false);
+      setSelectedFamily(null);
+    }
+  };
+
   return (
     <div className="w-full mx-auto p-4 space-y-6">
       <Card>
@@ -682,7 +702,7 @@ const FamilyList: React.FC = () => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDeleteFamily(family._id)}
+                                onClick={() => confirmDeleteFamily(family)}
                               >
                                 Xóa
                               </Button>
@@ -736,7 +756,7 @@ const FamilyList: React.FC = () => {
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => handleDeleteFamily(family._id)}
+                                  onClick={() => confirmDeleteFamily(family)}
                                 >
                                   Xóa
                                 </Button>
@@ -1120,6 +1140,26 @@ const FamilyList: React.FC = () => {
             </Button>
             <Button onClick={handleUpdateFamily}>
               Cập nhật
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog xác nhận xóa gia đình */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa gia đình</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xóa gia đình này?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleConfirmDelete}>
+              Xóa
             </Button>
           </DialogFooter>
         </DialogContent>
