@@ -49,7 +49,7 @@ export function BookDetailComponent() {
   const [librarySearchTerm, setLibrarySearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Library[]>([]);
   const [specialCodes, setSpecialCodes] = useState<SpecialCode[]>([]);
-  const [copyCount, setCopyCount] = useState<number>(1);
+  const [copyCount, setCopyCount] = useState<number | "">(1);
   
   // States for duplicate functionality
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
@@ -152,7 +152,7 @@ export function BookDetailComponent() {
       specialCode: "",
       specialCodeId: "",
     });
-    setCopyCount(1);
+    setCopyCount("");
     setSelectedLibrary(null);
     setLibrarySearchTerm("");
     setSearchResults([]);
@@ -192,11 +192,14 @@ export function BookDetailComponent() {
         coverPrice: currentBook.coverPrice ? Number(currentBook.coverPrice) : null,
       };
 
+      let finalCopyCount = 1;
+      
       if (modalMode === "create") {
-        // Thêm số lượng sách vào payload
+        // Kiểm tra và thêm số lượng sách vào payload
+        finalCopyCount = copyCount || 1;
         const createPayload = {
           ...payload,
-          copyCount: copyCount
+          copyCount: finalCopyCount
         };
 
         const response = await fetch(
@@ -240,7 +243,7 @@ export function BookDetailComponent() {
       fetchAllBooks();
       toast.success(
         modalMode === "create" 
-          ? `Thêm ${copyCount} quyển sách thành công!` 
+          ? `Thêm ${finalCopyCount} quyển sách thành công!` 
           : "Cập nhật sách thành công!"
       );
     } catch (error) {
@@ -581,15 +584,10 @@ export function BookDetailComponent() {
                     </label>
                     <Input
                       type="number"
-                      min="1"
-                      max="100"
                       placeholder="Nhập số lượng sách cần tạo"
                       value={copyCount}
-                      onChange={(e) => setCopyCount(Number(e.target.value) || 1)}
+                      onChange={(e) => setCopyCount(e.target.value === "" ? "" : Number(e.target.value))}
                     />
-                    <div className="text-xs text-gray-500 mt-1">
-                      Sẽ tạo {copyCount} bản sách với mã sách tăng dần
-                    </div>
                   </div>
                 </div>
               )}
