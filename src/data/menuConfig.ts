@@ -158,7 +158,7 @@ export const MENU_SECTIONS: MenuSection[] = [
         title: "Quản lý dữ liệu",
         href: "/dashboard/library/data",
         description: "Quản lý dữ liệu thư viện",
-        permission: "library"
+        permission: "library.data"
       },
       {
         title: "Quản lý Sách",

@@ -33,9 +33,9 @@ export const ROLE_PERMISSIONS: RolePermissions = {
   admin: ['*'], // Full access
   librarian: [
     'application.tickets.user',
-    'library', 
+    'library.data', 
     'library.books',
-    'library.activities',
+    'library.activities', 
   ],
   user: [
     'application.tickets.user'
