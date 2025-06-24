@@ -3,7 +3,7 @@ import { API_URL, BASE_URL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 
 import { FiPlus, FiX } from "react-icons/fi";
 import { toast } from "sonner";
+import * as XLSX from 'xlsx';
 import type { 
   DocumentType, 
   SeriesName, 
@@ -402,7 +403,7 @@ export function BookComponent() {
     setIsBulkModalOpen(true);
   };
 
-  const parseBulkData = (data: string) => {
+  const parseBulkDataFromText = (data: string) => {
     const lines = data.trim().split('\n');
     const libraries = [];
     
@@ -410,12 +411,14 @@ export function BookComponent() {
       const line = lines[i].trim();
       if (!line || line.startsWith('#')) continue; // Skip empty lines and comments
       
-      const fields = line.split('\t'); // Tab-separated values
+      // Detect separator: try tab first, then comma
+      const separator = line.includes('\t') ? '\t' : ',';
+      const fields = line.split(separator);
       if (fields.length < 2) continue; // Minimum required fields
       
       const library = {
         title: fields[0]?.trim() || "",
-        authors: fields[1]?.trim() ? fields[1].trim().split(',').map(a => a.trim()) : [],
+        authors: fields[1]?.trim() ? fields[1].trim().split(';').map(a => a.trim()) : [],
         category: fields[2]?.trim() || "",
         language: fields[3]?.trim() || "Tiếng Việt",
         documentType: fields[4]?.trim() || "",
@@ -443,6 +446,120 @@ export function BookComponent() {
     return libraries;
   };
 
+  const parseBulkDataFromExcel = (workbook: XLSX.WorkBook) => {
+    const libraries = [];
+    const sheetName = workbook.SheetNames[0]; // Lấy sheet đầu tiên
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Try parsing with headers first (for Vietnamese template)
+    const dataWithHeaders = XLSX.utils.sheet_to_json(worksheet, { 
+      raw: false,
+      defval: '',
+      blankrows: false 
+    });
+    
+         if (dataWithHeaders && dataWithHeaders.length > 0) {
+       // Check if it's Vietnamese template format
+       const firstRow = dataWithHeaders[0] as Record<string, unknown>;
+       if (firstRow["Tên đầu sách"] || firstRow["Tên sách"] || firstRow["Title"]) {
+         // Use Vietnamese column names (matching backend expectation)
+         for (let i = 0; i < dataWithHeaders.length; i++) {
+           const row = dataWithHeaders[i] as Record<string, unknown>;
+          
+                     const cleanTitle = String(row["Tên đầu sách"] || row["Tên sách"] || row["Title"] || "");
+           if (!cleanTitle.trim()) continue;
+           
+           const cleanAuthors = String(row["Tác giả"] || row["Authors"] || "");
+           
+           const library = {
+             title: cleanTitle.trim(),
+             authors: cleanAuthors ? cleanAuthors.split(';').map((a: string) => a.trim()).filter(Boolean) : [],
+             category: String(row["Thể loại"] || row["Category"] || "").trim(),
+             language: String(row["Ngôn ngữ"] || row["Language"] || "Tiếng Việt").trim(),
+             documentType: String(row["Phân loại tài liệu"] || row["Document Type"] || "").trim(),
+             seriesName: String(row["Tùng thư"] || row["Series"] || "").trim(),
+             isNewBook: String(row["Sách mới"] || row["New Book"] || "false").toLowerCase() === 'true',
+             isFeaturedBook: String(row["Nổi bật"] || row["Featured"] || "false").toLowerCase() === 'true',
+             isAudioBook: String(row["Sách nói"] || row["Audio Book"] || "false").toLowerCase() === 'true',
+             description: {
+               linkEmbed: String(row["Link mô tả"] || row["Description Link"] || "").trim(),
+               content: String(row["Nội dung mô tả"] || row["Description"] || "").trim()
+             },
+             introduction: {
+               linkEmbed: String(row["Link giới thiệu"] || row["Introduction Link"] || "").trim(),
+               content: String(row["Nội dung giới thiệu"] || row["Introduction"] || "").trim()
+             },
+             audioBook: {
+               linkEmbed: String(row["Link sách nói"] || row["Audio Link"] || "").trim(),
+               content: String(row["Nội dung sách nói"] || row["Audio Content"] || "").trim()
+             }
+           };
+          
+          libraries.push(library);
+        }
+        return libraries;
+      }
+    }
+    
+    // Fallback to array format (no headers)
+    const dataArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+    const startRow = dataArray[0] && typeof dataArray[0][0] === 'string' && 
+                    (dataArray[0][0].toLowerCase().includes('tên') || dataArray[0][0].toLowerCase().includes('title')) ? 1 : 0;
+    
+    for (let i = startRow; i < dataArray.length; i++) {
+      const row = dataArray[i];
+      if (!row || row.length < 2) continue;
+      
+      const library = {
+        title: row[0]?.toString()?.trim() || "",
+        authors: row[1]?.toString()?.trim() ? row[1].toString().trim().split(';').map(a => a.trim()) : [],
+        category: row[2]?.toString()?.trim() || "",
+        language: row[3]?.toString()?.trim() || "Tiếng Việt",
+        documentType: row[4]?.toString()?.trim() || "",
+        seriesName: row[5]?.toString()?.trim() || "",
+        isNewBook: row[6]?.toString()?.toLowerCase() === 'true',
+        isFeaturedBook: row[7]?.toString()?.toLowerCase() === 'true',
+        isAudioBook: row[8]?.toString()?.toLowerCase() === 'true',
+        description: {
+          linkEmbed: row[9]?.toString()?.trim() || "",
+          content: row[10]?.toString()?.trim() || ""
+        },
+        introduction: {
+          linkEmbed: row[11]?.toString()?.trim() || "",
+          content: row[12]?.toString()?.trim() || ""
+        },
+        audioBook: {
+          linkEmbed: row[13]?.toString()?.trim() || "",
+          content: row[14]?.toString()?.trim() || ""
+        }
+      };
+      
+      if (library.title) {
+        libraries.push(library);
+      }
+    }
+    
+    return libraries;
+  };
+
+  const ensureAuthorsExist = async (authors: string[]) => {
+    // Lấy danh sách tác giả hiện có
+    const res = await fetch(`${API_URL}/libraries/authors`);
+    const allAuthors: { name: string }[] = await res.json();
+    const existingNames = allAuthors.map(a => a.name);
+
+    for (const name of authors) {
+      if (!existingNames.includes(name)) {
+        // Tạo mới tác giả
+        await fetch(`${API_URL}/libraries/authors`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+      }
+    }
+  };
+
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       toast.error("Vui lòng chọn file để upload!");
@@ -450,14 +567,27 @@ export function BookComponent() {
     }
 
     try {
-      // Read file content
-      const fileContent = await bulkFile.text();
-      const libraries = parseBulkData(fileContent);
+      let libraries = [];
+      const fileName = bulkFile.name.toLowerCase();
+      
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        // Handle Excel files
+        const arrayBuffer = await bulkFile.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        libraries = parseBulkDataFromExcel(workbook);
+      } else {
+        // Handle text files (CSV, TSV, TXT)
+        const fileContent = await bulkFile.text();
+        libraries = parseBulkDataFromText(fileContent);
+      }
       
       if (libraries.length === 0) {
         toast.error("Không có dữ liệu hợp lệ trong file!");
         return;
       }
+      // Gom tất cả tác giả lại thành 1 mảng duy nhất
+      const allAuthors = Array.from(new Set(libraries.flatMap(lib => lib.authors)));
+      await ensureAuthorsExist(allAuthors);
 
       const response = await fetch(
         `${API_URL}/libraries/bulk`,
@@ -564,8 +694,6 @@ export function BookComponent() {
             ))}
           </TableBody>
         </Table>
-
-        {/* Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="min-w-3xl max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1031,14 +1159,19 @@ export function BookComponent() {
 
                 {/* Bulk Upload Modal */}
         <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Nhập danh sách đầu sách từ Excel</DialogTitle>
+              <DialogTitle>Nhập danh sách đầu sách từ Excel/CSV</DialogTitle>
             </DialogHeader>
+            <DialogDescription>
+              <div className="text-sm text-gray-500">
+                Vui lòng tải file mẫu và điền thông tin theo đúng định dạng.
+              </div>
+            </DialogDescription>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="bulk-file" className="text-right">
-                  File Excel
+                  Chọn file
                 </Label>
                 <Input
                   id="bulk-file"
@@ -1060,7 +1193,7 @@ export function BookComponent() {
                     Tải file mẫu
                   </a>
                 </Button>
-              </div>
+              </div>             
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" onClick={() => setIsBulkModalOpen(false)}>
@@ -1069,6 +1202,7 @@ export function BookComponent() {
               <Button 
                 onClick={handleBulkUpload} 
                 disabled={!bulkFile}
+                className="bg-[#F05023] text-white"
               >
                 Upload
               </Button>

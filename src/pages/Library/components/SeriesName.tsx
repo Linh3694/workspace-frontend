@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
@@ -21,6 +22,8 @@ export function SeriesNameComponent() {
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [name, setName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [seriesNameToDelete, setSeriesNameToDelete] = useState<SeriesName | null>(null);
 
   const fetchData = async () => {
     try {
@@ -117,6 +120,19 @@ export function SeriesNameComponent() {
     }
   };
 
+  const confirmDelete = (item: SeriesName) => {
+    setSeriesNameToDelete(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (seriesNameToDelete) {
+      await handleDelete(seriesNameToDelete);
+      setDeleteDialogOpen(false);
+      setSeriesNameToDelete(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -154,7 +170,7 @@ export function SeriesNameComponent() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleDelete(item)}
+                      onClick={() => confirmDelete(item)}
                       className="bg-[#FF5733] text-white"
                     >
                       Xoá
@@ -199,6 +215,24 @@ export function SeriesNameComponent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog xác nhận xóa */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa tùng thư "{seriesNameToDelete?.name}"? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-[#FF5733] text-white hover:bg-[#FF5733]/80">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 } 

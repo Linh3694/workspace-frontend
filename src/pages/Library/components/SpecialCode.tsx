@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
@@ -23,6 +24,8 @@ export function SpecialCodeComponent() {
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [specialCodeToDelete, setSpecialCodeToDelete] = useState<SpecialCode | null>(null);
 
   const fetchData = async () => {
     try {
@@ -133,6 +136,19 @@ export function SpecialCodeComponent() {
     }
   };
 
+  const confirmDelete = (item: SpecialCode) => {
+    setSpecialCodeToDelete(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (specialCodeToDelete) {
+      await handleDelete(specialCodeToDelete);
+      setDeleteDialogOpen(false);
+      setSpecialCodeToDelete(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -174,7 +190,7 @@ export function SpecialCodeComponent() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleDelete(item)}
+                      onClick={() => confirmDelete(item)}
                       className="bg-[#FF5733] text-white"
                     >
                       Xoá
@@ -241,6 +257,24 @@ export function SpecialCodeComponent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog xác nhận xóa */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa mã quy ước "{specialCodeToDelete?.name}"? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-[#FF5733] text-white hover:bg-[#FF5733]/80">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 } 

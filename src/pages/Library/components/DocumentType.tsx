@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { FiPlus } from "react-icons/fi";
@@ -17,6 +18,8 @@ export function DocumentTypeComponent() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentTypeToDelete, setDocumentTypeToDelete] = useState<DocumentType | null>(null);
 
   const fetchData = async () => {
     try {
@@ -116,6 +119,19 @@ export function DocumentTypeComponent() {
     }
   };
 
+  const confirmDelete = (item: DocumentType) => {
+    setDocumentTypeToDelete(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (documentTypeToDelete) {
+      await handleDelete(documentTypeToDelete);
+      setDeleteDialogOpen(false);
+      setDocumentTypeToDelete(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -155,7 +171,7 @@ export function DocumentTypeComponent() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleDelete(item)}
+                      onClick={() => confirmDelete(item)}
                       className="bg-[#FF5733] text-white"
                     >
                      Xoá
@@ -211,6 +227,24 @@ export function DocumentTypeComponent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog xác nhận xóa */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa phân loại tài liệu "{documentTypeToDelete?.name}"? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-[#FF5733] text-white hover:bg-[#FF5733]/80">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 } 
