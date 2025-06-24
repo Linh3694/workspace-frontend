@@ -138,7 +138,9 @@ export function SeriesNameComponent() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Tùng thư</CardTitle>
-          <Button onClick={openCreateModal} className="flex items-center gap-2 bg-[#FF5733] hover:bg-[#FF5733]/80 text-white">
+          <Button 
+          variant="destructive"
+          onClick={openCreateModal} className="flex items-center gap-2">
             <FiPlus size={16} />
             Thêm mới
           </Button>
@@ -171,7 +173,6 @@ export function SeriesNameComponent() {
                       size="sm"
                       variant="destructive"
                       onClick={() => confirmDelete(item)}
-                      className="bg-[#FF5733] text-white"
                     >
                       Xoá
                     </Button>

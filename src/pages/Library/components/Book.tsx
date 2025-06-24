@@ -1,28 +1,26 @@
-import { useState, useEffect, useRef } from "react";
-import { API_URL, BASE_URL } from "@/lib/config";
+import { useState, useEffect, useCallback } from "react";
+import { API_URL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-
-import { FiPlus, FiX } from "react-icons/fi";
+import { FiPlus, FiImage } from "react-icons/fi";
 import { toast } from "sonner";
-import * as XLSX from 'xlsx';
 import type { 
   DocumentType, 
   SeriesName, 
-  // SpecialCode, 
   Author, 
   Library
 } from "@/types/library";
+
+import {
+  CreateEditBookDialog,
+  DescriptionDialog,
+  BulkUploadDialog,
+  BulkImageUploadDialog,
+  DeleteConfirmationDialog
+} from "./dialog";
 
 // Utility function to handle errors
 const getErrorMessage = (error: unknown): string => {
@@ -31,53 +29,23 @@ const getErrorMessage = (error: unknown): string => {
 
 export function BookComponent() {
   const [libraries, setLibraries] = useState<Library[]>([]);
+  
+  // Dialog states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [currentLibrary, setCurrentLibrary] = useState<Partial<Library>>({
-    authors: [],
-    title: "",
-    coverImage: "",
-    category: "",
-    language: "",
-    description: {
-      linkEmbed: "",
-      content: ""
-    },
-    introduction: {
-      linkEmbed: "",
-      content: ""
-    },
-    audioBook: {
-      linkEmbed: "",
-      content: ""
-    },
-    documentType: "",
-    specialCode: "",
-    seriesName: "",
-    isNewBook: false,
-    isFeaturedBook: false,
-    isAudioBook: false,
-  });
+  const [currentLibrary, setCurrentLibrary] = useState<Library | null>(null);
   
   // Description modal states
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
-  const [descriptionActiveTab, setDescriptionActiveTab] = useState<'description' | 'introduction' | 'audiobook'>('description');
   const [currentDescriptionLibrary, setCurrentDescriptionLibrary] = useState<Library | null>(null);
 
   const [allAuthors, setAllAuthors] = useState<Author[]>([]);
   const [allDocumentTypes, setAllDocumentTypes] = useState<DocumentType[]>([]);
-  // const [allSpecialCodes, setAllSpecialCodes] = useState<SpecialCode[]>([]);
   const [allSeriesNames, setAllSeriesNames] = useState<SeriesName[]>([]);
   
-  // States for author input
-  const [authorInput, setAuthorInput] = useState("");
-  const [filteredAuthors, setFilteredAuthors] = useState<Author[]>([]);
-  const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
-  const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
-
   // Bulk upload states
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [isBulkImageModalOpen, setIsBulkImageModalOpen] = useState(false);
 
   // Delete confirmation states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -92,11 +60,6 @@ export function BookComponent() {
     }>;
   } | null>(null);
   const [isCheckingDelete, setIsCheckingDelete] = useState(false);
-
-  const coverImageInputRef = useRef<HTMLInputElement>(null);
-  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
 
   const fetchLibraries = async () => {
     try {
@@ -128,219 +91,32 @@ export function BookComponent() {
 
       setAllAuthors(authors);
       setAllDocumentTypes(docTypes);
-      // setAllSpecialCodes(specialCodes);
       setAllSeriesNames(series);
     } catch (error) {
       console.error("Error fetching dropdown data:", error);
     }
   };
 
+  // Sử dụng useCallback để tránh re-render vô hạn
+  const handleRefresh = useCallback(() => {
+    fetchLibraries();
+  }, []);
+
   useEffect(() => {
     fetchLibraries();
     fetchDropdownData();
   }, []);
 
-  // Author handling functions
-  const handleAuthorInputChange = (value: string) => {
-    setAuthorInput(value);
-    if (value.trim()) {
-      const filtered = allAuthors.filter(author => 
-        author.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredAuthors(filtered);
-      setShowAuthorSuggestions(true);
-    } else {
-      setShowAuthorSuggestions(false);
-    }
-  };
-
-  const addAuthor = (authorName: string) => {
-    if (!selectedAuthors.includes(authorName)) {
-      const newAuthors = [...selectedAuthors, authorName];
-      setSelectedAuthors(newAuthors);
-      handleModalChange("authors", newAuthors);
-    }
-    setAuthorInput("");
-    setShowAuthorSuggestions(false);
-  };
-
-  const removeAuthor = (authorName: string) => {
-    console.log("Removing author:", authorName);
-    console.log("Current selectedAuthors:", selectedAuthors);
-    const newAuthors = selectedAuthors.filter(name => name !== authorName);
-    console.log("New selectedAuthors:", newAuthors);
-    setSelectedAuthors(newAuthors);
-    handleModalChange("authors", newAuthors);
-  };
-
-  const addNewAuthor = async () => {
-    if (!authorInput.trim()) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/libraries/authors`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: authorInput.trim() }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Lỗi khi tạo tác giả");
-      }
-      
-      // Refresh authors list
-      await fetchDropdownData();
-      // Add to selected authors
-      addAuthor(authorInput.trim());
-      toast.success("Thêm tác giả mới thành công");
-    } catch (error) {
-      console.error("Error creating author:", error);
-      toast.error(getErrorMessage(error));
-    }
-  };
-
-  // Handle drag & drop for cover image
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-    
-    if (imageFile) {
-      handleImageFileSelect(imageFile);
-    } else {
-      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png, .webp)");
-    }
-  };
-
-  const handleImageFileSelect = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png, .webp)");
-      return;
-    }
-    
-    setCoverImageFile(file);
-    setCoverImagePreview(URL.createObjectURL(file));
-  };
-
   const openCreateModal = () => {
     setModalMode("create");
-    setCurrentLibrary({
-      authors: [],
-      title: "",
-      coverImage: "",
-      category: "",
-      language: "",
-      description: {
-        linkEmbed: "",
-        content: ""
-      },
-      introduction: {
-        linkEmbed: "",
-        content: ""
-      },
-      audioBook: {
-        linkEmbed: "",
-        content: ""
-      },
-      documentType: "",
-      specialCode: "",
-      seriesName: "",
-      isNewBook: false,
-      isFeaturedBook: false,
-      isAudioBook: false,
-    });
-    setSelectedAuthors([]);
-    setAuthorInput("");
-    setCoverImageFile(null);
-    setCoverImagePreview(null);
+    setCurrentLibrary(null);
     setIsModalOpen(true);
   };
 
   const openEditModal = (library: Library) => {
     setModalMode("edit");
     setCurrentLibrary(library);
-    setSelectedAuthors(Array.isArray(library.authors) ? library.authors : []);
-    setAuthorInput("");
-    if (library.coverImage) {
-      setCoverImageFile(null);
-      setCoverImagePreview(`${BASE_URL}/${library.coverImage}`);
-    } else {
-      setCoverImageFile(null);
-      setCoverImagePreview(null);
-    }
     setIsModalOpen(true);
-  };
-
-  const handleModalChange = (field: string, value: unknown) => {
-    setCurrentLibrary((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleModalSave = async () => {
-    try {
-      const formData = new FormData();
-      
-      // Thêm file ảnh nếu có
-      if (coverImageFile) {
-        formData.append("file", coverImageFile);
-      }
-
-      // Thêm tất cả dữ liệu khác vào FormData cho cả create và edit mode
-      formData.append("authors", JSON.stringify(selectedAuthors));
-      formData.append("title", currentLibrary.title || "");
-      formData.append("category", currentLibrary.category || "");
-      formData.append("language", currentLibrary.language || "");
-      formData.append("description", JSON.stringify(currentLibrary.description || { linkEmbed: "", content: "" }));
-      formData.append("introduction", JSON.stringify(currentLibrary.introduction || { linkEmbed: "", content: "" }));
-      formData.append("audioBook", JSON.stringify(currentLibrary.audioBook || { linkEmbed: "", content: "" }));
-      formData.append("documentType", currentLibrary.documentType || "");
-      formData.append("specialCode", currentLibrary.specialCode || "");
-      formData.append("seriesName", currentLibrary.seriesName || "");
-      formData.append("isNewBook", String(currentLibrary.isNewBook || false));
-      formData.append("isFeaturedBook", String(currentLibrary.isFeaturedBook || false));
-      formData.append("isAudioBook", String(currentLibrary.isAudioBook || false));
-
-      if (modalMode === "create") {
-        const response = await fetch(`${API_URL}/libraries`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Error creating library");
-        }
-      } else {
-        // Edit mode - cũng sử dụng FormData để có thể gửi ảnh
-        const response = await fetch(`${API_URL}/libraries/${currentLibrary._id}`, {
-          method: "PUT",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Error updating library");
-        }
-      }
-
-      setIsModalOpen(false);
-      fetchLibraries();
-      toast.success("Lưu thành công!");
-    } catch (error) {
-      console.error("Error saving library:", error);
-      toast.error(getErrorMessage(error));
-    }
   };
 
   const handleDelete = async (id: string) => {
@@ -367,256 +143,20 @@ export function BookComponent() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteLibraryInfo) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/libraries/${deleteLibraryInfo.libraryId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Error deleting library");
-      }
-
-      setIsDeleteModalOpen(false);
-      setDeleteLibraryInfo(null);
-      fetchLibraries();
-      toast.success("Xóa thành công!");
-    } catch (error) {
-      console.error("Error deleting library:", error);
-      toast.error(getErrorMessage(error));
-    }
-  };
-
   // Open description modal
   const openDescriptionModal = (library: Library) => {
     setCurrentDescriptionLibrary(library);
-    setDescriptionActiveTab('description');
     setIsDescriptionModalOpen(true);
   };
 
   // Bulk upload functions
   const openBulkModal = () => {
-    setBulkFile(null);
     setIsBulkModalOpen(true);
   };
 
-  const parseBulkDataFromText = (data: string) => {
-    const lines = data.trim().split('\n');
-    const libraries = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line || line.startsWith('#')) continue; // Skip empty lines and comments
-      
-      // Detect separator: try tab first, then comma
-      const separator = line.includes('\t') ? '\t' : ',';
-      const fields = line.split(separator);
-      if (fields.length < 2) continue; // Minimum required fields
-      
-      const library = {
-        title: fields[0]?.trim() || "",
-        authors: fields[1]?.trim() ? fields[1].trim().split(';').map(a => a.trim()) : [],
-        category: fields[2]?.trim() || "",
-        language: fields[3]?.trim() || "Tiếng Việt",
-        documentType: fields[4]?.trim() || "",
-        seriesName: fields[5]?.trim() || "",
-        isNewBook: fields[6]?.trim().toLowerCase() === 'true',
-        isFeaturedBook: fields[7]?.trim().toLowerCase() === 'true',
-        isAudioBook: fields[8]?.trim().toLowerCase() === 'true',
-        description: {
-          linkEmbed: fields[9]?.trim() || "",
-          content: fields[10]?.trim() || ""
-        },
-        introduction: {
-          linkEmbed: fields[11]?.trim() || "",
-          content: fields[12]?.trim() || ""
-        },
-        audioBook: {
-          linkEmbed: fields[13]?.trim() || "",
-          content: fields[14]?.trim() || ""
-        }
-      };
-      
-      libraries.push(library);
-    }
-    
-    return libraries;
-  };
-
-  const parseBulkDataFromExcel = (workbook: XLSX.WorkBook) => {
-    const libraries = [];
-    const sheetName = workbook.SheetNames[0]; // Lấy sheet đầu tiên
-    const worksheet = workbook.Sheets[sheetName];
-    
-    // Try parsing with headers first (for Vietnamese template)
-    const dataWithHeaders = XLSX.utils.sheet_to_json(worksheet, { 
-      raw: false,
-      defval: '',
-      blankrows: false 
-    });
-    
-         if (dataWithHeaders && dataWithHeaders.length > 0) {
-       // Check if it's Vietnamese template format
-       const firstRow = dataWithHeaders[0] as Record<string, unknown>;
-       if (firstRow["Tên đầu sách"] || firstRow["Tên sách"] || firstRow["Title"]) {
-         // Use Vietnamese column names (matching backend expectation)
-         for (let i = 0; i < dataWithHeaders.length; i++) {
-           const row = dataWithHeaders[i] as Record<string, unknown>;
-          
-                     const cleanTitle = String(row["Tên đầu sách"] || row["Tên sách"] || row["Title"] || "");
-           if (!cleanTitle.trim()) continue;
-           
-           const cleanAuthors = String(row["Tác giả"] || row["Authors"] || "");
-           
-           const library = {
-             title: cleanTitle.trim(),
-             authors: cleanAuthors ? cleanAuthors.split(';').map((a: string) => a.trim()).filter(Boolean) : [],
-             category: String(row["Thể loại"] || row["Category"] || "").trim(),
-             language: String(row["Ngôn ngữ"] || row["Language"] || "Tiếng Việt").trim(),
-             documentType: String(row["Phân loại tài liệu"] || row["Document Type"] || "").trim(),
-             seriesName: String(row["Tùng thư"] || row["Series"] || "").trim(),
-             isNewBook: String(row["Sách mới"] || row["New Book"] || "false").toLowerCase() === 'true',
-             isFeaturedBook: String(row["Nổi bật"] || row["Featured"] || "false").toLowerCase() === 'true',
-             isAudioBook: String(row["Sách nói"] || row["Audio Book"] || "false").toLowerCase() === 'true',
-             description: {
-               linkEmbed: String(row["Link mô tả"] || row["Description Link"] || "").trim(),
-               content: String(row["Nội dung mô tả"] || row["Description"] || "").trim()
-             },
-             introduction: {
-               linkEmbed: String(row["Link giới thiệu"] || row["Introduction Link"] || "").trim(),
-               content: String(row["Nội dung giới thiệu"] || row["Introduction"] || "").trim()
-             },
-             audioBook: {
-               linkEmbed: String(row["Link sách nói"] || row["Audio Link"] || "").trim(),
-               content: String(row["Nội dung sách nói"] || row["Audio Content"] || "").trim()
-             }
-           };
-          
-          libraries.push(library);
-        }
-        return libraries;
-      }
-    }
-    
-    // Fallback to array format (no headers)
-    const dataArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
-    const startRow = dataArray[0] && typeof dataArray[0][0] === 'string' && 
-                    (dataArray[0][0].toLowerCase().includes('tên') || dataArray[0][0].toLowerCase().includes('title')) ? 1 : 0;
-    
-    for (let i = startRow; i < dataArray.length; i++) {
-      const row = dataArray[i];
-      if (!row || row.length < 2) continue;
-      
-      const library = {
-        title: row[0]?.toString()?.trim() || "",
-        authors: row[1]?.toString()?.trim() ? row[1].toString().trim().split(';').map(a => a.trim()) : [],
-        category: row[2]?.toString()?.trim() || "",
-        language: row[3]?.toString()?.trim() || "Tiếng Việt",
-        documentType: row[4]?.toString()?.trim() || "",
-        seriesName: row[5]?.toString()?.trim() || "",
-        isNewBook: row[6]?.toString()?.toLowerCase() === 'true',
-        isFeaturedBook: row[7]?.toString()?.toLowerCase() === 'true',
-        isAudioBook: row[8]?.toString()?.toLowerCase() === 'true',
-        description: {
-          linkEmbed: row[9]?.toString()?.trim() || "",
-          content: row[10]?.toString()?.trim() || ""
-        },
-        introduction: {
-          linkEmbed: row[11]?.toString()?.trim() || "",
-          content: row[12]?.toString()?.trim() || ""
-        },
-        audioBook: {
-          linkEmbed: row[13]?.toString()?.trim() || "",
-          content: row[14]?.toString()?.trim() || ""
-        }
-      };
-      
-      if (library.title) {
-        libraries.push(library);
-      }
-    }
-    
-    return libraries;
-  };
-
-  const ensureAuthorsExist = async (authors: string[]) => {
-    // Lấy danh sách tác giả hiện có
-    const res = await fetch(`${API_URL}/libraries/authors`);
-    const allAuthors: { name: string }[] = await res.json();
-    const existingNames = allAuthors.map(a => a.name);
-
-    for (const name of authors) {
-      if (!existingNames.includes(name)) {
-        // Tạo mới tác giả
-        await fetch(`${API_URL}/libraries/authors`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
-        });
-      }
-    }
-  };
-
-  const handleBulkUpload = async () => {
-    if (!bulkFile) {
-      toast.error("Vui lòng chọn file để upload!");
-      return;
-    }
-
-    try {
-      let libraries = [];
-      const fileName = bulkFile.name.toLowerCase();
-      
-      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        // Handle Excel files
-        const arrayBuffer = await bulkFile.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        libraries = parseBulkDataFromExcel(workbook);
-      } else {
-        // Handle text files (CSV, TSV, TXT)
-        const fileContent = await bulkFile.text();
-        libraries = parseBulkDataFromText(fileContent);
-      }
-      
-      if (libraries.length === 0) {
-        toast.error("Không có dữ liệu hợp lệ trong file!");
-        return;
-      }
-      // Gom tất cả tác giả lại thành 1 mảng duy nhất
-      const allAuthors = Array.from(new Set(libraries.flatMap(lib => lib.authors)));
-      await ensureAuthorsExist(allAuthors);
-
-      const response = await fetch(
-        `${API_URL}/libraries/bulk`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ libraries }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        if (result.details) {
-          toast.error(`Lỗi bulk upload: ${result.details.join(", ")}`);
-        } else {
-          throw new Error(result.error || "Error bulk uploading libraries");
-        }
-        return;
-      }
-
-      setIsBulkModalOpen(false);
-      setBulkFile(null);
-      fetchLibraries();
-      toast.success(result.message || "Bulk upload thành công!");
-    } catch (error) {
-      console.error("Error bulk uploading libraries:", error);
-      toast.error(getErrorMessage(error));
-    }
+  // Bulk image upload functions
+  const openBulkImageModal = () => {
+    setIsBulkImageModalOpen(true);
   };
 
   return (
@@ -625,11 +165,17 @@ export function BookComponent() {
         <div className="flex items-center justify-between">
           <CardTitle>Đầu sách</CardTitle>
           <div className="flex gap-2">
-            <Button onClick={openBulkModal} variant="outline" className="flex items-center gap-2">
-              <FiPlus size={16} />
-              Bulk Upload
+            <Button onClick={openBulkImageModal}  className="flex items-center gap-2">
+              <FiImage size={16} />
+              Cập nhật ảnh
             </Button>
-            <Button onClick={openCreateModal} className="flex items-center gap-2">
+            <Button onClick={openBulkModal}  className="flex items-center gap-2">
+              <FiPlus size={16} />
+              Thêm nhiều
+            </Button>
+            <Button 
+            variant="destructive"
+            onClick={openCreateModal} className="flex items-center gap-2">
               <FiPlus size={16} />
               Thêm mới
             </Button>
@@ -694,581 +240,52 @@ export function BookComponent() {
             ))}
           </TableBody>
         </Table>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="min-w-3xl max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {modalMode === "create" ? "Tạo mới đầu sách" : "Chỉnh sửa đầu sách"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-6 mt-4">
-              {/* Left Column */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Tên đầu sách <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={currentLibrary.title || ""}
-                    onChange={(e) => handleModalChange("title", e.target.value)}
-                    placeholder="Nhập tên sách..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tác giả:</label>
-                  <div className="relative">
-                    <Input
-                      value={authorInput}
-                      onChange={(e) => handleAuthorInputChange(e.target.value)}
-                      placeholder="Gõ để tìm tác giả..."
-                      onFocus={() => authorInput && setShowAuthorSuggestions(true)}
-                      onBlur={() => {
-                        // Delay to allow click events on suggestions
-                        setTimeout(() => setShowAuthorSuggestions(false), 150);
-                      }}
-                    />
-                    {showAuthorSuggestions && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                        {filteredAuthors.length > 0 ? (
-                          filteredAuthors.map((author) => (
-                            <div
-                              key={author._id}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                              onClick={() => addAuthor(author.name)}
-                            >
-                              {author.name}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-4 py-2 text-gray-500">
-                            Không tìm thấy tác giả
-                          </div>
-                        )}
-                        {authorInput.trim() && (
-                          <div
-                            className="px-4 py-2 border-t bg-blue-50 hover:bg-blue-100 cursor-pointer flex items-center gap-2 text-sm"
-                            onClick={addNewAuthor}
-                          >
-                            <FiPlus size={14} />
-                            Thêm tác giả mới: "{authorInput.trim()}"
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {/* Selected Authors */}
-                  {selectedAuthors.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedAuthors.map((author) => (
-                        <div 
-                          key={author} 
-                          className="flex items-center gap-1 px-2 py-0.5 bg-secondary text-secondary-foreground rounded text-xs"
-                        >
-                          {author}
-                          <button
-                            type="button"
-                            className="cursor-pointer hover:text-red-500 ml-0.5 p-0 border-0 bg-transparent"
-                            onClick={() => {
-                              console.log("Click remove button for:", author);
-                              removeAuthor(author);
-                            }}
-                          >
-                            <FiX size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              
-               
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tùng thư:</label>
-                  <Select
-                    value={currentLibrary.seriesName || ""}
-                    onValueChange={(value) => handleModalChange("seriesName", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn tùng thư..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allSeriesNames.map((sn) => (
-                        <SelectItem key={sn._id} value={sn.name}>
-                          {sn.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                 <div>
-                  <label className="block text-sm font-medium mb-2">Ngôn ngữ:</label>
-                  <Input
-                    value={currentLibrary.language || ""}
-                    onChange={(e) => handleModalChange("language", e.target.value)}
-                    placeholder="Nhập ngôn ngữ..."
-                  />
-                </div>
-              </div>
-              
-              {/* Right Column */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Phân loại tài liệu:</label>
-                  <Select
-                    value={currentLibrary.documentType || ""}
-                    onValueChange={(value) => handleModalChange("documentType", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn phân loại tài liệu..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allDocumentTypes.map((dt) => (
-                        <SelectItem key={dt._id} value={dt.name}>
-                          {dt.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Ảnh bìa:</label>
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all duration-300 ${
-                      isDragOver 
-                        ? 'border-primary bg-primary/5 scale-105' 
-                        : 'border-gray-300 hover:border-primary'
-                    }`}
-                    onClick={() => coverImageInputRef.current?.click()}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    {coverImagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={coverImagePreview}
-                          alt="Preview"
-                          className="h-28 mx-auto object-contain"
-                        />
-                        <button
-                          type="button"
-                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCoverImageFile(null);
-                            setCoverImagePreview(null);
-                          }}
-                        >
-                          <FiX size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="mx-auto h-10 w-10 text-gray-400">
-                          <svg fill="none" stroke="currentColor" viewBox="0 0 48 48">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" />
-                          </svg>
-                        </div>
-                        <div className="text-gray-500">
-                          <p className="text-sm font-medium">Kéo thả hoặc chọn ảnh bìa từ máy tính</p>
-                          <p className="text-xs mt-1">Định dạng hỗ trợ: .jpg, .jpeg, .png, .webp</p>
-                        </div>
-                        {isDragOver && (
-                          <div className="text-primary font-medium animate-pulse">
-                            Thả ảnh vào đây...
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <input
-                      ref={coverImageInputRef}
-                      type="file"
-                      accept="image/*,.webp"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleImageFileSelect(file);
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Đặc điểm sách:</label>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="libraryIsNew"
-                        checked={currentLibrary.isNewBook || false}
-                        onCheckedChange={(checked) => handleModalChange("isNewBook", !!checked)}
-                      />
-                      <label htmlFor="libraryIsNew" className="text-sm cursor-pointer">Sách mới</label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="libraryIsFeatured"
-                        checked={currentLibrary.isFeaturedBook || false}
-                        onCheckedChange={(checked) => handleModalChange("isFeaturedBook", !!checked)}
-                      />
-                      <label htmlFor="libraryIsFeatured" className="text-sm cursor-pointer">Sách nổi bật</label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="libraryIsAudio"
-                        checked={currentLibrary.isAudioBook || false}
-                        onCheckedChange={(checked) => handleModalChange("isAudioBook", !!checked)}
-                      />
-                      <label htmlFor="libraryIsAudio" className="text-sm cursor-pointer">Sách nói</label>
-                    </div>
-                  </div>
-                </div>
-                
-              </div>
-                        </div>
 
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                Hủy
-              </Button>
-              <Button onClick={handleModalSave}>
-                Lưu
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Create/Edit Book Dialog */}
+        <CreateEditBookDialog
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          mode={modalMode}
+          library={currentLibrary}
+          allAuthors={allAuthors}
+          allDocumentTypes={allDocumentTypes}
+          allSeriesNames={allSeriesNames}
+          onSuccess={handleRefresh}
+        />
 
-        {/* Description Modal */}
-        <Dialog open={isDescriptionModalOpen} onOpenChange={setIsDescriptionModalOpen}>
-          <DialogContent className="max-w-5xl h-[62vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>
-                Mô tả sách: {currentDescriptionLibrary?.title}
-              </DialogTitle>
-            </DialogHeader>
-            
-            {/* Tabs Component */}
-            <Tabs 
-              value={descriptionActiveTab} 
-              onValueChange={(value) => setDescriptionActiveTab(value as 'description' | 'introduction' | 'audiobook')}
-              className="flex-1 flex flex-col"
-            >
-              <div className="flex justify-center mb-4">
-                <TabsList className="grid w-full max-w-md grid-cols-3">
-                  <TabsTrigger value="description">Mô tả</TabsTrigger>
-                  <TabsTrigger value="introduction">Giới thiệu sách</TabsTrigger>
-                  <TabsTrigger value="audiobook">Sách nói</TabsTrigger>
-                </TabsList>
-              </div>
+        {/* Description Dialog */}
+        <DescriptionDialog
+          isOpen={isDescriptionModalOpen}
+          onClose={() => setIsDescriptionModalOpen(false)}
+          library={currentDescriptionLibrary}
+          onSuccess={handleRefresh}
+        />
 
-              <div className="flex-1 overflow-y-auto">
-                <TabsContent value="description" className="space-y-4 h-full mt-0">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Link embed
-                    </label>
-                    <Input
-                      type="url"
-                      placeholder="Nhập URL embed từ Voiz FM, Spotify, YouTube..."
-                      value={currentDescriptionLibrary?.description?.linkEmbed || ''}
-                      onChange={(e) => {
-                        if (currentDescriptionLibrary) {
-                          setCurrentDescriptionLibrary({
-                            ...currentDescriptionLibrary,
-                            description: {
-                              ...currentDescriptionLibrary.description,
-                              linkEmbed: e.target.value
-                            }
-                          });
-                        }
-                      }}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Ví dụ: https://voiz.vn/play/461/ hoặc các URL embed khác
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Mô tả <span className="text-red-500">*</span>
-                    </label>
-                    <Textarea
-                      className="h-[200px] resize-none"
-                      placeholder="Nhập nội dung mô tả sách..."
-                      value={currentDescriptionLibrary?.description?.content || ''}
-                      onChange={(e) => {
-                        if (currentDescriptionLibrary) {
-                          setCurrentDescriptionLibrary({
-                            ...currentDescriptionLibrary,
-                            description: {
-                              ...currentDescriptionLibrary.description,
-                              content: e.target.value
-                            }
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                </TabsContent>
+        {/* Bulk Upload Dialog */}
+        <BulkUploadDialog
+          isOpen={isBulkModalOpen}
+          onClose={() => setIsBulkModalOpen(false)}
+          onSuccess={handleRefresh}
+        />
 
-                <TabsContent value="introduction" className="space-y-4 h-full mt-0">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Link embed
-                    </label>
-                    <Input
-                      type="url"
-                      placeholder="Nhập URL embed từ Voiz FM, Spotify, YouTube..."
-                      value={currentDescriptionLibrary?.introduction?.linkEmbed || ''}
-                      onChange={(e) => {
-                        if (currentDescriptionLibrary) {
-                          setCurrentDescriptionLibrary({
-                            ...currentDescriptionLibrary,
-                            introduction: {
-                              ...currentDescriptionLibrary.introduction,
-                              linkEmbed: e.target.value
-                            }
-                          });
-                        }
-                      }}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Ví dụ: https://voiz.vn/play/461/ hoặc các URL embed khác
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Giới thiệu sách <span className="text-red-500">*</span>
-                    </label>
-                    <Textarea
-                      className="h-[200px] resize-none"
-                      placeholder="Nhập nội dung giới thiệu chi tiết về sách..."
-                      value={currentDescriptionLibrary?.introduction?.content || ''}
-                      onChange={(e) => {
-                        if (currentDescriptionLibrary) {
-                          setCurrentDescriptionLibrary({
-                            ...currentDescriptionLibrary,
-                            introduction: {
-                              ...currentDescriptionLibrary.introduction,
-                              content: e.target.value
-                            }
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                </TabsContent>
+        {/* Bulk Image Upload Dialog */}
+        <BulkImageUploadDialog
+          isOpen={isBulkImageModalOpen}
+          onClose={() => setIsBulkImageModalOpen(false)}
+          libraries={libraries}
+          onSuccess={handleRefresh}
+        />
 
-                <TabsContent value="audiobook" className="space-y-4 h-full mt-0">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Link embed
-                    </label>
-                    <Input
-                      type="url"
-                      placeholder="Nhập URL embed từ Voiz FM, Spotify, YouTube..."
-                      value={currentDescriptionLibrary?.audioBook?.linkEmbed || ''}
-                      onChange={(e) => {
-                        if (currentDescriptionLibrary) {
-                          setCurrentDescriptionLibrary({
-                            ...currentDescriptionLibrary,
-                            audioBook: {
-                              ...currentDescriptionLibrary.audioBook,
-                              linkEmbed: e.target.value
-                            }
-                          });
-                        }
-                      }}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Ví dụ: https://voiz.vn/play/461/ hoặc các URL embed khác
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Mô tả <span className="text-red-500">*</span>
-                    </label>
-                    <Textarea
-                      className="h-[200px] resize-none"
-                      placeholder="Nhập nội dung mô tả sách nói..."
-                      value={currentDescriptionLibrary?.audioBook?.content || ''}
-                      onChange={(e) => {
-                        if (currentDescriptionLibrary) {
-                          setCurrentDescriptionLibrary({
-                            ...currentDescriptionLibrary,
-                            audioBook: {
-                              ...currentDescriptionLibrary.audioBook,
-                              content: e.target.value
-                            }
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                </TabsContent>
-              </div>
-            </Tabs>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsDescriptionModalOpen(false)}
-              >
-                Đóng
-              </Button>
-              <Button 
-                onClick={async () => {
-                  if (!currentDescriptionLibrary) return;
-                  
-                  try {
-                    const response = await fetch(`${API_URL}/libraries/${currentDescriptionLibrary._id}`, {
-                      method: "PUT",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        description: currentDescriptionLibrary.description,
-                        introduction: currentDescriptionLibrary.introduction,
-                        audioBook: currentDescriptionLibrary.audioBook,
-                      }),
-                    });
-
-                    if (!response.ok) {
-                      const error = await response.json();
-                      throw new Error(error.error || "Error updating library");
-                    }
-
-                    setIsDescriptionModalOpen(false);
-                    fetchLibraries();
-                    toast.success("Cập nhật mô tả thành công!");
-                  } catch (error) {
-                    console.error("Error updating description:", error);
-                    toast.error(getErrorMessage(error));
-                  }
-                }}
-              >
-                Lưu thay đổi
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-                {/* Bulk Upload Modal */}
-        <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Nhập danh sách đầu sách từ Excel/CSV</DialogTitle>
-            </DialogHeader>
-            <DialogDescription>
-              <div className="text-sm text-gray-500">
-                Vui lòng tải file mẫu và điền thông tin theo đúng định dạng.
-              </div>
-            </DialogDescription>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="bulk-file" className="text-right">
-                  Chọn file
-                </Label>
-                <Input
-                  id="bulk-file"
-                  type="file"
-                  accept=".xlsx,.xls,.txt,.tsv,.csv"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    setBulkFile(file || null);
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">
-                  File Mẫu
-                </Label>
-                <Button variant="outline" asChild>
-                  <a href="/library-book-template.xlsx" download="library-book-template.xlsx">
-                    Tải file mẫu
-                  </a>
-                </Button>
-              </div>             
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" onClick={() => setIsBulkModalOpen(false)}>
-                Đóng
-              </Button>
-              <Button 
-                onClick={handleBulkUpload} 
-                disabled={!bulkFile}
-                className="bg-[#F05023] text-white"
-              >
-                Upload
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Modal */}
-        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Xác nhận xóa đầu sách</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {deleteLibraryInfo && (
-                <>
-                  <div className="text-sm">
-                    <p className="font-medium mb-2">
-                      Bạn có chắc chắn muốn xóa đầu sách: <span className="text-red-600">"{deleteLibraryInfo.libraryTitle}"</span>?
-                    </p>
-                    <p className="text-gray-600 mb-4">
-                      Đầu sách này có <span className="font-bold text-red-600">{deleteLibraryInfo.bookCount}</span> bản sách chi tiết.
-                    </p>
-                    
-                    {deleteLibraryInfo.bookCount > 0 && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className="text-yellow-800 font-medium mb-2">Cảnh báo:</p>
-                        <p className="text-yellow-700 text-sm mb-2">
-                          Việc xóa đầu sách sẽ xóa {deleteLibraryInfo.bookCount} sách bên dưới:
-                        </p>
-                        <div className="max-h-32 overflow-y-auto">
-                          {deleteLibraryInfo.books.map((book, index) => (
-                            <div key={index} className="text-xs text-yellow-700 mb-1">
-                              • {book.generatedCode} - {book.title} (Trạng thái: {book.status})
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <p className="text-red-600 font-medium mt-4">
-                      Hành động này không thể hoàn tác.
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsDeleteModalOpen(false);
-                  setDeleteLibraryInfo(null);
-                }}
-              >
-                Hủy
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={confirmDelete}
-              >
-                Xác nhận xóa
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Delete Confirmation Dialog */}
+        <DeleteConfirmationDialog
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setDeleteLibraryInfo(null);
+          }}
+          deleteLibraryInfo={deleteLibraryInfo}
+          onSuccess={handleRefresh}
+        />
       </CardContent>
     </Card>
   );

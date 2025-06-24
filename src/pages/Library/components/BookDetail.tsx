@@ -110,6 +110,9 @@ export function BookDetailComponent() {
     setSelectedLibrary(lib);
     setLibrarySearchTerm(lib.title);
     setSearchResults([]);
+    
+    // Cập nhật tên sách từ đầu sách đã chọn
+    handleChange("bookTitle", lib.title);
   };
 
 
@@ -252,7 +255,9 @@ export function BookDetailComponent() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Sách</CardTitle>
-          <Button onClick={openCreateModal} className="flex items-center gap-2">
+          <Button 
+          variant="destructive"
+          onClick={openCreateModal} className="flex items-center gap-2">
             <FiPlus size={16} />
             Thêm mới
           </Button>
@@ -289,7 +294,6 @@ export function BookDetailComponent() {
                     <Button
                       size="sm"
                       onClick={() => openEditModal(book)}
-                      className="bg-primary text-white hover:bg-primary/90"
                     >
                     Sửa
                     </Button>
@@ -370,36 +374,53 @@ export function BookDetailComponent() {
               )}
               <Label className="text-base font-medium mb-2">Thông tin sách</Label>
               <div className="flex gap-4 border-b border-gray-200 pb-4">
-                <div className="grid grid-cols-2 gap-4 flex-1">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      ISBN <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      placeholder="Nhập mã ISBN"
-                      value={currentBook.isbn || ""}
-                      onChange={(e) => handleChange("isbn", e.target.value)}
-                    />
+                <div className="grid gap-4 flex-1">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        ISBN <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        placeholder="Nhập mã ISBN"
+                        value={currentBook.isbn || ""}
+                        onChange={(e) => handleChange("isbn", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Định danh tài liệu <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        placeholder="Nhập định danh tài liệu"
+                        value={currentBook.documentIdentifier || ""}
+                        onChange={(e) => handleChange("documentIdentifier", e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Định danh tài liệu <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      placeholder="Nhập định danh tài liệu"
-                      value={currentBook.documentIdentifier || ""}
-                      onChange={(e) => handleChange("documentIdentifier", e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Tên sách <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      placeholder="Nhập tên sách"
-                      value={currentBook.bookTitle || ""}
-                      onChange={(e) => handleChange("bookTitle", e.target.value)}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Tên sách <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        placeholder="Nhập tên sách"
+                        value={currentBook.bookTitle || ""}
+                        onChange={(e) => handleChange("bookTitle", e.target.value)}
+                      />
+                    </div>
+                    {selectedLibrary && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Tác giả
+                        </label>
+                        <Input
+                          placeholder="Tác giả sẽ hiển thị khi chọn đầu sách"
+                          value={selectedLibrary?.authors ? selectedLibrary.authors.join(", ") : ""}
+                          disabled
+                          className="bg-gray-50"
+                        />
+                      </div>
+                    )}
                   </div>
                   {/* <div>
                     <label className="block text-sm font-medium mb-2">

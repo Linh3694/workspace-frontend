@@ -154,7 +154,9 @@ export function SpecialCodeComponent() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Mã quy ước</CardTitle>
-          <Button onClick={openCreateModal} className="flex items-center gap-2 bg-[#FF5733] hover:bg-[#FF5733]/80 text-white">
+          <Button 
+          variant="destructive"
+          onClick={openCreateModal} className="flex items-center gap-2">
             <FiPlus size={16} />
             Thêm mới
           </Button>
@@ -191,7 +193,6 @@ export function SpecialCodeComponent() {
                       size="sm"
                       variant="destructive"
                       onClick={() => confirmDelete(item)}
-                      className="bg-[#FF5733] text-white"
                     >
                       Xoá
                     </Button>
