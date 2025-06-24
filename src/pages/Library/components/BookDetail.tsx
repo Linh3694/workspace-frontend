@@ -414,7 +414,7 @@ export function BookDetailComponent() {
               <div className="grid grid-cols-3 gap-4 border-b border-gray-200 pb-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Năm Xuất Bản <span className="text-red-500">*</span>
+                    Năm Xuất Bản
                   </label>
                   <Input
                     type="number"
@@ -425,7 +425,7 @@ export function BookDetailComponent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Nhà Xuất Bản <span className="text-red-500">*</span>
+                    Nhà Xuất Bản
                   </label>
                   <Input
                     placeholder="Nhập tên nhà xuất bản"
@@ -435,7 +435,7 @@ export function BookDetailComponent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Nơi Xuất Bản <span className="text-red-500">*</span>
+                    Nơi Xuất Bản
                   </label>
                   <Input
                     placeholder="Nhập nơi xuất bản"
@@ -448,7 +448,7 @@ export function BookDetailComponent() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Số trang <span className="text-red-500">*</span>
+                    Số trang
                   </label>
                   <Input
                     type="number"
@@ -459,7 +459,7 @@ export function BookDetailComponent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Giá bìa <span className="text-red-500">*</span>
+                    Giá bìa
                   </label>
                   <Input
                     type="number"
@@ -470,10 +470,10 @@ export function BookDetailComponent() {
                 </div>
                  <div>
                   <label className="block text-sm font-medium mb-2">
-                    Cơ quan biên mục <span className="text-red-500">*</span>
+                    Cơ quan biên mục
                   </label>
                   <Input
-                    placeholder="Nhập cơ quan biên mục"
+                    placeholder="Mặc định: WIS"
                     value={currentBook.catalogingAgency || ""}
                     onChange={(e) => handleChange("catalogingAgency", e.target.value)}
                   />
