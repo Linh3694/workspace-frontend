@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Search, Calendar, Upload, Edit } from 'lucide-react';
+import { Plus, Trash2, Search, Calendar, Upload, Edit, Eye, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,8 +88,22 @@ const LibraryActivitiesPage: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingActivity, setDeletingActivity] = useState<LibraryActivity | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isViewImagesModalOpen, setIsViewImagesModalOpen] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
+  const [currentDayImages, setCurrentDayImages] = useState<Array<{
+    _id: string;
+    url: string;
+    caption?: string;
+    uploadedAt: string;
+  }>>([]);
+  const [isDeleteImageDialogOpen, setIsDeleteImageDialogOpen] = useState(false);
+  const [deletingImage, setDeletingImage] = useState<{
+    activityId: string;
+    dayId: string;
+    imageId: string;
+    imageName: string;
+  } | null>(null);
 
   const form = useForm<ActivityFormData>({
     defaultValues: {
@@ -261,14 +275,67 @@ const LibraryActivitiesPage: React.FC = () => {
       
       toast.success('Thêm ảnh thành công');
       setIsImageModalOpen(false);
-      setSelectedActivityId(null);
-      setSelectedDayId(null);
+      
+             // Refresh current day images if view modal is open
+       if (isViewImagesModalOpen && selectedActivityId && selectedDayId) {
+         const response = await fetch(`${API_URL}/library-activities/${selectedActivityId}`);
+         if (response.ok) {
+           const activityData: LibraryActivity = await response.json();
+           const day = activityData.days.find(d => d._id === selectedDayId);
+           if (day) {
+             const validImages = day.images.filter(img => img._id && img.uploadedAt).map(img => ({
+               _id: img._id!,
+               url: img.url,
+               caption: img.caption,
+               uploadedAt: img.uploadedAt!
+             }));
+             setCurrentDayImages(validImages);
+           }
+         }
+       } else {
+        setSelectedActivityId(null);
+        setSelectedDayId(null);
+      }
+      
       fetchActivities(currentPage, searchTerm);
     } catch (error) {
       console.error('Error uploading images:', error);
       toast.error('Không thể thêm ảnh');
     }
       };
+
+  // Delete single image
+  const handleDeleteImage = async () => {
+    if (!deletingImage) return;
+
+    try {
+      const { activityId, dayId, imageId } = deletingImage;
+      const response = await fetch(`${API_URL}/library-activities/${activityId}/days/${dayId}/images/${imageId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Lỗi khi xóa ảnh');
+      
+      toast.success('Xóa ảnh thành công');
+      // Update current day images
+      setCurrentDayImages(prev => prev.filter(img => img._id !== imageId));
+      // Refresh activities list
+      fetchActivities(currentPage, searchTerm);
+      
+      // Close dialog
+      setIsDeleteImageDialogOpen(false);
+      setDeletingImage(null);
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast.error('Không thể xóa ảnh');
+    }
+  };
+
+  // Open delete image dialog
+  const openDeleteImageDialog = (activityId: string, dayId: string, imageId: string, imageName: string) => {
+    setDeletingImage({ activityId, dayId, imageId, imageName });
+    setIsDeleteImageDialogOpen(true);
+  };
   
   // Toggle published status for individual day
   const handleToggleDayPublished = async (activityId: string, dayId: string, currentStatus: boolean) => {
@@ -323,6 +390,25 @@ const LibraryActivitiesPage: React.FC = () => {
     setSelectedActivityId(activityId);
     setSelectedDayId(dayId);
     setIsImageModalOpen(true);
+  };
+
+  // Open view images modal
+  const openViewImagesModal = (activityId: string, dayId: string) => {
+    const activity = activities.find(a => a._id === activityId);
+    const day = activity?.days.find(d => d._id === dayId);
+    if (day) {
+      // Filter out images without _id and uploadedAt to match the type
+      const validImages = day.images.filter(img => img._id && img.uploadedAt).map(img => ({
+        _id: img._id!,
+        url: img.url,
+        caption: img.caption,
+        uploadedAt: img.uploadedAt!
+      }));
+      setCurrentDayImages(validImages);
+      setSelectedActivityId(activityId);
+      setSelectedDayId(dayId);
+      setIsViewImagesModalOpen(true);
+    }
   };
 
   useEffect(() => {
@@ -440,16 +526,6 @@ const LibraryActivitiesPage: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Quản lý hoạt động thư viện</h1>
-          <p className="text-muted-foreground">
-            Tạo, chỉnh sửa và quản lý các hoạt động của thư viện. Giao diện admin hiển thị tất cả hoạt động.
-          </p>
-        </div>
-      </div>
-
       {/* Activities Table */}
       <Card>
         <CardHeader>
@@ -564,21 +640,31 @@ const LibraryActivitiesPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {day.images.length > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openViewImagesModal(activity._id, day._id!)}
+                                title="Xem ảnh"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => openImageModal(activity._id, day._id!)}
+                              title="Thêm ảnh"
                             >
                               <Upload className="h-4 w-4" />
-                             
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteDay(activity._id, day._id!)}
+                              title="Xóa ngày"
                             >
                               <Trash2 className="h-4 w-4" />
-                             
                             </Button>
                           </div>
                         </TableCell>
@@ -686,6 +772,80 @@ const LibraryActivitiesPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* View Images Modal */}
+      <Dialog open={isViewImagesModalOpen} onOpenChange={setIsViewImagesModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quản lý ảnh</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {currentDayImages.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Chưa có ảnh nào</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {currentDayImages.map((image, index) => (
+                  <div key={image._id} className="relative group">
+                    <div className="aspect-square overflow-hidden rounded-lg border">
+                      <img
+                        src={image.url}
+                        alt={image.caption || `Ảnh ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    
+                    {/* Image controls overlay */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedActivityId && selectedDayId) {
+                            openDeleteImageDialog(
+                              selectedActivityId, 
+                              selectedDayId, 
+                              image._id, 
+                              image.caption || `Ảnh ${index + 1}`
+                            );
+                          }
+                        }}
+                        title="Xóa ảnh"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    {/* Caption */}
+                    {image.caption && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-sm p-2 rounded-b-lg">
+                        {image.caption}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Add more images button */}
+            <div className="pt-4 border-t">
+              <Button
+                onClick={() => {
+                  setIsViewImagesModalOpen(false);
+                  if (selectedActivityId && selectedDayId) {
+                    openImageModal(selectedActivityId, selectedDayId);
+                  }
+                }}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Thêm ảnh mới
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Image Upload Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
@@ -705,6 +865,37 @@ const LibraryActivitiesPage: React.FC = () => {
               onClick={() => setIsImageModalOpen(false)}
             >
               Hủy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Image Confirmation Dialog */}
+      <Dialog open={isDeleteImageDialogOpen} onOpenChange={setIsDeleteImageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa ảnh</DialogTitle>
+          </DialogHeader>
+          <p className="py-4">
+            Bạn có chắc chắn muốn xóa ảnh "{deletingImage?.imageName}"? 
+            Hành động này không thể hoàn tác.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteImageDialogOpen(false);
+                setDeletingImage(null);
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteImage}
+              disabled={loading}
+            >
+              {loading ? 'Đang xóa...' : 'Xóa ảnh'}
             </Button>
           </DialogFooter>
         </DialogContent>
