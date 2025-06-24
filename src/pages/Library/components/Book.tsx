@@ -200,13 +200,13 @@ export function BookComponent() {
     if (imageFile) {
       handleImageFileSelect(imageFile);
     } else {
-      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png)");
+      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png, .webp)");
     }
   };
 
   const handleImageFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png)");
+      toast.error("Vui lòng chọn file ảnh (.jpg, .jpeg, .png, .webp)");
       return;
     }
     
@@ -597,7 +597,7 @@ export function BookComponent() {
                         </div>
                         <div className="text-gray-500">
                           <p className="text-sm font-medium">Kéo thả hoặc chọn ảnh bìa từ máy tính</p>
-                          <p className="text-xs mt-1">Định dạng hỗ trợ: .jpg, .jpeg, .png</p>
+                          <p className="text-xs mt-1">Định dạng hỗ trợ: .jpg, .jpeg, .png, .webp</p>
                         </div>
                         {isDragOver && (
                           <div className="text-primary font-medium animate-pulse">
@@ -609,7 +609,7 @@ export function BookComponent() {
                     <input
                       ref={coverImageInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.webp"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];

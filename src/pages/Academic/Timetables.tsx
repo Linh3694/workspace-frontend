@@ -579,7 +579,7 @@ const TimetablesPage = () => {
         <Card>
           <CardContent className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+              <Loader2 className="h-12 w-12 animate-spin text-[#002855] mx-auto mb-4" />
               <p className="text-gray-500">Đang tải thời khóa biểu...</p>
             </div>
           </CardContent>
@@ -627,38 +627,48 @@ const TimetablesPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {periodMetas.map((pm) => (
-                  <TableRow key={pm.number} className="hover:bg-gray-50">
-                    <TableCell className="border text-center font-medium bg-gray-25">
-                      <div>
-                        <div className="font-semibold text-blue-600">{pm.label}</div>
-                        <div className="text-xs text-gray-500">{pm.time}</div>
-                      </div>
-                    </TableCell>
-                    {days.map(day => {
-                      const entry = timetableGrid[day]?.[String(pm.number)];
-                      return (
+                {periodMetas.map((pm) => {
+                  // Kiểm tra nếu là tiết đặc biệt (không phải regular)
+                  const isSpecialPeriod = pm.type !== "regular";
+                  
+                  if (isSpecialPeriod) {
+                    // Lấy entry từ ngày đầu tiên để hiển thị thông tin
+                    const firstDayEntry = timetableGrid[days[0]]?.[String(pm.number)];
+                    
+                    return (
+                      <TableRow key={pm.number} className="hover:bg-gray-50">
+                        <TableCell className="border text-center font-medium bg-gray-25">
+                          <div>
+                            <div className="font-semibold text-[#002855]">{pm.label}</div>
+                            <div className="text-xs text-gray-500">{pm.time}</div>
+                          </div>
+                        </TableCell>
+                        {/* Merge tất cả các cột ngày thành một cell */}
                         <TableCell 
-                          key={`${day}-${pm.number}`} 
-                          className="border p-3 cursor-pointer hover:bg-blue-50 transition-colors" 
-                          onClick={() => handleCellClick(day, pm.number, entry)}
+                          colSpan={days.length}
+                          className="border p-3 cursor-pointer hover:bg-[#002855]/5 transition-colors text-center" 
+                          onClick={() => handleCellClick(days[0], pm.number, firstDayEntry)}
                         >
-                          {entry ? (
+                          {firstDayEntry ? (
                             <div className="space-y-2">
-                              <div className="font-semibold text-blue-800 flex items-center gap-1">
-                                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
-                                {typeof entry.subject === 'object' ? entry.subject.name : entry.subject}
+                              <div className="font-semibold text-[#002855] flex items-center justify-center gap-1">
+                                <div className="h-2 w-2 bg-[#002855] rounded-full"></div>
+                                {typeof firstDayEntry.subject === 'object' ? firstDayEntry.subject.name : firstDayEntry.subject}
                               </div>
-                              <div className="space-y-1">
+                              <div className="flex justify-center">
                                 {(() => {
-                                  const teachers = entry.teachers;
+                                  const teachers = firstDayEntry.teachers;
                                   if (Array.isArray(teachers)) {
-                                    return teachers.map((teacher, index) => (
-                                      <div key={index} className="flex items-center gap-1 text-sm text-gray-600">
-                                        <Users className="h-3 w-3" />
-                                        {typeof teacher === 'object' ? teacher.fullname : teacher}
+                                    return (
+                                      <div className="flex flex-wrap justify-center gap-2">
+                                        {teachers.map((teacher, index) => (
+                                          <div key={index} className="flex items-center gap-1 text-sm text-gray-600">
+                                            <Users className="h-3 w-3" />
+                                            {typeof teacher === 'object' ? teacher.fullname : teacher}
+                                          </div>
+                                        ))}
                                       </div>
-                                    ));
+                                    );
                                   } else if (typeof teachers === 'string') {
                                     return (
                                       <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -674,26 +684,95 @@ const TimetablesPage = () => {
                                   );
                                 })()}
                               </div>
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
                                 <MapPin className="h-3 w-3" />
-                                {entry.room
-                                  ? typeof entry.room === "object"
-                                    ? entry.room.name
-                                    : entry.room
+                                {firstDayEntry.room
+                                  ? typeof firstDayEntry.room === "object"
+                                    ? firstDayEntry.room.name
+                                    : firstDayEntry.room
                                   : "Chưa có phòng"}
                               </div>
                             </div>
                           ) : (
-                            <div className="text-gray-400 text-center py-4 border-2 border-dashed border-gray-200 rounded">
+                            <div className="text-gray-400 py-4 border-2 border-dashed border-gray-200 rounded">
                               <Plus className="h-6 w-6 mx-auto mb-1" />
                               <span className="text-sm">Trống</span>
                             </div>
                           )}
                         </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
+                      </TableRow>
+                    );
+                  }
+                  
+                  // Tiết học thường - hiển thị như cũ
+                  return (
+                    <TableRow key={pm.number} className="hover:bg-gray-50">
+                      <TableCell className="border text-center font-medium bg-gray-25">
+                        <div>
+                          <div className="font-semibold text-[#002855]">{pm.label}</div>
+                          <div className="text-xs text-gray-500">{pm.time}</div>
+                        </div>
+                      </TableCell>
+                      {days.map(day => {
+                        const entry = timetableGrid[day]?.[String(pm.number)];
+                        return (
+                          <TableCell 
+                            key={`${day}-${pm.number}`} 
+                            className="border p-3 cursor-pointer hover:bg-[#002855]/5 transition-colors" 
+                            onClick={() => handleCellClick(day, pm.number, entry)}
+                          >
+                            {entry ? (
+                              <div className="space-y-2">
+                                <div className="font-semibold text-[#002855] flex items-center gap-1">
+                                  <div className="h-2 w-2 bg-[#002855] rounded-full"></div>
+                                  {typeof entry.subject === 'object' ? entry.subject.name : entry.subject}
+                                </div>
+                                <div className="space-y-1">
+                                  {(() => {
+                                    const teachers = entry.teachers;
+                                    if (Array.isArray(teachers)) {
+                                      return teachers.map((teacher, index) => (
+                                        <div key={index} className="flex items-center gap-1 text-sm text-gray-600">
+                                          <Users className="h-3 w-3" />
+                                          {typeof teacher === 'object' ? teacher.fullname : teacher}
+                                        </div>
+                                      ));
+                                    } else if (typeof teachers === 'string') {
+                                      return (
+                                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                                          <Users className="h-3 w-3" />
+                                          {teachers}
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div className="text-sm text-gray-400 italic">
+                                        Chưa có giáo viên
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                                <div className="flex items-center gap-1 text-sm text-gray-600">
+                                  <MapPin className="h-3 w-3" />
+                                  {entry.room
+                                    ? typeof entry.room === "object"
+                                      ? entry.room.name
+                                      : entry.room
+                                    : "Chưa có phòng"}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-gray-400 text-center py-4 border-2 border-dashed border-gray-200 rounded">
+                                <Plus className="h-6 w-6 mx-auto mb-1" />
+                                <span className="text-sm">Trống</span>
+                              </div>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

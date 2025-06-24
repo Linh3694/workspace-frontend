@@ -137,7 +137,7 @@ export function SpecialCodeComponent() {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Đăng ký cá biệt</CardTitle>
+          <CardTitle>Mã quy ước</CardTitle>
           <Button onClick={openCreateModal} className="flex items-center gap-2 bg-[#FF5733] hover:bg-[#FF5733]/80 text-white">
             <FiPlus size={16} />
             Thêm mới

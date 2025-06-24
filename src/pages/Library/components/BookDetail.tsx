@@ -35,7 +35,7 @@ export function BookDetailComponent() {
     documentType: "",
     coverPrice: null,
     language: "",
-    catalogingAgency: "",
+    catalogingAgency: "WIS",
     storageLocation: "",
     seriesName: "",
     specialCode: "",
@@ -125,7 +125,7 @@ export function BookDetailComponent() {
       documentType: "",
       coverPrice: null,
       language: "",
-      catalogingAgency: "",
+      catalogingAgency: "WIS",
       storageLocation: "",
       seriesName: "",
       specialCode: "",
@@ -397,7 +397,7 @@ export function BookDetailComponent() {
                       onChange={(e) => handleChange("bookTitle", e.target.value)}
                     />
                   </div>
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium mb-2">
                       Ký hiệu phân loại <span className="text-red-500">*</span>
                     </label>
@@ -406,7 +406,7 @@ export function BookDetailComponent() {
                       value={currentBook.classificationSign || ""}
                       onChange={(e) => handleChange("classificationSign", e.target.value)}
                     />
-                  </div>
+                  </div> */}
                 </div>
 
               </div>
@@ -468,20 +468,7 @@ export function BookDetailComponent() {
                     onChange={(e) => handleChange("coverPrice", e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Ngôn ngữ <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nhập ngôn ngữ"
-                    value={currentBook.language || ""}
-                    onChange={(e) => handleChange("language", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Cơ quan biên mục <span className="text-red-500">*</span>
                   </label>
@@ -489,16 +476,6 @@ export function BookDetailComponent() {
                     placeholder="Nhập cơ quan biên mục"
                     value={currentBook.catalogingAgency || ""}
                     onChange={(e) => handleChange("catalogingAgency", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Kho lưu trữ <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nhập kho lưu trữ"
-                    value={currentBook.storageLocation || ""}
-                    onChange={(e) => handleChange("storageLocation", e.target.value)}
                   />
                 </div>
               </div>
