@@ -13,6 +13,43 @@ const getErrorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : "Lỗi không xác định";
 };
 
+// Utility function to safely parse description data
+const parseDescriptionField = (field: unknown) => {
+  if (!field) {
+    return { linkEmbed: '', content: '' };
+  }
+  
+  // Nếu field đã là object
+  if (typeof field === 'object' && field !== null) {
+    const obj = field as Record<string, unknown>;
+    return {
+      linkEmbed: typeof obj.linkEmbed === 'string' ? obj.linkEmbed : '',
+      content: typeof obj.content === 'string' ? obj.content : ''
+    };
+  }
+  
+  // Nếu field là string, thử parse JSON
+  if (typeof field === 'string') {
+    try {
+      const parsed = JSON.parse(field);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return {
+          linkEmbed: parsed.linkEmbed || '',
+          content: parsed.content || ''
+        };
+      }
+    } catch {
+      // Nếu không parse được, coi như content
+      return {
+        linkEmbed: '',
+        content: field
+      };
+    }
+  }
+  
+  return { linkEmbed: '', content: '' };
+};
+
 interface DescriptionDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,9 +66,16 @@ export function DescriptionDialog({
   const [descriptionActiveTab, setDescriptionActiveTab] = useState<'description' | 'introduction' | 'audiobook'>('description');
   const [currentDescriptionLibrary, setCurrentDescriptionLibrary] = useState<Library | null>(null);
 
-  // Update current library when dialog opens
+  // Update current library when dialog opens with proper parsing
   if (isOpen && library && currentDescriptionLibrary?._id !== library._id) {
-    setCurrentDescriptionLibrary(library);
+    const parsedLibrary = {
+      ...library,
+      description: parseDescriptionField(library.description),
+      introduction: parseDescriptionField(library.introduction),
+      audioBook: parseDescriptionField(library.audioBook),
+    };
+    
+    setCurrentDescriptionLibrary(parsedLibrary);
     setDescriptionActiveTab('description');
   }
 

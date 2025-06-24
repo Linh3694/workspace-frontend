@@ -1,11 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_URL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from "@/components/ui/pagination";
 
-import { FiPlus, FiImage } from "react-icons/fi";
+import { FiPlus, FiImage, FiSearch } from "react-icons/fi";
 import { toast } from "sonner";
 import type { 
   DocumentType, 
@@ -61,6 +71,11 @@ export function BookComponent() {
   } | null>(null);
   const [isCheckingDelete, setIsCheckingDelete] = useState(false);
 
+  // Search and pagination states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   const fetchLibraries = async () => {
     try {
       const response = await fetch(`${API_URL}/libraries`);
@@ -106,6 +121,49 @@ export function BookComponent() {
     fetchLibraries();
     fetchDropdownData();
   }, []);
+
+  // Filter libraries based on search term
+  const filteredLibraries = libraries.filter(lib => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      lib.title?.toLowerCase().includes(searchLower) ||
+      lib.libraryCode?.toLowerCase().includes(searchLower) ||
+      lib.authors?.some(author => author.toLowerCase().includes(searchLower)) ||
+      lib.category?.toLowerCase().includes(searchLower) ||
+      lib.language?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredLibraries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLibraries = filteredLibraries.slice(startIndex, endIndex);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    const halfVisible = Math.floor(maxVisiblePages / 2);
+    
+    let start = Math.max(1, currentPage - halfVisible);
+    const end = Math.min(totalPages, start + maxVisiblePages - 1);
+    
+    if (end === totalPages) {
+      start = Math.max(1, end - maxVisiblePages + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -164,7 +222,16 @@ export function BookComponent() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Đầu sách</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Input
+                placeholder="Tìm kiếm theo tên sách, mã, tác giả..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-80"
+              />
+            </div>
             <Button onClick={openBulkImageModal}  className="flex items-center gap-2">
               <FiImage size={16} />
               Cập nhật ảnh
@@ -196,7 +263,7 @@ export function BookComponent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {libraries.map((lib) => (
+            {paginatedLibraries.map((lib) => (
               <TableRow key={lib._id}>
                 <TableCell>{lib.libraryCode}</TableCell>
                 <TableCell className="font-medium">{lib.title}</TableCell>
@@ -240,6 +307,104 @@ export function BookComponent() {
             ))}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center mt-4">
+            <p className="text-sm text-gray-600">
+              Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredLibraries.length)} của {filteredLibraries.length} kết quả
+            </p>
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+                
+                {currentPage > 3 && (
+                  <>
+                    <PaginationItem>
+                      <PaginationLink 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(1);
+                        }}
+                      >
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                    {currentPage > 4 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                  </>
+                )}
+
+                {getPageNumbers().map((pageNumber) => (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(pageNumber);
+                      }}
+                      isActive={pageNumber === currentPage}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+
+                {currentPage < totalPages - 2 && (
+                  <>
+                    {currentPage < totalPages - 3 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                    <PaginationItem>
+                      <PaginationLink 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(totalPages);
+                        }}
+                      >
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  </>
+                )}
+
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+
+        {/* No results message */}
+        {filteredLibraries.length === 0 && searchTerm && (
+          <div className="text-center py-8 text-gray-500">
+            Không tìm thấy kết quả nào cho "{searchTerm}"
+          </div>
+        )}
 
         {/* Create/Edit Book Dialog */}
         <CreateEditBookDialog
