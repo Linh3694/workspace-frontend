@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FiPlus } from "react-icons/fi";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { FiPlus, FiSearch } from "react-icons/fi";
 import { toast } from "sonner";
 import type { Library, Book, SpecialCode } from "@/types/library";
 
@@ -49,8 +49,22 @@ export function BookDetailComponent() {
   const [librarySearchTerm, setLibrarySearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Library[]>([]);
   const [specialCodes, setSpecialCodes] = useState<SpecialCode[]>([]);
+  const [copyCount, setCopyCount] = useState<number>(1);
   
-
+  // States for duplicate functionality
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [duplicateCount, setDuplicateCount] = useState<number>(1);
+  const [bookToDuplicate, setBookToDuplicate] = useState<Book | null>(null);
+  
+  // States for delete confirmation
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+  
+  // States for pagination and search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
 
   const fetchAllBooks = async () => {
     try {
@@ -138,6 +152,10 @@ export function BookDetailComponent() {
       specialCode: "",
       specialCodeId: "",
     });
+    setCopyCount(1);
+    setSelectedLibrary(null);
+    setLibrarySearchTerm("");
+    setSearchResults([]);
 
     setIsModalOpen(true);
   };
@@ -175,14 +193,18 @@ export function BookDetailComponent() {
       };
 
       if (modalMode === "create") {
-
+        // Thêm số lượng sách vào payload
+        const createPayload = {
+          ...payload,
+          copyCount: copyCount
+        };
 
         const response = await fetch(
           `${API_URL}/libraries/${selectedLibrary!._id}/books`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(createPayload),
           }
         );
 
@@ -216,22 +238,40 @@ export function BookDetailComponent() {
 
       setIsModalOpen(false);
       fetchAllBooks();
-      toast.success(modalMode === "create" ? "Thêm sách thành công!" : "Cập nhật sách thành công!");
+      toast.success(
+        modalMode === "create" 
+          ? `Thêm ${copyCount} quyển sách thành công!` 
+          : "Cập nhật sách thành công!"
+      );
     } catch (error) {
       console.error("Error saving book:", error);
       toast.error(getErrorMessage(error));
     }
   };
 
-  const handleDelete = async (book: Book) => {
-    if (!book.generatedCode) {
+  const openDeleteModal = (book: Book) => {
+    // Kiểm tra trạng thái sách trước khi cho phép xóa
+    const allowedStatuses = ["Sẵn sàng", ""];
+    const bookStatus = book.status || "Sẵn sàng"; // Default là Sẵn sàng nếu không có status
+    
+    if (!allowedStatuses.includes(bookStatus)) {
+      toast.error(`Không thể xóa sách đang ở trạng thái "${bookStatus}". Chỉ có thể xóa sách ở trạng thái "Sẵn sàng".`);
+      return;
+    }
+    
+    setBookToDelete(book);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!bookToDelete?.generatedCode) {
       toast.error("Không tìm thấy mã sách để xóa");
       return;
     }
 
     try {
       const response = await fetch(
-        `${API_URL}/libraries/books/${encodeURIComponent(book.generatedCode)}`,
+        `${API_URL}/libraries/books/${encodeURIComponent(bookToDelete.generatedCode)}`,
         {
           method: "DELETE",
         }
@@ -242,6 +282,7 @@ export function BookDetailComponent() {
         throw new Error(error.error || "Lỗi khi xóa sách");
       }
 
+      setIsDeleteModalOpen(false);
       fetchAllBooks();
       toast.success("Xóa sách thành công!");
     } catch (error) {
@@ -250,17 +291,88 @@ export function BookDetailComponent() {
     }
   };
 
+  const openDuplicateModal = (book: Book) => {
+    setBookToDuplicate(book);
+    setDuplicateCount(1);
+    setIsDuplicateModalOpen(true);
+  };
+
+  const handleDuplicate = async () => {
+    if (!bookToDuplicate?.generatedCode) {
+      toast.error("Không tìm thấy thông tin sách để nhân bản");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/libraries/books/${encodeURIComponent(bookToDuplicate.generatedCode)}/duplicate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ copyCount: duplicateCount }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Lỗi khi nhân bản sách");
+      }
+
+      setIsDuplicateModalOpen(false);
+      fetchAllBooks();
+      toast.success(`Nhân bản thành công ${duplicateCount} quyển sách từ ${bookToDuplicate.generatedCode}!`);
+    } catch (error) {
+      console.error("Error duplicating book:", error);
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  // Filter và pagination logic
+  const filteredBooks = allBooks.filter(book => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      book.generatedCode?.toLowerCase().includes(searchLower) ||
+      book.isbn?.toLowerCase().includes(searchLower) ||
+      book.bookTitle?.toLowerCase().includes(searchLower) ||
+      book.publishYear?.toString().includes(searchLower)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBooks = filteredBooks.slice(startIndex, endIndex);
+
+  // Reset về trang 1 khi search thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Sách</CardTitle>
-          <Button 
-          variant="destructive"
-          onClick={openCreateModal} className="flex items-center gap-2">
-            <FiPlus size={16} />
-            Thêm mới
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Input
+                placeholder="Tìm kiếm sách..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-80"
+              />
+            </div>
+            <Button 
+              variant="destructive"
+              onClick={openCreateModal} 
+              className="flex items-center gap-2"
+            >
+              <FiPlus size={16} />
+              Thêm mới
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -277,39 +389,123 @@ export function BookDetailComponent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allBooks.map((book) => (
-              <TableRow key={book.generatedCode}>
-                <TableCell className="font-medium">{book.generatedCode}</TableCell>
-                <TableCell>{book.isbn}</TableCell>
-                <TableCell>{book.bookTitle}</TableCell>
-                <TableCell>{book.publishYear}</TableCell>
-
-                <TableCell>
-                  <Badge variant={book.status === "available" ? "default" : "secondary"}>
-                    {book.status || "Có sẵn"}
-                  </Badge>
+            {paginatedBooks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  {searchTerm ? "Không tìm thấy sách nào phù hợp" : "Chưa có sách nào"}
                 </TableCell>
+              </TableRow>
+            ) : (
+              paginatedBooks.map((book) => (
+                <TableRow key={book.generatedCode}>
+                  <TableCell className="font-medium">{book.generatedCode}</TableCell>
+                  <TableCell>{book.isbn}</TableCell>
+                  <TableCell>{book.bookTitle}</TableCell>
+                  <TableCell>{book.publishYear}</TableCell>
+
+                  <TableCell>
+                    <Badge variant={book.status === "Sẵn sàng" ? "default" : "secondary"}>
+                      {book.status || "Sẵn sàng"}
+                    </Badge>
+                  </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openDuplicateModal(book)}
+                    >
+                    Nhân bản
+                    </Button>
                     <Button
                       size="sm"
                       onClick={() => openEditModal(book)}
                     >
                     Sửa
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(book)}
-                    >
-                    Xóa
-                    </Button>
+                    {(() => {
+                      const allowedStatuses = ["Sẵn sàng", ""];
+                      const bookStatus = book.status || "Sẵn sàng";
+                      const canDelete = allowedStatuses.includes(bookStatus);
+                      
+                      return (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={!canDelete}
+                          onClick={() => openDeleteModal(book)}
+                          title={!canDelete ? `Không thể xóa sách đang ở trạng thái "${bookStatus}"` : "Xóa sách"}
+                        >
+                        Xóa
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-4">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+                
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNumber = index + 1;
+                  // Chỉ hiển thị trang hiện tại và 2 trang trước/sau
+                  if (
+                    pageNumber === 1 ||
+                    pageNumber === totalPages ||
+                    (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)
+                  ) {
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentPage(pageNumber);
+                          }}
+                          isActive={pageNumber === currentPage}
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+
+       
 
         {/* Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -321,7 +517,7 @@ export function BookDetailComponent() {
             </DialogHeader>
             <div className="space-y-4 mt-4">
               {modalMode === "create" && (
-                <div className="grid grid-cols-2 gap-4 border-b border-gray-200 pb-4">
+                <div className="grid grid-cols-3 gap-4 border-b border-gray-200 pb-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Chọn Đầu Sách <span className="text-red-500">*</span>
@@ -358,17 +554,42 @@ export function BookDetailComponent() {
                       value={currentBook.specialCodeId || ""}
                       onValueChange={(value) => handleChange("specialCodeId", value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn mã đặc biệt..." />
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn mã đặc biệt...">
+                          {currentBook.specialCodeId && specialCodes.find(sc => sc._id === currentBook.specialCodeId) && (
+                            <span className="truncate">
+                              {specialCodes.find(sc => sc._id === currentBook.specialCodeId)?.name}
+                            </span>
+                          )}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-w-xs">
                         {specialCodes.map((code) => (
-                          <SelectItem key={code._id} value={code._id}>
-                            {code.name} ({code.code})
+                          <SelectItem key={code._id} value={code._id} className="text-sm">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="font-medium">{code.name}</span>
+                              <span className="text-xs text-gray-500 ml-2">{code.code}</span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Số lượng sách <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="100"
+                      placeholder="Nhập số lượng sách cần tạo"
+                      value={copyCount}
+                      onChange={(e) => setCopyCount(Number(e.target.value) || 1)}
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      Sẽ tạo {copyCount} bản sách với mã sách tăng dần
+                    </div>
                   </div>
                 </div>
               )}
@@ -517,6 +738,87 @@ export function BookDetailComponent() {
           </DialogContent>
         </Dialog>
 
+        {/* Duplicate Modal */}
+        <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nhân bản sách</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-2">
+                  Nhân bản từ sách: <span className="font-medium">{bookToDuplicate?.generatedCode}</span>
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  Tên sách: <span className="font-medium">{bookToDuplicate?.bookTitle}</span>
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Số lượng sách cần nhân bản <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  placeholder="Nhập số lượng sách cần nhân bản"
+                  value={duplicateCount}
+                  onChange={(e) => setDuplicateCount(Number(e.target.value) || 1)}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Sẽ tạo {duplicateCount} bản sách mới với mã sách tăng dần
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setIsDuplicateModalOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={handleDuplicate}>
+                Nhân bản
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Xác nhận xóa sách</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <p className="text-sm text-gray-600">
+                Bạn có chắc chắn muốn xóa sách này không?
+              </p>
+              <div className="bg-gray-50 p-3 rounded-md">
+                <p className="text-sm">
+                  <span className="font-medium">Mã sách:</span> {bookToDelete?.generatedCode}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Tên sách:</span> {bookToDelete?.bookTitle}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">ISBN:</span> {bookToDelete?.isbn}
+                </p>
+              </div>
+              <p className="text-sm text-red-600">
+                ⚠️ Hành động này không thể hoàn tác!
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+                Hủy
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDelete}>
+                Xóa sách
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </CardContent>
     </Card>
