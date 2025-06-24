@@ -49,6 +49,8 @@ export function BookDetailComponent() {
   const [librarySearchTerm, setLibrarySearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Library[]>([]);
   const [specialCodes, setSpecialCodes] = useState<SpecialCode[]>([]);
+  
+
 
   const fetchAllBooks = async () => {
     try {
@@ -109,6 +111,8 @@ export function BookDetailComponent() {
     setLibrarySearchTerm(lib.title);
     setSearchResults([]);
   };
+
+
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -491,6 +495,8 @@ export function BookDetailComponent() {
             </div>
           </DialogContent>
         </Dialog>
+
+
       </CardContent>
     </Card>
   );

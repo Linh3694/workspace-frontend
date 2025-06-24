@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 import { FiPlus, FiX } from "react-icons/fi";
 import { toast } from "sonner";
@@ -72,6 +73,24 @@ export function BookComponent() {
   const [filteredAuthors, setFilteredAuthors] = useState<Author[]>([]);
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
+
+  // Bulk upload states
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+
+  // Delete confirmation states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLibraryInfo, setDeleteLibraryInfo] = useState<{
+    libraryId: string;
+    libraryTitle: string;
+    bookCount: number;
+    books: Array<{
+      generatedCode: string;
+      title: string;
+      status: string;
+    }>;
+  } | null>(null);
+  const [isCheckingDelete, setIsCheckingDelete] = useState(false);
 
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -325,7 +344,33 @@ export function BookComponent() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`${API_URL}/libraries/${id}`, {
+      setIsCheckingDelete(true);
+      
+      // Kiểm tra số lượng BookDetail trước khi xóa
+      const response = await fetch(`${API_URL}/libraries/${id}/book-count`);
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Lỗi khi kiểm tra thông tin sách");
+      }
+      
+      const bookInfo = await response.json();
+      setDeleteLibraryInfo(bookInfo);
+      setIsDeleteModalOpen(true);
+      
+    } catch (error) {
+      console.error("Error checking book count:", error);
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsCheckingDelete(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteLibraryInfo) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/libraries/${deleteLibraryInfo.libraryId}`, {
         method: "DELETE",
       });
 
@@ -334,6 +379,8 @@ export function BookComponent() {
         throw new Error(error.error || "Error deleting library");
       }
 
+      setIsDeleteModalOpen(false);
+      setDeleteLibraryInfo(null);
       fetchLibraries();
       toast.success("Xóa thành công!");
     } catch (error) {
@@ -349,15 +396,114 @@ export function BookComponent() {
     setIsDescriptionModalOpen(true);
   };
 
+  // Bulk upload functions
+  const openBulkModal = () => {
+    setBulkFile(null);
+    setIsBulkModalOpen(true);
+  };
+
+  const parseBulkData = (data: string) => {
+    const lines = data.trim().split('\n');
+    const libraries = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || line.startsWith('#')) continue; // Skip empty lines and comments
+      
+      const fields = line.split('\t'); // Tab-separated values
+      if (fields.length < 2) continue; // Minimum required fields
+      
+      const library = {
+        title: fields[0]?.trim() || "",
+        authors: fields[1]?.trim() ? fields[1].trim().split(',').map(a => a.trim()) : [],
+        category: fields[2]?.trim() || "",
+        language: fields[3]?.trim() || "Tiếng Việt",
+        documentType: fields[4]?.trim() || "",
+        seriesName: fields[5]?.trim() || "",
+        isNewBook: fields[6]?.trim().toLowerCase() === 'true',
+        isFeaturedBook: fields[7]?.trim().toLowerCase() === 'true',
+        isAudioBook: fields[8]?.trim().toLowerCase() === 'true',
+        description: {
+          linkEmbed: fields[9]?.trim() || "",
+          content: fields[10]?.trim() || ""
+        },
+        introduction: {
+          linkEmbed: fields[11]?.trim() || "",
+          content: fields[12]?.trim() || ""
+        },
+        audioBook: {
+          linkEmbed: fields[13]?.trim() || "",
+          content: fields[14]?.trim() || ""
+        }
+      };
+      
+      libraries.push(library);
+    }
+    
+    return libraries;
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) {
+      toast.error("Vui lòng chọn file để upload!");
+      return;
+    }
+
+    try {
+      // Read file content
+      const fileContent = await bulkFile.text();
+      const libraries = parseBulkData(fileContent);
+      
+      if (libraries.length === 0) {
+        toast.error("Không có dữ liệu hợp lệ trong file!");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/libraries/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ libraries }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (result.details) {
+          toast.error(`Lỗi bulk upload: ${result.details.join(", ")}`);
+        } else {
+          throw new Error(result.error || "Error bulk uploading libraries");
+        }
+        return;
+      }
+
+      setIsBulkModalOpen(false);
+      setBulkFile(null);
+      fetchLibraries();
+      toast.success(result.message || "Bulk upload thành công!");
+    } catch (error) {
+      console.error("Error bulk uploading libraries:", error);
+      toast.error(getErrorMessage(error));
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Đầu sách</CardTitle>
-          <Button onClick={openCreateModal} className="flex items-center gap-2">
-            <FiPlus size={16} />
-            Thêm mới
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={openBulkModal} variant="outline" className="flex items-center gap-2">
+              <FiPlus size={16} />
+              Bulk Upload
+            </Button>
+            <Button onClick={openCreateModal} className="flex items-center gap-2">
+              <FiPlus size={16} />
+              Thêm mới
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -408,8 +554,9 @@ export function BookComponent() {
                       size="sm"
                       variant="destructive"
                       onClick={() => handleDelete(lib._id)}
+                      disabled={isCheckingDelete}
                     >
-                      Xóa
+                      {isCheckingDelete ? "Đang kiểm tra..." : "Xóa"}
                     </Button>
                   </div>
                 </TableCell>
@@ -877,6 +1024,113 @@ export function BookComponent() {
                 }}
               >
                 Lưu thay đổi
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+                {/* Bulk Upload Modal */}
+        <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nhập danh sách đầu sách từ Excel</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="bulk-file" className="text-right">
+                  File Excel
+                </Label>
+                <Input
+                  id="bulk-file"
+                  type="file"
+                  accept=".xlsx,.xls,.txt,.tsv,.csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    setBulkFile(file || null);
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  File Mẫu
+                </Label>
+                <Button variant="outline" asChild>
+                  <a href="/library-book-template.xlsx" download="library-book-template.xlsx">
+                    Tải file mẫu
+                  </a>
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" onClick={() => setIsBulkModalOpen(false)}>
+                Đóng
+              </Button>
+              <Button 
+                onClick={handleBulkUpload} 
+                disabled={!bulkFile}
+              >
+                Upload
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Xác nhận xóa đầu sách</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {deleteLibraryInfo && (
+                <>
+                  <div className="text-sm">
+                    <p className="font-medium mb-2">
+                      Bạn có chắc chắn muốn xóa đầu sách: <span className="text-red-600">"{deleteLibraryInfo.libraryTitle}"</span>?
+                    </p>
+                    <p className="text-gray-600 mb-4">
+                      Đầu sách này có <span className="font-bold text-red-600">{deleteLibraryInfo.bookCount}</span> bản sách chi tiết.
+                    </p>
+                    
+                    {deleteLibraryInfo.bookCount > 0 && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-yellow-800 font-medium mb-2">Cảnh báo:</p>
+                        <p className="text-yellow-700 text-sm mb-2">
+                          Việc xóa đầu sách sẽ xóa {deleteLibraryInfo.bookCount} sách bên dưới:
+                        </p>
+                        <div className="max-h-32 overflow-y-auto">
+                          {deleteLibraryInfo.books.map((book, index) => (
+                            <div key={index} className="text-xs text-yellow-700 mb-1">
+                              • {book.generatedCode} - {book.title} (Trạng thái: {book.status})
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <p className="text-red-600 font-medium mt-4">
+                      Hành động này không thể hoàn tác.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeleteLibraryInfo(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={confirmDelete}
+              >
+                Xác nhận xóa
               </Button>
             </div>
           </DialogContent>
