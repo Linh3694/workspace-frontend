@@ -8,14 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 import {
   Select,
@@ -24,20 +16,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-
-import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+// Removed form validation imports - using inline editing
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
 import * as XLSX from 'xlsx';
 import { Loader2, Upload, Settings, Plus, Calendar, Clock, Users, MapPin } from "lucide-react";
 
+// Dialog components
+import { TimetableDetailDialog } from './Dialog/TimetableDetailDialog';
+import { PeriodManagementDialog } from './Dialog/PeriodManagementDialog';
+
 // Import types
-import type { SchoolYear } from '../../types/school.types';
+import type { SchoolYear, School } from '../../types/school.types';
 import type { Class } from '../../types/class.types';
 import type { Subject } from '../../types/curriculum.types';
 import type { Teacher } from '../../types/user.types';
@@ -54,14 +46,7 @@ import {
   PERIOD_TYPE_LABELS
 } from '../../types/timetable.types';
 
-// Validation schemas
-const periodSchema = z.object({
-  periodNumber: z.number().min(0, "Số tiết phải lớn hơn hoặc bằng 0").max(14, "Số tiết không được vượt quá 14"),
-  startTime: z.string().min(1, "Thời gian bắt đầu là bắt buộc"),
-  endTime: z.string().min(1, "Thời gian kết thúc là bắt buộc"),
-  type: z.enum(["regular", "morning", "lunch", "nap", "snack", "dismissal"]),
-  label: z.string().optional(),
-});
+// Validation schemas - moved to inline validation
 
 const TimetablesPage = () => {
   // State management
@@ -77,24 +62,14 @@ const TimetablesPage = () => {
   const [isPeriodDialogOpen, setIsPeriodDialogOpen] = useState(false);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<string>('');
+  const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [, setRooms] = useState<Room[]>([]);
-
   const { toast } = useToast();
-
-  // Form initialization
-  const periodForm = useForm<PeriodFormData>({
-    resolver: zodResolver(periodSchema),
-    defaultValues: {
-      type: 'regular'
-    }
-  });
-
-  // Use constants from types
-
   // Effects
   useEffect(() => {
     fetchInitialData();
@@ -102,16 +77,22 @@ const TimetablesPage = () => {
 
   useEffect(() => {
     if (selectedSchoolYear) {
-      fetchPeriodDefinitions(selectedSchoolYear);
-      fetchClasses(selectedSchoolYear);
+      fetchSchools();
     }
   }, [selectedSchoolYear]);
 
   useEffect(() => {
-    if (selectedSchoolYear && selectedClass) {
+    if (selectedSchoolYear && selectedSchool) {
+      fetchPeriodDefinitions(selectedSchoolYear, selectedSchool);
+      fetchClasses(selectedSchoolYear, selectedSchool);
+    }
+  }, [selectedSchoolYear, selectedSchool]);
+
+  useEffect(() => {
+    if (selectedSchoolYear && selectedSchool && selectedClass) {
       fetchTimetableGrid(selectedSchoolYear, selectedClass);
     }
-  }, [selectedSchoolYear, selectedClass]);
+  }, [selectedSchoolYear, selectedSchool, selectedClass]);
 
   // API calls
   const fetchInitialData = async () => {
@@ -153,14 +134,33 @@ const TimetablesPage = () => {
     }
   };
 
-  const fetchClasses = async (yearId: string) => {
+  const fetchSchools = async () => {
     try {
-      if (!yearId) {
+      const response = await api.get<School[]>(API_ENDPOINTS.SCHOOLS);
+      const schoolsData = Array.isArray(response.data) ? response.data : (response.data as { data?: School[] })?.data || [];
+      setSchools(schoolsData);
+      if (schoolsData.length > 0 && !selectedSchool) {
+        setSelectedSchool(schoolsData[0]._id);
+      }
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách trường",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fetchClasses = async (yearId: string, schoolId: string) => {
+    try {
+      if (!yearId || !schoolId) {
         setClasses([]);
         return;
       }
 
-      const response = await api.get<Class[]>(`${API_ENDPOINTS.CLASSES}?schoolYear=${yearId}`);
+      // Lấy lớp theo trường thông qua grade levels
+      const response = await api.get<Class[]>(`${API_ENDPOINTS.CLASSES}?schoolYear=${yearId}&school=${schoolId}`);
       const classesData = Array.isArray(response.data) ? response.data : (response.data as { data?: Class[] })?.data || [];
       setClasses(classesData);
 
@@ -212,13 +212,25 @@ const TimetablesPage = () => {
   const fetchTimetableGrid = async (yearId: string, classId: string) => {
     setLoading(true);
     try {
+      console.log("Fetching timetable grid for:", { yearId, classId });
       const response = await api.get<{ data: TimetableGrid }>(API_ENDPOINTS.TIMETABLES_GRID(yearId, classId));
+      console.log("Timetable grid response:", response);
       setTimetableGrid(response.data.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching timetable grid:", error);
+      
+      let errorMessage = "Không thể tải thời khóa biểu";
+      if (error?.response?.status === 404) {
+        errorMessage = "API endpoint không tìm thấy. Vui lòng kiểm tra backend.";
+      } else if (error?.response?.status === 400) {
+        errorMessage = error?.response?.data?.message || "Dữ liệu không hợp lệ";
+      } else if (error?.code === 'ERR_NETWORK') {
+        errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend.";
+      }
+      
       toast({ 
         title: "Lỗi", 
-        description: "Không thể tải thời khóa biểu", 
+        description: errorMessage, 
         variant: "destructive" 
       });
       setTimetableGrid(null);
@@ -227,9 +239,12 @@ const TimetablesPage = () => {
     }
   };
 
-  const fetchPeriodDefinitions = async (yearId: string) => {
+  const fetchPeriodDefinitions = async (yearId: string, schoolId: string) => {
     try {
-      const response = await api.get<ApiResponse<PeriodDefinition[]>>(API_ENDPOINTS.PERIOD_DEFINITIONS(yearId));
+      const response = await api.get<ApiResponse<PeriodDefinition[]>>(
+        `${API_ENDPOINTS.PERIOD_DEFINITIONS(yearId)}?schoolId=${schoolId}`
+      );
+      console.log("Fetched period definitions:", response.data.data);
       setPeriodDefinitions(response.data.data);
     } catch (error) {
       console.error("Error fetching period definitions:", error);
@@ -249,52 +264,45 @@ const TimetablesPage = () => {
     }
   };
 
+  const handleSelectSchool = (schoolId: string) => {
+    setSelectedSchool(schoolId);
+    setSelectedClass(''); // Reset selected class when school changes
+    setClasses([]); // Clear classes list
+  };
+
   const handleCellClick = (day: string, period: number, entry: TimetableEntry | null) => {
     setSelectedSlot({ day, period, entry });
     setIsDialogOpen(true);
   };
 
-  const handleCreatePeriod = async (data: PeriodFormData) => {
-    try {
-      if (!selectedSchoolYear) {
-        toast({
-          title: "Lỗi",
-          description: "Vui lòng chọn năm học",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setLoading(true);
-      const payload = {
-        ...data,
-        schoolYear: selectedSchoolYear,
-        label: data.label || (data.type === "regular" ? `Tiết ${data.periodNumber}` : PERIOD_TYPE_LABELS[data.type])
-      };
-      
-      await api.post(API_ENDPOINTS.PERIOD_DEFINITIONS(selectedSchoolYear), payload);
-      await fetchPeriodDefinitions(selectedSchoolYear);
-      setIsPeriodDialogOpen(false);
-      periodForm.reset();
-      
-      toast({
-        title: "Thành công",
-        description: "Thêm tiết học thành công"
-      });
-    } catch (error) {
+  // Open period management dialog
+  const handleOpenPeriodDialog = () => {
+    if (!selectedSchoolYear) {
       toast({
         title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể thêm tiết học",
+        description: "Vui lòng chọn năm học trước",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
+      return;
     }
+    setIsPeriodDialogOpen(true);
   };
+
+
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Kiểm tra đã chọn năm học và trường
+    if (!selectedSchoolYear || !selectedSchool) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn năm học và trường trước khi upload",
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Kiểm tra dữ liệu cần thiết đã được tải
     if (!Array.isArray(subjects) || subjects.length === 0) {
@@ -504,6 +512,7 @@ const TimetablesPage = () => {
   // Helper functions
   const getPeriodMeta = (): { number: number; label: string; time?: string; type: string; start: string }[] => {
     if (Array.isArray(periodDefinitions) && periodDefinitions.length) {
+      // Tạo map để xử lý duplicate periodNumbers
       const map = new Map<number, PeriodDefinition>();
       periodDefinitions.forEach((p) => {
         const ex = map.get(p.periodNumber);
@@ -526,8 +535,14 @@ const TimetablesPage = () => {
         }
       });
 
+      // Log để debug
+      console.log("Period definitions found:", periodDefinitions.length);
+      console.log("Unique periods after dedup:", map.size);
+      console.log("Period types:", [...map.values()].map(p => `${p.periodNumber}:${p.type}`));
+
       return [...map.values()]
         .sort((a, b) => {
+          // Sort by start time first, then by period number
           if (a.startTime !== b.startTime) {
             return a.startTime.localeCompare(b.startTime);
           }
@@ -542,6 +557,7 @@ const TimetablesPage = () => {
         }));
     }
 
+    // Fallback khi không có period definitions
     const nums = new Set<number>();
     if (timetableGrid) {
       Object.values(timetableGrid).forEach((dayObj: Record<string, TimetableEntry | null>) => {
@@ -632,8 +648,18 @@ const TimetablesPage = () => {
                   const isSpecialPeriod = pm.type !== "regular";
                   
                   if (isSpecialPeriod) {
-                    // Lấy entry từ ngày đầu tiên để hiển thị thông tin
-                    const firstDayEntry = timetableGrid[days[0]]?.[String(pm.number)];
+                    // Tìm entry có dữ liệu từ bất kỳ ngày nào trong tuần
+                    let specialEntry = null;
+                    let entryDay = days[0]; // default day for click handler
+                    
+                    for (const day of days) {
+                      const dayEntry = timetableGrid[day]?.[String(pm.number)];
+                      if (dayEntry) {
+                        specialEntry = dayEntry;
+                        entryDay = day;
+                        break;
+                      }
+                    }
                     
                     return (
                       <TableRow key={pm.number} className="hover:bg-gray-50">
@@ -647,17 +673,17 @@ const TimetablesPage = () => {
                         <TableCell 
                           colSpan={days.length}
                           className="border p-3 cursor-pointer hover:bg-[#002855]/5 transition-colors text-center" 
-                          onClick={() => handleCellClick(days[0], pm.number, firstDayEntry)}
+                          onClick={() => handleCellClick(entryDay, pm.number, specialEntry)}
                         >
-                          {firstDayEntry ? (
+                          {specialEntry ? (
                             <div className="space-y-2">
                               <div className="font-semibold text-[#002855] flex items-center justify-center gap-1">
                                 <div className="h-2 w-2 bg-[#002855] rounded-full"></div>
-                                {typeof firstDayEntry.subject === 'object' ? firstDayEntry.subject.name : firstDayEntry.subject}
+                                {typeof specialEntry.subject === 'object' ? specialEntry.subject.name : specialEntry.subject}
                               </div>
                               <div className="flex justify-center">
                                 {(() => {
-                                  const teachers = firstDayEntry.teachers;
+                                  const teachers = specialEntry.teachers;
                                   if (Array.isArray(teachers)) {
                                     return (
                                       <div className="flex flex-wrap justify-center gap-2">
@@ -686,17 +712,23 @@ const TimetablesPage = () => {
                               </div>
                               <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
                                 <MapPin className="h-3 w-3" />
-                                {firstDayEntry.room
-                                  ? typeof firstDayEntry.room === "object"
-                                    ? firstDayEntry.room.name
-                                    : firstDayEntry.room
+                                {specialEntry.room
+                                  ? typeof specialEntry.room === "object"
+                                    ? specialEntry.room.name
+                                    : specialEntry.room
                                   : "Chưa có phòng"}
+                              </div>
+                              <div className="text-xs text-gray-500 italic mt-2">
+                                Áp dụng cho tất cả các ngày trong tuần
                               </div>
                             </div>
                           ) : (
                             <div className="text-gray-400 py-4 border-2 border-dashed border-gray-200 rounded">
                               <Plus className="h-6 w-6 mx-auto mb-1" />
                               <span className="text-sm">Trống</span>
+                              <div className="text-xs text-gray-500 italic mt-1">
+                                Áp dụng cho tất cả các ngày trong tuần
+                              </div>
                             </div>
                           )}
                         </TableCell>
@@ -808,6 +840,24 @@ const TimetablesPage = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {schools.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label>Trường:</Label>
+                  <Select value={selectedSchool} onValueChange={handleSelectSchool}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Chọn trường" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px] overflow-y-auto">
+                      {schools.map((school) => (
+                        <SelectItem key={school._id} value={school._id}>
+                          {school.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               
               {classes.length > 0 && (
                 <div className="flex items-center gap-2">
@@ -832,13 +882,14 @@ const TimetablesPage = () => {
           {/* Actions */}
           <div className="flex justify-start items-center gap-4 mt-4 pt-4 border-t">
             <Button 
-              onClick={() => setIsPeriodDialogOpen(true)}
+              onClick={handleOpenPeriodDialog}
               variant="outline"
               className="flex items-center gap-2"
             >
               <Settings className="h-4 w-4" />
               Khai báo tiết học
             </Button>
+
             <div className="relative inline-block">
               <input
                 type="file"
@@ -859,197 +910,23 @@ const TimetablesPage = () => {
         </CardHeader>
       </Card>
 
-
-
       {/* Timetable Grid */}
       {renderTimetableGrid()}
 
-      {/* Timetable Detail Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Chi tiết tiết học</DialogTitle>
-            <DialogDescription>
-              {selectedSlot && `${DAY_OF_WEEK_LABELS[selectedSlot.day as keyof typeof DAY_OF_WEEK_LABELS]} - Tiết ${selectedSlot.period}`}
-            </DialogDescription>
-          </DialogHeader>
+      {/* Dialog Components */}
+      <TimetableDetailDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        selectedSlot={selectedSlot}
+      />
 
-          <div className="space-y-4">
-            {selectedSlot?.entry && (
-              <>
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <Label className="font-medium">Môn học:</Label>
-                  <div className="col-span-2">
-                    {typeof selectedSlot.entry.subject === 'object'
-                      ? selectedSlot.entry.subject.name
-                      : selectedSlot.entry.subject}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 items-start">
-                  <Label className="font-medium">Giáo viên:</Label>
-                  <div className="col-span-2 space-y-1">
-                    {(() => {
-                      const teachers = selectedSlot.entry.teachers;
-                      if (Array.isArray(teachers)) {
-                        return teachers.map((teacher, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-gray-500" />
-                            {typeof teacher === 'object' ? teacher.fullname : teacher}
-                          </div>
-                        ));
-                      } else if (typeof teachers === 'string') {
-                        return (
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-gray-500" />
-                            {teachers}
-                          </div>
-                        );
-                      }
-                      return <span className="text-gray-500 italic">Chưa có giáo viên</span>;
-                    })()}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <Label className="font-medium">Phòng học:</Label>
-                  <div className="col-span-2 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-500" />
-                    {typeof selectedSlot.entry.room === 'object'
-                      ? selectedSlot.entry.room.name
-                      : selectedSlot.entry.room || 'Homeroom'}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {!selectedSlot?.entry && (
-              <div className="text-center py-8 text-gray-500">
-                <Plus className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                <p>Tiết học trống</p>
-                <p className="text-sm">Nhấp để thêm môn học</p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-            >
-              Đóng
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Period Definition Dialog */}
-      <Dialog open={isPeriodDialogOpen} onOpenChange={setIsPeriodDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Khai báo tiết học</DialogTitle>
-            <DialogDescription>
-              Nhập thông tin tiết học cho thời khóa biểu
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={periodForm.handleSubmit(handleCreatePeriod)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="periodNumber">Tiết số</Label>
-              <Select onValueChange={(value) => periodForm.setValue("periodNumber", parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn tiết" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] overflow-y-auto">
-                  <SelectItem value="0">Tiết đặc biệt</SelectItem>
-                  {Array.from({ length: 14 }, (_, i) => i + 1).map(num => (
-                    <SelectItem key={num} value={num.toString()}>
-                      Tiết {num}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {periodForm.formState.errors.periodNumber && (
-                <p className="text-red-500 text-sm">{periodForm.formState.errors.periodNumber.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="type">Loại tiết học</Label>
-              <Select onValueChange={(value) => periodForm.setValue("type", value as PeriodFormData["type"])}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn loại tiết học" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] overflow-y-auto">
-                  {Object.entries(PERIOD_TYPE_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {periodForm.formState.errors.type && (
-                <p className="text-red-500 text-sm">{periodForm.formState.errors.type.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="label">Nhãn tùy chỉnh (tùy chọn)</Label>
-              <Input
-                {...periodForm.register("label")}
-                placeholder="Ví dụ: Chào cờ, Sinh hoạt lớp..."
-              />
-              {periodForm.formState.errors.label && (
-                <p className="text-red-500 text-sm">{periodForm.formState.errors.label.message}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Thời gian bắt đầu</Label>
-                <Input
-                  type="time"
-                  {...periodForm.register("startTime")}
-                />
-                {periodForm.formState.errors.startTime && (
-                  <p className="text-red-500 text-sm">{periodForm.formState.errors.startTime.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="endTime">Thời gian kết thúc</Label>
-                <Input
-                  type="time"
-                  {...periodForm.register("endTime")}
-                />
-                {periodForm.formState.errors.endTime && (
-                  <p className="text-red-500 text-sm">{periodForm.formState.errors.endTime.message}</p>
-                )}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsPeriodDialogOpen(false)}
-              >
-                Hủy
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Đang xử lý...
-                  </>
-                ) : (
-                  "Thêm mới"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <PeriodManagementDialog
+        isOpen={isPeriodDialogOpen}
+        onClose={() => setIsPeriodDialogOpen(false)}
+        selectedSchoolYear={selectedSchoolYear}
+        schools={schools}
+        onPeriodUpdated={fetchPeriodDefinitions}
+      />
     </div>
   );
 };

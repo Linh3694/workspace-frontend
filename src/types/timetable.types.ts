@@ -30,6 +30,7 @@ export interface PeriodDefinition extends BaseEntity {
   label?: string;
   type: PeriodType;
   schoolYear: SchoolYear | string;
+  school?: string; // Add school field
 }
 
 export type PeriodType = "regular" | "morning" | "lunch" | "nap" | "snack" | "dismissal";
