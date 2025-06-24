@@ -21,7 +21,8 @@ export type UserRole =
   | 'marcom'        // Marketing & Communication
   | 'hr'            // Nhân sự
   | 'bod'           // Board of Directors
-  | 'user';         // Người dùng thông thường
+  | 'user'          // Người dùng thông thường
+  | 'librarian';    // Thủ thư
 
 export interface RolePermissions {
   [key: string]: string[];
@@ -30,61 +31,14 @@ export interface RolePermissions {
 export const ROLE_PERMISSIONS: RolePermissions = {
   superadmin: ['*'], // Full access
   admin: ['*'], // Full access
-  teacher: [
-    'students.info',
-    'students.attendance', 
-    'students.grades',
-    'students.reports',
-    'teaching.timetables',
-    'teaching.classes'
-  ],
-  parent: [
-    'students.info',
-    'students.reports'
-  ],
-  registrar: [
-    'students.*',
-    'academic.*'
-  ],
-  admission: [
-    'admission.*'
-  ],
-  bos: [
-    'students.*',
-    'academic.*',
-    'teaching.*',
-    'reports.*'
-  ],
-  principal: [
-    'students.*',
-    'academic.*', 
-    'teaching.*',
-    'admission.*',
-    'recruitment.*',
-    'facilities.*',
-    'services.*',
-    'reports.*',
-    'settings.*'
-  ],
-  service: [
-    'services.*',
-    'facilities.*'
-  ],
-  technical: [
-    'settings.*',
-    'facilities.*'
-  ],
-  marcom: [
-    'reports.*'
-  ],
-  hr: [
-    'recruitment.*'
-  ],
-  bod: [
-    'reports.*'
+  librarian: [
+    'application.tickets.user',
+    'library', 
+    'library.books',
+    'library.activities',
   ],
   user: [
-    'students.info'
+    'application.tickets.user'
   ]
 };
 

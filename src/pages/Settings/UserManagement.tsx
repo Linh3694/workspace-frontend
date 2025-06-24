@@ -53,7 +53,8 @@ const translateRole = (role: string): string => {
     // 'marcom': 'Marcom',
     'hr': 'Nhân sự',
     // 'bod': 'Ban giám đốc',
-    'user': 'Người dùng'
+    'user': 'Người dùng',
+    'librarian': 'Thủ thư'
   };
   
   return roleTranslations[role] || role;

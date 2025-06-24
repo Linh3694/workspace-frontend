@@ -46,7 +46,8 @@ const translateRole = (role: string): string => {
     'marcom': 'Marcom',
     'hr': 'Nhân sự',
     'bod': 'Hội đồng quản trị',
-    'user': 'Người dùng thông thường'
+    'user': 'Người dùng thông thường',
+    'librarian': 'Thủ thư'
   };
   
   return roleTranslations[role] || role;
@@ -67,7 +68,8 @@ const availableRoles = [
   // { value: 'marcom', label: 'Marcom' },
   { value: 'hr', label: 'Nhân sự' },
   // { value: 'bod', label: 'Hội đồng quản trị' },
-  { value: 'user', label: 'Người dùng thông thường' }
+  { value: 'user', label: 'Người dùng thông thường' },
+  { value: 'librarian', label: 'Thủ thư' }
 ];
 
 interface BaseUser {
