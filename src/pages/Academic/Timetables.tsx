@@ -38,7 +38,6 @@ import type {
   TimetableEntry,
   TimetableGrid,
   PeriodDefinition,
-  PeriodFormData,
   ApiResponse
 } from '../../types/timetable.types';
 import {
@@ -216,16 +215,22 @@ const TimetablesPage = () => {
       const response = await api.get<{ data: TimetableGrid }>(API_ENDPOINTS.TIMETABLES_GRID(yearId, classId));
       console.log("Timetable grid response:", response);
       setTimetableGrid(response.data.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching timetable grid:", error);
       
       let errorMessage = "Không thể tải thời khóa biểu";
-      if (error?.response?.status === 404) {
-        errorMessage = "API endpoint không tìm thấy. Vui lòng kiểm tra backend.";
-      } else if (error?.response?.status === 400) {
-        errorMessage = error?.response?.data?.message || "Dữ liệu không hợp lệ";
-      } else if (error?.code === 'ERR_NETWORK') {
-        errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+        if (axiosError.response?.status === 404) {
+          errorMessage = "API endpoint không tìm thấy. Vui lòng kiểm tra backend.";
+        } else if (axiosError.response?.status === 400) {
+          errorMessage = axiosError.response?.data?.message || "Dữ liệu không hợp lệ";
+        }
+      } else if (error && typeof error === 'object' && 'code' in error) {
+        const networkError = error as { code?: string };
+        if (networkError.code === 'ERR_NETWORK') {
+          errorMessage = "Không thể kết nối đến server. Vui lòng kiểm tra backend.";
+        }
       }
       
       toast({ 
@@ -648,89 +653,17 @@ const TimetablesPage = () => {
                   const isSpecialPeriod = pm.type !== "regular";
                   
                   if (isSpecialPeriod) {
-                    // Tìm entry có dữ liệu từ bất kỳ ngày nào trong tuần
-                    let specialEntry = null;
-                    let entryDay = days[0]; // default day for click handler
-                    
-                    for (const day of days) {
-                      const dayEntry = timetableGrid[day]?.[String(pm.number)];
-                      if (dayEntry) {
-                        specialEntry = dayEntry;
-                        entryDay = day;
-                        break;
-                      }
-                    }
-                    
                     return (
                       <TableRow key={pm.number} className="hover:bg-gray-50">
-                        <TableCell className="border text-center font-medium bg-gray-25">
-                          <div>
-                            <div className="font-semibold text-[#002855]">{pm.label}</div>
-                            <div className="text-xs text-gray-500">{pm.time}</div>
-                          </div>
-                        </TableCell>
-                        {/* Merge tất cả các cột ngày thành một cell */}
+                        {/* Merge từ cột tiết học sang tất cả các cột ngày */}
                         <TableCell 
-                          colSpan={days.length}
-                          className="border p-3 cursor-pointer hover:bg-[#002855]/5 transition-colors text-center" 
-                          onClick={() => handleCellClick(entryDay, pm.number, specialEntry)}
+                          colSpan={days.length + 1}
+                          className="border p-4 text-center bg-gradient-to-r from-gray-50 to-gray-25" 
                         >
-                          {specialEntry ? (
-                            <div className="space-y-2">
-                              <div className="font-semibold text-[#002855] flex items-center justify-center gap-1">
-                                <div className="h-2 w-2 bg-[#002855] rounded-full"></div>
-                                {typeof specialEntry.subject === 'object' ? specialEntry.subject.name : specialEntry.subject}
-                              </div>
-                              <div className="flex justify-center">
-                                {(() => {
-                                  const teachers = specialEntry.teachers;
-                                  if (Array.isArray(teachers)) {
-                                    return (
-                                      <div className="flex flex-wrap justify-center gap-2">
-                                        {teachers.map((teacher, index) => (
-                                          <div key={index} className="flex items-center gap-1 text-sm text-gray-600">
-                                            <Users className="h-3 w-3" />
-                                            {typeof teacher === 'object' ? teacher.fullname : teacher}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    );
-                                  } else if (typeof teachers === 'string') {
-                                    return (
-                                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                                        <Users className="h-3 w-3" />
-                                        {teachers}
-                                      </div>
-                                    );
-                                  }
-                                  return (
-                                    <div className="text-sm text-gray-400 italic">
-                                      Chưa có giáo viên
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                              <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
-                                <MapPin className="h-3 w-3" />
-                                {specialEntry.room
-                                  ? typeof specialEntry.room === "object"
-                                    ? specialEntry.room.name
-                                    : specialEntry.room
-                                  : "Chưa có phòng"}
-                              </div>
-                              <div className="text-xs text-gray-500 italic mt-2">
-                                Áp dụng cho tất cả các ngày trong tuần
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-gray-400 py-4 border-2 border-dashed border-gray-200 rounded">
-                              <Plus className="h-6 w-6 mx-auto mb-1" />
-                              <span className="text-sm">Trống</span>
-                              <div className="text-xs text-gray-500 italic mt-1">
-                                Áp dụng cho tất cả các ngày trong tuần
-                              </div>
-                            </div>
-                          )}
+                          <div className="text-center">
+                            <div className="font-semibold text-[#002855] text-lg">{pm.label}</div>
+                            <div className="text-sm text-gray-500 mt-1">{pm.time}</div>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -902,7 +835,7 @@ const TimetablesPage = () => {
               <Button asChild disabled={loading}>
                 <label htmlFor="file-upload" className="cursor-pointer flex items-center gap-2">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Upload Excel
+                  Tải lên TKB
                 </label>
               </Button>
             </div>

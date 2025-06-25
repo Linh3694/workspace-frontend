@@ -181,7 +181,7 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="min-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="min-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Quản lý tiết học</DialogTitle>
           <DialogDescription>
@@ -222,14 +222,10 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
                     Thêm tiết
                   </Button>
                 </div>
-                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
-                  <strong>Ví dụ:</strong> Tiết 1-5 (sáng) → Tiết 6 (ăn trưa) → Tiết 7 (ngủ trưa) → Tiết 8-12 (chiều).
-                  <br />Tiết số chỉ để sắp xếp thứ tự, hệ thống sẽ match theo thời gian bắt đầu.
-                </div>
               </div>
 
               {/* Header row */}
-              <div className="grid grid-cols-8 gap-2 items-center p-3 bg-gray-50 rounded-lg font-medium text-sm">
+              <div className="grid grid-cols-6 gap-2 items-center p-3 bg-gray-50 rounded-lg font-medium text-sm">
                 <div className="col-span-1 text-center">Tiết số</div>
                 <div className="col-span-2">Loại tiết học</div>
                 <div className="col-span-1">Bắt đầu</div>
@@ -239,7 +235,7 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {editingPeriods.map((period, index) => (
-                  <div key={period._id} className="grid grid-cols-8 gap-2 items-center p-3 border rounded-lg hover:bg-gray-50">
+                  <div key={period._id} className="grid grid-cols-6 gap-2 items-center p-3 border rounded-lg hover:bg-gray-50">
                     {/* Period Number */}
                     <div className="col-span-1">
                       <Input
