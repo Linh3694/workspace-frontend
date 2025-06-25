@@ -53,6 +53,8 @@ export const API_ENDPOINTS = {
   // Attendance endpoints
   ATTENDANCES: `${API_URL}/attendances`,
   ATTENDANCE: (id: string) => `${API_URL}/attendances/${id}`,
+  STUDENTS_BY_CLASS: `${API_URL}/attendances/students-by-class`,
+  TIME_ATTENDANCE_BY_DATE: `${API_URL}/attendances/time-attendance-by-date`,
   // Report endpoints
   REPORTS: `${API_URL}/reports`,
   REPORT: (id: string) => `${API_URL}/reports/${id}`,

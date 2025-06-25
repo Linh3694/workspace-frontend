@@ -205,60 +205,7 @@ const SubjectComponent: React.FC = () => {
     }
   };
   
-  const handleImportSubjects = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, { type: 'array' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const raw: ExcelRowData[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-    const payload = raw.reduce<Record<string, unknown>[]>((acc, row, idx) => {
-      const Name = row.Name?.toString().trim();
-      const rawSchoolCode = row.SchoolCode?.toString().trim();
-      const SchoolCode = mapSchoolCode(rawSchoolCode || '');
-      const rawGradeLevelCodes = row.GradeLevelCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [];
-      
-      // Map grade level codes từ K1, K2... sang Khối 1, Khối 2...
-      const GradeLevelCodes = mapGradeLevelCodes(rawGradeLevelCodes);
-      
-      if (!Name || !SchoolCode || !GradeLevelCodes.length) {
-        console.warn(`Row ${idx + 2} skipped – missing required fields`);
-        return acc; // skip invalid rows
-      }
-
-      acc.push({
-        name: Name,
-        code: row.Code?.toString().trim() || undefined,
-        schoolCode: SchoolCode,
-        gradeLevelCodes: GradeLevelCodes,
-        needFunctionRoom: /true/i.test(row.NeedFunctionRoom?.toString() || ""),
-        roomCodes: row.RoomCodes?.toString()?.split(',').map((c: string) => c.trim()).filter(Boolean) || [],
-        isParentSubject: /true/i.test(row.IsParentSubject?.toString() || ""),
-        parentSubjectCode: row.ParentSubjectCode?.toString().trim() || undefined,
-        description: row.Description?.toString().trim() || undefined,
-      });
-      return acc;
-    }, []);
-
-    if (!payload.length) {
-      toast({ title: 'Lỗi', description: 'Không có bản ghi hợp lệ trong file Excel', variant: 'destructive' });
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    try {
-      toast({ title: 'Đang nhập môn học...', variant: 'loading' });
-      await api.post(`${API_ENDPOINTS.SUBJECTS}/bulk-upload`, payload);
-      toast({ title: 'Thành công', description: `Đã nhập ${payload.length} môn học` });
-      fetchSubjects();
-    } catch (err: unknown) {
-      toast({ title: 'Lỗi', description: err instanceof Error ? err.message : 'Nhập môn học thất bại', variant: 'destructive' });
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   const form = useForm<SubjectFormData>({
     resolver: zodResolver(formSchema),
@@ -828,7 +775,7 @@ const SubjectComponent: React.FC = () => {
             type="file"
             accept=".xlsx, .xls"
             ref={fileInputRef}
-            onChange={handleImportSubjects}
+            onChange={handleFileUpload}
             style={{ display: 'none' }}
           />
           <Button onClick={() => setIsImportDialogOpen(true)}>

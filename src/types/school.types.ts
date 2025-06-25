@@ -2,8 +2,8 @@ import type { BaseEntity } from './common.types';
 
 export interface School extends BaseEntity {
   name: string;
-  code: string;
-  type: string;
+  code?: string;
+  type?: string; // Optional vì backend model không có field này
   description?: string;
   gradeLevels?: string[];
   educationalSystems?: string[];
@@ -12,6 +12,7 @@ export interface School extends BaseEntity {
 
 export interface SchoolYear extends BaseEntity {
   code: string;
+  name?: string;
   startDate: string;
   endDate: string;
   isActive: boolean;

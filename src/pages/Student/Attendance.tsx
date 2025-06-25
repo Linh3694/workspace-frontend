@@ -29,64 +29,16 @@ import { DatePicker } from '../../components/ui/datepicker';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
 import { AiOutlineInfoCircle } from "react-icons/ai";
-
-
-interface Student {
-    _id: string;
-    name: string;
-    studentCode: string;
-    avatarUrl?: string;
-    parents?: { fullname: string; phone: string; relationship: string }[];
-}
-
-interface Teacher {
-    _id: string;
-    fullname: string;
-    teachingAssignments?: {
-        class: { _id: string; className: string };
-        subjects: { _id: string; name: string }[];
-    }[];
-}
-
-interface Class {
-    _id: string;
-    className: string;
-    homeroomTeachers?: Teacher[];
-}
-
-interface Attendance {
-    _id: string;
-    status: string;
-    checkIn?: string;
-    checkOut?: string;
-    student: Student;
-    class: Class;
-    teacher: Teacher;
-    date: string;
-    note: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
-interface SchoolYear {
-    _id: string;
-    code: string;
-    name?: string;
-}
-
-interface Parent {
-    fullname: string;
-    phone: string;
-    relationship: string;
-}
-
-interface Family {
-    _id: string;
-    familyCode: string;
-    parents: { parent: Parent; relationship: string }[];
-    students: { _id: string; name: string }[];
-    address: string;
-}
+import { toast } from 'sonner';
+import type { SchoolYear } from '../../types/school.types';
+import type { 
+    Attendance, 
+    AttendanceStudent as Student, 
+    AttendanceTeacher as Teacher, 
+    AttendanceClass as Class,
+    Parent, 
+    Family
+} from '../../types/attendance.types';
 
 const ParentInfo: React.FC<{ parents: Parent[] }> = ({ parents }) => {
     if (!parents || parents.length === 0) {
@@ -117,6 +69,7 @@ const AttendanceList: React.FC = () => {
     const [students, setStudents] = useState<Student[]>([]);
     const [pendingAttendances, setPendingAttendances] = useState<{ [studentId: string]: { status: string, note: string } }>({});
     const [studentParentsMap, setStudentParentsMap] = useState<{ [studentId: string]: Parent[] }>({});
+    const [timeAttendanceData, setTimeAttendanceData] = useState<{ [studentCode: string]: { checkIn: string | null, checkOut: string | null } }>({});
 
     useEffect(() => {
         fetchSchoolYears();
@@ -128,19 +81,29 @@ const AttendanceList: React.FC = () => {
         }
     }, [selectedSchoolYear]);
 
-    // 1. Khi đổi lớp: load danh sách học sinh
+    // 1. Khi đổi lớp: load danh sách học sinh và reset pending attendances
     useEffect(() => {
         if (selectedClass) {
             fetchStudentsByClass(selectedClass);
+            setPendingAttendances({}); // Reset pending attendances khi đổi lớp
+        } else {
+            // Nếu không có lớp được chọn, xóa danh sách học sinh
+            setStudents([]);
+            setStudentParentsMap({});
+            setPendingAttendances({});
         }
     }, [selectedClass]);
-
-    // 2. Khi đổi lớp hoặc đổi ngày: only load điểm danh
+    // 2. Khi đổi lớp hoặc ngày: load lại điểm danh và timeAttendance
     useEffect(() => {
         if (selectedClass && selectedDate) {
             fetchAttendances();
+            fetchTimeAttendanceData();
+        } else {
+            // Nếu chưa chọn lớp hoặc ngày, xóa danh sách điểm danh
+            setAttendances([]);
+            setTimeAttendanceData({});
         }
-    }, [selectedClass, selectedDate]);
+    }, [selectedClass, selectedDate, students]); // Thêm students vào dependency để fetch khi có students mới
 
     const fetchSchoolYears = async () => {
         try {
@@ -150,7 +113,12 @@ const AttendanceList: React.FC = () => {
             });
             const years = Array.isArray(response.data) ? response.data : response.data.data || [];
             setSchoolYears(years);
-            if (years.length > 0) {
+            
+            // Tìm năm học đang active, nếu không có thì chọn năm đầu tiên
+            const activeYear = years.find((year: SchoolYear) => year.isActive);
+            if (activeYear) {
+                setSelectedSchoolYear(activeYear._id);
+            } else if (years.length > 0) {
                 setSelectedSchoolYear(years[0]._id);
             }
         } catch (error) {
@@ -161,19 +129,23 @@ const AttendanceList: React.FC = () => {
     const fetchClassesAndStudents = async () => {
         try {
             const token = localStorage.getItem('token');
-            if (!token) {
-                alert('Bạn chưa đăng nhập!');
-                return;
-            }
+                    if (!token) {
+            toast.error('Bạn chưa đăng nhập!');
+            return;
+        }
             const userResponse = await axios.get(API_ENDPOINTS.CURRENT_USER, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const role = userResponse.data.role;
 
             let classesData: Class[] = [];
-            if (role === 'admin') {
+            // Admin và superadmin có thể xem tất cả các lớp trong năm học
+            if (role === 'admin' || role === 'superadmin') {
                 const response = await axios.get(API_ENDPOINTS.CLASSES, {
-                    params: { schoolYear: selectedSchoolYear },
+                    params: { 
+                        schoolYear: selectedSchoolYear,
+                        populate: 'homeroomTeachers'
+                    },
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 classesData = Array.isArray(response.data) ? response.data : response.data.data || [];
@@ -187,9 +159,9 @@ const AttendanceList: React.FC = () => {
                 const teachers = Array.isArray(teachersRes.data) ? teachersRes.data : teachersRes.data.data || [];
                 // Tìm teacher có user._id === user._id hiện tại
                 const user = userResponse.data;
-                const teacher = teachers.find((t: any) => t.user && t.user._id === user._id);
+                const teacher = teachers.find((t: Teacher & { user?: { _id: string } }) => t.user && t.user._id === user._id);
                 if (!teacher) {
-                    alert('Không tìm thấy giáo viên tương ứng với tài khoản này!');
+                    toast.error('Không tìm thấy giáo viên tương ứng với tài khoản này!');
                     return;
                 }
                 setCurrentTeacher(teacher);
@@ -207,12 +179,16 @@ const AttendanceList: React.FC = () => {
                     : response.data.data || [];
 
                 // 2) Lọc ra các lớp mà teacher này là homeroom
-                const homeroomClasses = allClasses.filter((cls: any) =>
-                    cls.homeroomTeachers?.some((t: any) => t._id === teacher._id)
+                const homeroomClasses = allClasses.filter((cls: Class & { homeroomTeachers?: Teacher[] }) =>
+                    cls.homeroomTeachers?.some((t: Teacher) => t._id === teacher._id)
                 );
 
                 setClasses(homeroomClasses);
                 setSelectedClass(homeroomClasses.length > 0 ? homeroomClasses[0]._id : '');
+            } else {
+                // Nếu không phải admin, superadmin hoặc teacher thì không có quyền truy cập
+                toast.error('Bạn không có quyền truy cập chức năng này!');
+                return;
             }
         } catch (error) {
             console.error('Lỗi khi tải danh sách lớp học:', error);
@@ -222,13 +198,11 @@ const AttendanceList: React.FC = () => {
     const fetchStudentsByClass = async (classId: string) => {
         try {
             const token = localStorage.getItem('token');
-            // Use the generic STUDENTS endpoint and pass classId as query
-            const response = await axios.get(API_ENDPOINTS.STUDENTS, {
+            // Use the attendance endpoint to get students by class
+            const response = await axios.get(API_ENDPOINTS.STUDENTS_BY_CLASS, {
                 params: { classId },
                 headers: { Authorization: `Bearer ${token}` }
-            });
-            console.log('Calling STUDENTS with classId param, URL:', API_ENDPOINTS.STUDENTS, 'classId:', classId);
-
+            });            
             let studentsArr = [];
             if (Array.isArray(response.data)) {
                 studentsArr = response.data;
@@ -267,7 +241,6 @@ const AttendanceList: React.FC = () => {
 
     const fetchAttendances = async () => {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        console.log('Fetching attendances for class:', selectedClass, 'date:', dateStr);
         try {
             setLoading(true);
             // Lấy token và đưa vào header
@@ -295,8 +268,70 @@ const AttendanceList: React.FC = () => {
         }
     };
 
+    const fetchTimeAttendanceData = async () => {
+        if (!students.length || !selectedDate) return;
+        
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const studentCodes = students.map(student => student.studentCode).filter(Boolean);
+        
+        if (studentCodes.length === 0) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(API_ENDPOINTS.TIME_ATTENDANCE_BY_DATE, {
+                params: {
+                    date: dateStr,
+                    studentCodes: studentCodes.join(',')
+                },
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            setTimeAttendanceData(response.data || {});
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu chấm công:', error);
+            setTimeAttendanceData({});
+        }
+    };
+
     const getAttendanceByStudent = (studentId: string) => {
         return attendances.find(a => a.student._id === studentId);
+    };
+
+    const getCheckInTime = (student: Student, attendance: Attendance | undefined) => {
+        // Ưu tiên 1: Dữ liệu từ timeAttendance (máy chấm công)
+        const timeAttendanceCheckIn = timeAttendanceData[student.studentCode]?.checkIn;
+        if (timeAttendanceCheckIn) {
+            return timeAttendanceCheckIn;
+        }
+        
+        // Ưu tiên 2: Dữ liệu attendance manual đã có
+        if (attendance?.checkIn) {
+            return attendance.checkIn;
+        }
+
+        // Ưu tiên 3: Nếu đang pending "present" thì lấy thời gian hiện tại
+        const pending = pendingAttendances[student._id];
+        if (pending?.status === 'present') {
+            return new Date().toTimeString().slice(0, 5); // HH:MM format
+        }
+
+        return '';
+    };
+
+    const getCheckOutTime = (student: Student, attendance: Attendance | undefined) => {
+        // Ưu tiên 1: Dữ liệu từ timeAttendance (máy chấm công)
+        const timeAttendanceCheckOut = timeAttendanceData[student.studentCode]?.checkOut;
+        if (timeAttendanceCheckOut) {
+            return timeAttendanceCheckOut;
+        }
+        
+        // Ưu tiên 2: Dữ liệu attendance manual đã có
+        if (attendance?.checkOut) {
+            return attendance.checkOut;
+        }
+
+        // Không tự động điền thời gian check-out khi có mặt
+        return '';
     };
 
     const handlePendingStatusChange = (studentId: string, status: string, checked: boolean) => {
@@ -322,6 +357,23 @@ const AttendanceList: React.FC = () => {
     const handleConfirmAttendance = async () => {
         try {
             const token = localStorage.getItem('token');
+            const userResponse = await axios.get(API_ENDPOINTS.CURRENT_USER, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const role = userResponse.data.role;
+
+            // Kiểm tra quyền: chỉ teacher mới được điểm danh
+            if (role !== 'teacher') {
+                toast.error('Chỉ giáo viên mới có thể thực hiện điểm danh!');
+                return;
+            }
+
+            // Kiểm tra có currentTeacher không
+            if (!currentTeacher?._id) {
+                toast.error('Không tìm thấy thông tin giáo viên!');
+                return;
+            }
+
             for (const student of students) {
                 const pending = pendingAttendances[student._id];
                 if (!pending || !pending.status) continue;
@@ -338,24 +390,27 @@ const AttendanceList: React.FC = () => {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 } else {
-                    // Create mới
-                    await axios.post(API_ENDPOINTS.ATTENDANCES, {
+                    // Create mới với teacher ID
+                    const attendanceData = {
                         student: student._id,
                         class: selectedClass,
                         date: selectedDate,
                         status: pending.status,
                         note: pending.note,
-                        teacher: currentTeacher?._id
-                    }, {
+                        teacher: currentTeacher._id
+                    };
+
+                    await axios.post(API_ENDPOINTS.ATTENDANCES, attendanceData, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 }
             }
             fetchAttendances();
             setPendingAttendances({});
-            alert('Cập nhật điểm danh thành công!');
+            toast.success('Cập nhật điểm danh thành công!');
         } catch (error) {
-            alert('Có lỗi khi cập nhật điểm danh!');
+            console.error('Error updating attendance:', error);
+            toast.error('Có lỗi khi cập nhật điểm danh!');
         }
     };
 
@@ -370,28 +425,32 @@ const AttendanceList: React.FC = () => {
                     <CardDescription>Quản lý thông tin điểm danh học sinh trong hệ thống</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex gap-4 mb-6">
-                        <div className="w-40">
-                            <label className="block text-sm font-medium mb-1">Năm học</label>
-                            <select
-                                className="w-full px-3 py-2 border rounded-md"
+                    <div className="flex flex-row gap-4 mb-6 items-start justify-start">
+                        <div className="flex flex-col">
+                            <label className="block text-sm font-medium mb-2 text-gray-700">Năm học</label>
+                            <Select
                                 value={selectedSchoolYear}
-                                onChange={e => setSelectedSchoolYear(e.target.value)}
+                                onValueChange={setSelectedSchoolYear}
                             >
-                                {schoolYears.map(year => (
-                                    <option key={year._id} value={year._id}>
-                                        {year.name || year.code}
-                                    </option>
-                                ))}
-                            </select>
+                                <SelectTrigger className="h-10 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <SelectValue placeholder="Chọn năm học" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {schoolYears.map(year => (
+                                        <SelectItem key={year._id} value={year._id}>
+                                            {year.name || year.code}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <div className="w-64">
-                            <label className="block text-sm font-medium mb-1">Lớp</label>
+                        <div className="flex flex-col">
+                            <label className="block text-sm font-medium mb-2 text-gray-700">Lớp</label>
                             <Select
                                 value={selectedClass}
                                 onValueChange={setSelectedClass}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                     <SelectValue placeholder="Chọn lớp" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -403,12 +462,15 @@ const AttendanceList: React.FC = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="w-64">
-                            <label className="block text-sm font-medium mb-1">Ngày</label>
-                            <DatePicker
-                                date={selectedDate}
-                                setDate={(date) => date && setSelectedDate(date)}
-                            />
+                            <div className="flex flex-col">
+                            <label className="block text-sm font-medium mb-2 text-gray-700">Ngày</label>
+                            <div className="h-10">
+                                <DatePicker
+                                    date={selectedDate}
+                                    setDate={(date) => date && setSelectedDate(date)}
+                                    className="border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -473,17 +535,17 @@ const AttendanceList: React.FC = () => {
                                                     <TableCell className="text-center">
                                                         <input
                                                             type="time"
-                                                            value={attendance?.checkIn || ''}
-                                                            onChange={() => {/* handle locally or leave for later */ }}
-                                                            className="max-w-20"
+                                                            value={getCheckInTime(student, attendance)}
+                                                            readOnly
+                                                            className="cursor-not-allowed text-center"
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <input
                                                             type="time"
-                                                            value={attendance?.checkOut || ''}
-                                                            onChange={() => {/* handle locally or leave for later */ }}
-                                                            className="max-w-20"
+                                                            value={getCheckOutTime(student, attendance)}
+                                                            readOnly
+                                                            className="cursor-not-allowed text-center "
                                                         />
                                                     </TableCell>
                                                     {['present', 'absent', 'late', 'excused'].map((status) => (

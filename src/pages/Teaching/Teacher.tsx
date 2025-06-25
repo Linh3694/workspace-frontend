@@ -31,101 +31,18 @@ import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS, BASE_URL } from "../../lib/config";
 import { Checkbox } from "../../components/ui/checkbox";
-import type { SchoolType } from "../../lib/constants";
 import { Combobox } from "../../components/ui/combobox";
 
-interface Subject {
-  _id: string;
-  name: string;
-  code: string;
-  curriculums: {
-    curriculum: {
-      _id: string;
-      name: string;
-    };
-    periodsPerWeek: number;
-  }[];
-}
-
-interface Curriculum {
-  _id: string;
-  name: string;
-  description?: string;
-  educationalSystem: {
-    _id: string;
-    name: string;
-  };
-}
-
-interface School {
-  _id: string;
-  name: string;
-  code: string;
-  type: SchoolType;
-}
-
-interface GradeLevel {
-  _id: string;
-  name: string;
-  code: string;
-  order: number;
-  school: string;
-  subjects: {
-    _id: string;
-    name: string;
-    code: string;
-  }[];
-}
-
-interface Teacher {
-  _id: string;
-  user?: {
-    avatarUrl?: string;
-  };
-  fullname: string;
-  phone: string;
-  email: string;
-  jobTitle: string;
-  school: {
-    _id: string;
-    name: string;
-    code: string;
-    type: string;
-  };
-  gradeLevels: GradeLevel[];
-  subjects: Subject[];
-  curriculums: Curriculum[];
-  educationalSystem?: {
-    _id: string;
-    name: string;
-  };
-  classes?: Class[];
-  teachingAssignments?: {
-    class: { _id: string; className: string };
-    subjects: { _id: string; name: string }[];
-  }[];
-}
-
-interface Class {
-  _id: string;
-  className: string;
-  gradeLevel: {
-    _id: string;
-    name: string;
-    code: string;
-    order: number;
-  };
-}
-
-interface ClassSubjectAssignment {
-  classId: string;
-  subjectIds: string[];
-}
-
-interface ComboboxOption {
-  value: string;
-  label: string;
-}
+// Import types từ folder types
+import type { School, GradeLevel } from "../../types/school.types";
+import type { Subject } from "../../types/curriculum.types";
+import type { ComboboxOption } from "../../types/common.types";
+import type { 
+  GradeLevelWithSubjects,
+  TeacherExtended as Teacher,
+  TeachingClass as Class,
+  ClassSubjectAssignment
+} from "../../types/teaching.types";
 
 
 
@@ -141,7 +58,7 @@ const schema = z.object({
   classes: z.array(z.string()).optional(),
 });
 
-type TeacherFormData = z.infer<typeof schema>;
+
 
 const TeacherComponent: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -234,6 +151,47 @@ const TeacherComponent: React.FC = () => {
     }
   }, [watch("curriculum"), subjects, setValue]);
 
+  // Reset form khi đóng dialog
+  useEffect(() => {
+    if (!isTeachingDialogOpen) {
+      setSelectedTeacher(null);
+      setSelectedClasses([]);
+    }
+  }, [isTeachingDialogOpen]);
+
+  // Set form values khi dialog mở và có selectedTeacher
+  useEffect(() => {
+    if (isTeachingDialogOpen && selectedTeacher && schools.length > 0) {
+      console.log('Setting form values via useEffect');
+      console.log('Selected teacher school:', selectedTeacher.school);
+      console.log('Available schools:', schools);
+      
+      const schoolId = selectedTeacher.school?._id || "";
+      
+      if (schoolId) {
+        // Teacher có school data
+        const schoolExists = schools.find(s => s._id === schoolId);
+        if (schoolExists) {
+          console.log('Setting teacher existing school:', schoolId);
+          setValue("school", schoolId);
+          setValue("gradeLevels", selectedTeacher.gradeLevels?.map(g => g._id) || []);
+          setSelectedClasses(selectedTeacher?.classes?.map(c => c._id) || []);
+        } else {
+          console.log('Teacher school not found in available schools, leaving empty for manual selection');
+          setValue("school", "");
+          setValue("gradeLevels", []);
+          setSelectedClasses([]);
+        }
+      } else {
+        // Teacher không có school data - để trống để user chọn
+        console.log('Teacher has no school assigned, leaving empty for manual selection');
+        setValue("school", "");
+        setValue("gradeLevels", []);
+        setSelectedClasses([]);
+      }
+    }
+  }, [isTeachingDialogOpen, selectedTeacher, schools, setValue]);
+
   const getGradeLevelDisplay = (order: number, schoolType: string) => {
     switch (schoolType) {
       case 'THPT':
@@ -254,11 +212,46 @@ const TeacherComponent: React.FC = () => {
         setGradeLevels([]);
         return;
       }
-      const response = await api.get<GradeLevel[]>(`${API_ENDPOINTS.GRADE_LEVELS}?school=${schoolId}`);
-      if (response) {
-        const sortedLevels = response.data.sort((a, b) => a.order - b.order);
+      
+      const response = await api.get(`${API_ENDPOINTS.GRADE_LEVELS}?school=${schoolId}`);
+      console.log('Grade levels response:', response);
+      
+      let gradeLevelsData: GradeLevel[] = [];
+      
+      // Handle multiple possible response formats (same as other fetch functions)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response as any;
+      
+      if (Array.isArray(responseData)) {
+        // Direct array
+        gradeLevelsData = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          // { data: [...] }
+          gradeLevelsData = responseData.data;
+        } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          // { data: { data: [...] } }
+          gradeLevelsData = responseData.data.data;
+        }
+      }
+      
+      console.log('Extracted grade levels data:', gradeLevelsData);
+      
+      if (Array.isArray(gradeLevelsData)) {
+        // Validate and sort grade levels
+        const validGradeLevels = gradeLevelsData.filter(grade => 
+          grade && 
+          typeof grade === 'object' && 
+          grade._id && 
+          grade.name &&
+          typeof grade.order === 'number'
+        );
+        
+        const sortedLevels = validGradeLevels.sort((a, b) => a.order - b.order);
+        console.log('Valid sorted grade levels:', sortedLevels);
         setGradeLevels(sortedLevels);
       } else {
+        console.error('Grade levels data is not an array:', gradeLevelsData);
         setGradeLevels([]);
       }
     } catch (error: unknown) {
@@ -352,51 +345,55 @@ const TeacherComponent: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      const response = await api.get<School[]>(API_ENDPOINTS.SCHOOLS);
+      const response = await api.get(API_ENDPOINTS.SCHOOLS);
       console.log('Schools response:', response);
       
       let schoolsData: School[] = [];
       
-      // Sử dụng type assertion an toàn
+      // Handle multiple possible response formats
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const responseData = response as any;
       
       if (Array.isArray(responseData)) {
+        // Direct array
         schoolsData = responseData;
       } else if (responseData?.data) {
         if (Array.isArray(responseData.data)) {
+          // { data: [...] }
           schoolsData = responseData.data;
         } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          // { data: { data: [...] } }
           schoolsData = responseData.data.data;
         }
       }
       
-      if (!Array.isArray(schoolsData)) {
-        schoolsData = [];
-      }
+      console.log('Extracted schools data:', schoolsData);
+      console.log('Is schools data an array?', Array.isArray(schoolsData));
       
-      // Ensure schools have their grade levels
-      const schoolsWithGrades = await Promise.all(
-        schoolsData.map(async (school: School) => {
-          try {
-            const schoolDetails = await api.get<School>(API_ENDPOINTS.SCHOOL(school._id));
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const detailsData = schoolDetails as any;
-            
-            if (detailsData?.data) {
-              return detailsData.data;
-            } else if (detailsData?._id) {
-              return detailsData;
-            }
-            
-            return school; // fallback to original school data
-          } catch (error) {
-            console.error(`Error fetching details for school ${school._id}:`, error);
-            return school; // fallback to original school data
+      if (Array.isArray(schoolsData)) {
+        // Đảm bảo mỗi school có đủ properties cần thiết và không có value rỗng
+        const validSchools = schoolsData.filter(school => {
+          const isValid = school && 
+            typeof school === 'object' && 
+            school._id && 
+            school._id.trim() !== '' &&
+            school.name && 
+            school.name.trim() !== '';
+          
+          if (!isValid) {
+            console.warn('Invalid school filtered out:', school);
           }
-        })
-      );
-      setSchools(schoolsWithGrades);
+          return isValid;
+        });
+        
+        console.log('Valid schools count:', validSchools.length);
+        console.log('Valid schools:', validSchools);
+        setSchools(validSchools);
+      } else {
+        console.error('Schools data is not an array:', schoolsData);
+        console.error('Type of schools data:', typeof schoolsData);
+        setSchools([]);
+      }
     } catch (error: unknown) {
       console.error('Error fetching schools:', error);
       toast({
@@ -414,15 +411,44 @@ const TeacherComponent: React.FC = () => {
         setClassesList([]);
         return;
       }
-      const response = await api.get<{ data: Class[] }>(
+      
+      const response = await api.get(
         `${API_ENDPOINTS.CLASSES}?gradeLevels=${gradeIds.join(",")}`
       );
-      // Lấy dữ liệu trực tiếp từ response.data
-      const classesData = response.data || [];
-      // Kiểm tra xem dữ liệu có đúng cấu trúc không
+      console.log('Classes response:', response);
+      
+      let classesData: Class[] = [];
+      
+      // Handle multiple possible response formats
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response as any;
+      
+      if (Array.isArray(responseData)) {
+        // Direct array
+        classesData = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          // { data: [...] }
+          classesData = responseData.data;
+        } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          // { data: { data: [...] } }
+          classesData = responseData.data.data;
+        }
+      }
+      
+      console.log('Extracted classes data:', classesData);
+      
       if (Array.isArray(classesData)) {
-        // Map trực tiếp dữ liệu từ response
-        const processedClasses = classesData.map(cls => ({
+        // Validate and process classes
+        const validClasses = classesData.filter(cls => 
+          cls && 
+          typeof cls === 'object' && 
+          cls._id && 
+          cls.className &&
+          cls.gradeLevel
+        );
+        
+        const processedClasses = validClasses.map(cls => ({
           _id: cls._id,
           className: cls.className,
           gradeLevel: {
@@ -432,21 +458,12 @@ const TeacherComponent: React.FC = () => {
             order: cls.gradeLevel.order
           }
         }));
+        
+        console.log('Valid processed classes:', processedClasses);
         setClassesList(processedClasses);
       } else {
-        // Nếu dữ liệu nằm trong property 'data'
-        const classes = response.data?.data || [];
-        const processedClasses = classes.map(cls => ({
-          _id: cls._id,
-          className: cls.className,
-          gradeLevel: {
-            _id: cls.gradeLevel._id,
-            name: cls.gradeLevel.name,
-            code: cls.gradeLevel.code,
-            order: cls.gradeLevel.order
-          }
-        }));
-        setClassesList(processedClasses);
+        console.error('Classes data is not an array:', classesData);
+        setClassesList([]);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -475,10 +492,10 @@ const TeacherComponent: React.FC = () => {
         // Tìm khối trong mảng gradeLevels của GV (có thể là object hoặc string)
         const grade = selectedTeacher.gradeLevels.find((g) =>
           (typeof g === "string" ? g : g._id) === classGradeId
-        ) as GradeLevel | undefined;
+        ) as GradeLevelWithSubjects | undefined;
 
         if (grade && Array.isArray(grade.subjects)) {
-          updated[cls._id] = grade.subjects.map((sub) => {
+          updated[cls._id] = grade.subjects.map((sub: string | { _id: string; name: string }) => {
             // 1) Khi grade.subjects chỉ là ObjectId
             // 2) Hoặc đã populate thành object
             const subId = typeof sub === "string" ? sub : sub._id;
@@ -529,7 +546,7 @@ const TeacherComponent: React.FC = () => {
     }
   };
 
-  const handleUpdateTeachingInfo = async (formData: TeacherFormData) => {
+  const handleUpdateTeachingInfo = async (formData: z.infer<typeof schema>) => {
     try {
       if (selectedTeacher) {
         const teachingData = {
@@ -562,75 +579,57 @@ const TeacherComponent: React.FC = () => {
     <div className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Quản lý giáo viên</h1>
-        {/* <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setSelectedTeacher(null)}>Thêm giáo viên mới</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{selectedTeacher ? "Cập nhật thông tin giáo viên" : "Thêm giáo viên mới"}</DialogTitle>
-              <DialogDescription>Nhập thông tin giáo viên</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit(handleCreateOrUpdateTeacher)} className="space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullname">Họ và tên</Label>
-                  <Input id="fullname" {...register("fullname")} />
-                  {errors.fullname && <p className="text-red-500 text-sm">{errors.fullname.message}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" {...register("email")} />
-                  {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Số điện thoại</Label>
-                  <Input id="phone" {...register("phone")} />
-                  {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="jobTitle">Chức danh</Label>
-                  <Input id="jobTitle" {...register("jobTitle")} />
-                  {errors.jobTitle && <p className="text-red-500 text-sm">{errors.jobTitle.message}</p>}
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button type="submit">{selectedTeacher ? "Cập nhật" : "Thêm mới"}</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog> */}
-
         {/* Dialog phân công giảng dạy */}
         <Dialog open={isTeachingDialogOpen} onOpenChange={setIsTeachingDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Phân công lớp</DialogTitle>
-              <DialogDescription>Cập nhật phân công lớp cho giáo viên {selectedTeacher?.fullname}</DialogDescription>
+              <DialogDescription>
+                Cập nhật phân công lớp cho giáo viên {selectedTeacher?.fullname}
+                {!selectedTeacher?.school && (
+                  <span className="block text-orange-600 mt-1">
+                    ⚠️ Giáo viên chưa được phân công trường. Vui lòng chọn trường bên dưới.
+                  </span>
+                )}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit(handleUpdateTeachingInfo)} className="space-y-4">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="school">Trường</Label>
                   <Select
-                    value={watch("school")}
-                    onValueChange={(value) => setValue("school", value)}
+                    value={watch("school") || ""}
+                    onValueChange={(value) => {
+                      setValue("school", value);
+                      // Reset các lớp đã chọn khi đổi trường
+                      setSelectedClasses([]);
+                      setValue("gradeLevels", []);
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Chọn trường" />
+                      <SelectValue placeholder={selectedTeacher?.school ? "Đang tải..." : "Chọn trường cho giáo viên"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {schools.map((school) => (
-                        <SelectItem key={school._id} value={school._id}>
-                          {school.name}
+                      {schools.length > 0 ? (
+                        schools.map((school) => {
+                          // Đảm bảo không có value rỗng
+                          const value = school._id?.trim() || `school-${Math.random()}`;
+                          const label = school.name?.trim() || "Trường không tên";
+                          
+                          return (
+                            <SelectItem key={school._id} value={value}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <SelectItem value="no-schools" disabled>
+                          Không có trường nào
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
+
                   {errors.school && <p className="text-red-500 text-sm">{errors.school.message}</p>}
                 </div>
 
@@ -763,10 +762,9 @@ const TeacherComponent: React.FC = () => {
                           <Button
                             size="sm"
                             onClick={() => {
+                              console.log('Button clicked - Opening dialog for teacher:', teacher.fullname);
                               setSelectedTeacher(teacher);
                               setIsTeachingDialogOpen(true);
-                              setValue("school", teacher.school?._id || "");
-                              setValue("gradeLevels", teacher.gradeLevels?.map(g => g._id) || []);
                             }}
                           >
                             Phân công lớp
@@ -793,15 +791,6 @@ const TeacherComponent: React.FC = () => {
                             }}
                           >
                             Phân công môn
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedTeacher(teacher);
-                              setIsTeachingDialogOpen(true);
-                            }}
-                          >
-                            Cập nhật
                           </Button>
                         </TableCell>
                       </TableRow>

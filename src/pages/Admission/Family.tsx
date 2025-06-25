@@ -154,8 +154,37 @@ const FamilyList: React.FC = () => {
     setLoading(true);
     let newFamilyId: string;
 
-    try {      
+    try {
+      // Debug token trước khi thực hiện
+      console.log('🔐 Checking authentication...');
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token?.length);
+      console.log('Token starts with:', token?.substring(0, 20) + '...');
+      
+      if (!token) {
+        throw new Error('Không có token xác thực. Vui lòng đăng nhập lại.');
+      }
+
+      // Test token với API đơn giản trước
+      try {
+        console.log('🧪 Testing token validity...');
+        await retryWithTokenRefresh(() => 
+          axios.get(API_ENDPOINTS.CURRENT_USER, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          })
+        );
+        console.log('✅ Token is valid');
+      } catch (tokenError) {
+        console.error('❌ Token test failed:', tokenError);
+        throw new Error('Token không hợp lệ. Vui lòng đăng nhập lại.');
+      }
+      
       // 1. Tạo Family trước
+      console.log('🏠 Creating family with data:', {
+        familyCode: formData.familyCode,
+        address: formData.address
+      });
+      
       const familyResponse = await axios.post(
         API_ENDPOINTS.FAMILIES,
         {
@@ -163,20 +192,34 @@ const FamilyList: React.FC = () => {
           parents: [],
           address: formData.address
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
       );
       newFamilyId = familyResponse.data._id;
+      console.log('✅ Family created successfully with ID:', newFamilyId);
 
       // 2. Thêm từng parent vào, bắt lỗi riêng cho mỗi parent
       const addedParents = [];
-              for (const parent of formData.parents) {
+      for (const parent of formData.parents) {
         try {
+          console.log(`👤 Processing parent: ${parent.fullname}`, {
+            createUser: parent.createUser,
+            phone: parent.phone,
+            email: parent.email,
+            relationship: parent.relationship
+          });
+          
           let createdParentId: string;
           // Nếu tick tạo user
           if (parent.createUser) {
             if (!parent.password) {
               throw new Error(`Thiếu mật khẩu cho phụ huynh ${parent.fullname}`);
             }
+            console.log('🔑 Creating user for parent:', parent.fullname);
             // Tạo user
             const userRes = await axios.post(
               API_ENDPOINTS.USERS,
@@ -188,9 +231,16 @@ const FamilyList: React.FC = () => {
                 fullname: parent.fullname,
                 role: 'parent'
               },
-              { headers: { Authorization: `Bearer ${token}` } }
+              { 
+                headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                } 
+              }
             );
+            console.log('✅ User created with ID:', userRes.data._id);
             
+            console.log('👤 Creating parent with user connection');
             // Tạo parent với user
             const parentRes = await axios.post(
               API_ENDPOINTS.PARENTS,
@@ -200,10 +250,17 @@ const FamilyList: React.FC = () => {
                 phone: parent.phone,
                 email: parent.email
               },
-              { headers: { Authorization: `Bearer ${token}` } }
+              { 
+                headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                } 
+              }
             );
             createdParentId = parentRes.data._id;
+            console.log('✅ Parent created with ID:', createdParentId);
           } else {
+            console.log('👤 Creating parent without user');
             // Tạo parent không có user
             const parentRes = await axios.post(
               API_ENDPOINTS.PARENTS,
@@ -212,23 +269,46 @@ const FamilyList: React.FC = () => {
                 phone: parent.phone,
                 email: parent.email
               },
-              { headers: { Authorization: `Bearer ${token}` } }
+              { 
+                headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                } 
+              }
             );
             createdParentId = parentRes.data._id;
+            console.log('✅ Parent created with ID:', createdParentId);
           }
+          
+          console.log(`🔗 Linking parent ${createdParentId} to family ${newFamilyId}`);
           // Gắn parent vào Family
-          await axios.post(
+          const linkResponse = await axios.post(
             `${API_ENDPOINTS.FAMILIES}/${newFamilyId}/add-parent`,
             {
               parentId: createdParentId,
               relationship: parent.relationship
             },
-            { headers: { Authorization: `Bearer ${token}` } }
+            { 
+              headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              } 
+            }
           );
+          console.log('✅ Parent linked to family successfully:', linkResponse.data);
 
           addedParents.push(parent.fullname);
         } catch (err: unknown) {
-          console.error(`Lỗi khi thêm phụ huynh ${parent.fullname}:`, err);
+          console.error(`❌ Error processing parent ${parent.fullname}:`, err);
+          
+          // Log chi tiết lỗi
+          if (err && typeof err === 'object' && 'response' in err) {
+            const axiosError = err as AxiosError<{ message: string }>;
+            console.error('Response status:', axiosError.response?.status);
+            console.error('Response data:', axiosError.response?.data);
+            console.error('Request URL:', axiosError.config?.url);
+            console.error('Request data:', axiosError.config?.data);
+          }
           
           // Lấy error message từ response của server
           let errorMessage = "Không thể thêm phụ huynh.";
@@ -738,6 +818,57 @@ const FamilyList: React.FC = () => {
       await handleDeleteFamily(selectedFamily._id);
       setIsDeleteDialogOpen(false);
       setSelectedFamily(null);
+    }
+  };
+
+  // Function để refresh token và retry
+  const retryWithTokenRefresh = async (apiCall: () => Promise<unknown>, maxRetries = 1) => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await apiCall();
+      } catch (error) {
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as AxiosError<{ message: string }>;
+          
+          // Nếu lỗi 401 và còn lần retry
+          if (axiosError.response?.status === 401 && attempt < maxRetries) {
+            console.log('🔄 Token expired, trying to refresh...');
+            
+            try {
+              // Thử refresh token
+              const refreshResponse = await axios.post(API_ENDPOINTS.REFRESH_TOKEN, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              
+              const newToken = refreshResponse.data.token;
+              localStorage.setItem('token', newToken);
+              console.log('✅ Token refreshed successfully');
+              
+              // Retry với token mới
+              continue;
+            } catch (refreshError) {
+              console.error('❌ Token refresh failed:', refreshError);
+              
+              // Nếu refresh thất bại, yêu cầu đăng nhập lại
+              toast({
+                title: "Phiên đăng nhập hết hạn",
+                description: "Vui lòng đăng nhập lại",
+                variant: "destructive"
+              });
+              
+              // Redirect to login hoặc clear localStorage
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              // window.location.href = '/login'; // Uncomment nếu cần redirect
+              
+              throw refreshError;
+            }
+          }
+        }
+        
+        // Nếu không phải lỗi 401 hoặc hết lần retry
+        throw error;
+      }
     }
   };
 
