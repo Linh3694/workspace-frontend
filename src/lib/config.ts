@@ -119,4 +119,10 @@ export const API_ENDPOINTS = {
   AWARD_CATEGORY: (id: string) => `${API_URL}/award-categories/${id}`,
   AWARD_RECORDS: `${API_URL}/award-records`,
   AWARD_RECORD: (id: string) => `${API_URL}/award-records/${id}`,
+
+  // Leave Request endpoints
+  LEAVE_REQUESTS: `${API_URL}/leave-requests`,
+  LEAVE_REQUEST: (id: string) => `${API_URL}/leave-requests/${id}`,
+  LEAVE_REQUESTS_BY_PARENT: (parentId: string) => `${API_URL}/leave-requests/parent/${parentId}`,
+  LEAVE_REQUESTS_BY_STUDENT: (studentId: string) => `${API_URL}/leave-requests/student/${studentId}`,
 } as const; 

@@ -39,6 +39,7 @@ import type {
     Parent, 
     Family
 } from '../../types/attendance.types';
+import type { LeaveRequest } from '../../types/leave-request.types';
 
 const ParentInfo: React.FC<{ parents: Parent[] }> = ({ parents }) => {
     if (!parents || parents.length === 0) {
@@ -70,6 +71,7 @@ const AttendanceList: React.FC = () => {
     const [pendingAttendances, setPendingAttendances] = useState<{ [studentId: string]: { status: string, note: string } }>({});
     const [studentParentsMap, setStudentParentsMap] = useState<{ [studentId: string]: Parent[] }>({});
     const [timeAttendanceData, setTimeAttendanceData] = useState<{ [studentCode: string]: { checkIn: string | null, checkOut: string | null } }>({});
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
     useEffect(() => {
         fetchSchoolYears();
@@ -93,15 +95,17 @@ const AttendanceList: React.FC = () => {
             setPendingAttendances({});
         }
     }, [selectedClass]);
-    // 2. Khi đổi lớp hoặc ngày: load lại điểm danh và timeAttendance
+    // 2. Khi đổi lớp hoặc ngày: load lại điểm danh, timeAttendance và leave requests
     useEffect(() => {
         if (selectedClass && selectedDate) {
             fetchAttendances();
             fetchTimeAttendanceData();
+            fetchLeaveRequests();
         } else {
             // Nếu chưa chọn lớp hoặc ngày, xóa danh sách điểm danh
             setAttendances([]);
             setTimeAttendanceData({});
+            setLeaveRequests([]);
         }
     }, [selectedClass, selectedDate, students]); // Thêm students vào dependency để fetch khi có students mới
 
@@ -293,8 +297,191 @@ const AttendanceList: React.FC = () => {
         }
     };
 
+    const fetchLeaveRequests = async () => {
+        if (!students.length || !selectedDate) return;
+        
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const studentIds = students.map(student => student._id).filter(Boolean);
+        
+        console.log('Fetching leave requests with params:', {
+            selectedDate: selectedDate,
+            dateStr: dateStr,
+            studentIds: studentIds.length
+        });
+        
+        if (studentIds.length === 0) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            // Fetch ALL leave requests (remove date filter to get everything, let frontend filter)
+            const response = await axios.get(API_ENDPOINTS.LEAVE_REQUESTS, {
+                params: {
+                    limit: 1000 // Get a large number of records
+                },
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            console.log('Raw response from backend:', response.data);
+            
+            // Handle paginated response correctly
+            const allLeaveRequests = Array.isArray(response.data) 
+                ? response.data 
+                : response.data.docs || response.data.data || [];
+            
+            console.log('All leave requests from backend:', allLeaveRequests);
+            allLeaveRequests.forEach((lr: LeaveRequest, index: number) => {
+                console.log(`Backend Leave Request ${index + 1}:`, {
+                    id: lr._id,
+                    reason: lr.reason,
+                    leaveType: lr.leaveType,
+                    startDate: lr.startDate,
+                    endDate: lr.endDate,
+                    student: lr.student?.name,
+                    studentId: lr.student?._id
+                });
+            });
+            
+            // Filter leave requests for students in current class
+            const classLeaveRequests = allLeaveRequests.filter((lr: LeaveRequest) => {
+                const studentIdStr = lr.student?._id?.toString();
+                const directMatch = studentIds.includes(lr.student?._id);
+                const stringMatch = studentIds.includes(studentIdStr);
+                console.log(`Filtering student ${lr.student?.name}:`, {
+                    studentId: lr.student?._id,
+                    studentIdStr,
+                    directMatch,
+                    stringMatch,
+                    result: directMatch || stringMatch
+                });
+                return directMatch || stringMatch;
+            });
+            
+            console.log('Filtered leave requests for class:', classLeaveRequests);
+            classLeaveRequests.forEach((lr: LeaveRequest, index: number) => {
+                console.log(`Class Leave Request ${index + 1}:`, {
+                    reason: lr.reason,
+                    leaveType: lr.leaveType,
+                    startDate: lr.startDate,
+                    endDate: lr.endDate,
+                    student: lr.student?.name
+                });
+            });
+            
+            setLeaveRequests(classLeaveRequests);
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách đơn xin nghỉ:', error);
+            setLeaveRequests([]);
+        }
+    };
+
     const getAttendanceByStudent = (studentId: string) => {
-        return attendances.find(a => a.student._id === studentId);
+        return attendances.find(a => {
+            const aStudentId = a.student?._id?.toString();
+            const inputStudentId = studentId?.toString();
+            return aStudentId === inputStudentId;
+        });
+    };
+
+    const getLeaveRequestByStudent = (studentId: string) => {
+        return leaveRequests.find(lr => {
+            const lrStudentId = lr.student?._id?.toString();
+            const inputStudentId = studentId?.toString();
+            
+            if (lrStudentId !== inputStudentId) return false;
+            
+            // Kiểm tra xem leave request có cover ngày được chọn không
+            const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+            
+            // Convert dates to simple date strings for comparison (ignore time)
+            const leaveStart = new Date(lr.startDate);
+            const leaveEnd = new Date(lr.endDate);
+            
+            // Get date parts in Vietnam timezone (GMT+7)
+            const leaveStartVN = new Date(leaveStart.getTime() + (7 * 3600 * 1000));
+            const leaveEndVN = new Date(leaveEnd.getTime() + (7 * 3600 * 1000));
+            
+            const leaveStartDateStr = leaveStartVN.toISOString().split('T')[0];
+            const leaveEndDateStr = leaveEndVN.toISOString().split('T')[0];
+            
+            // Check if selected date falls within leave period (inclusive)
+            const isInRange = selectedDateStr >= leaveStartDateStr && selectedDateStr <= leaveEndDateStr;
+            
+            console.log('Checking leave request overlap:', {
+                studentName: lr.student?.name,
+                selectedDate: selectedDateStr,
+                leaveStart: leaveStart.toISOString(),
+                leaveEnd: leaveEnd.toISOString(),
+                leaveStartDateStr,
+                leaveEndDateStr,
+                isInRange
+            });
+            
+            return isInRange;
+        });
+    };
+
+    const getLeaveRequestReason = (leaveRequest: LeaveRequest | undefined) => {
+        if (!leaveRequest) return '';
+        
+        const reasonMap: {[key: string]: string} = {
+            'sick': 'Con bị ốm',
+            'family': 'Gia đình có việc bận',
+            'bereavement': 'Gia đình có việc hiếu',
+            'other': 'Lý do khác'
+        };
+        
+        const reasonText = reasonMap[leaveRequest.reason] || leaveRequest.reason;
+        
+        if (leaveRequest.reason === 'other' && leaveRequest.description) {
+            return `${reasonText}: ${leaveRequest.description}`;
+        }
+        
+        return reasonText;
+    };
+
+    const getLeaveTypeText = (leaveType: string) => {
+        const typeMap: {[key: string]: string} = {
+            'full_day': 'Cả ngày',
+            'morning': 'Buổi sáng',
+            'afternoon': 'Buổi chiều'
+        };
+        return typeMap[leaveType] || leaveType;
+    };
+
+    const getLeaveRequestInfo = (leaveRequest: LeaveRequest | undefined) => {
+        if (!leaveRequest) return '';
+        
+        console.log('Leave request data:', leaveRequest);
+        console.log('Leave type:', leaveRequest.leaveType);
+        
+        const reason = getLeaveRequestReason(leaveRequest);
+        const leaveType = getLeaveTypeText(leaveRequest.leaveType);
+        
+        // Kiểm tra xem có phải nghỉ 1 ngày không - sử dụng UTC dates để tránh timezone issues
+        const startDate = new Date(leaveRequest.startDate);
+        const endDate = new Date(leaveRequest.endDate);
+        
+        // Convert to Vietnam timezone và so sánh ngày
+        const startDateVN = new Date(startDate.getTime() + (7 * 3600 * 1000));
+        const endDateVN = new Date(endDate.getTime() + (7 * 3600 * 1000));
+        
+        const startDateStr = startDateVN.toISOString().split('T')[0];
+        const endDateStr = endDateVN.toISOString().split('T')[0];
+        
+        const isSameDay = startDateStr === endDateStr;
+        
+        console.log('Start date:', startDate, 'VN:', startDateVN, 'DateStr:', startDateStr);
+        console.log('End date:', endDate, 'VN:', endDateVN, 'DateStr:', endDateStr);
+        console.log('Is same day:', isSameDay);
+        console.log('Leave type text:', leaveType);
+        
+        if (isSameDay && leaveRequest.leaveType !== 'full_day') {
+            console.log('Returning with leave type:', `${reason} (${leaveType})`);
+            return `${reason} (${leaveType})`;
+        }
+        
+        console.log('Returning reason only:', reason);
+        return reason;
     };
 
     const getCheckInTime = (student: Student, attendance: Attendance | undefined) => {
@@ -376,7 +563,19 @@ const AttendanceList: React.FC = () => {
 
             for (const student of students) {
                 const pending = pendingAttendances[student._id];
-                if (!pending || !pending.status) continue;
+                const leaveRequest = getLeaveRequestByStudent(student._id);
+                const hasLeaveRequest = !!leaveRequest;
+                
+                // Nếu học sinh có đơn xin nghỉ, tự động set status thành "excused"
+                let finalStatus = pending?.status;
+                let finalNote = pending?.note;
+                
+                if (hasLeaveRequest && !finalStatus) {
+                    finalStatus = 'excused';
+                    finalNote = getLeaveRequestReason(leaveRequest);
+                }
+                
+                if (!finalStatus) continue;
 
                 // Kiểm tra đã có attendance chưa
                 const attendance = attendances.find(a => a.student._id === student._id);
@@ -384,8 +583,8 @@ const AttendanceList: React.FC = () => {
                 if (attendance) {
                     // Update
                     await axios.put(API_ENDPOINTS.ATTENDANCE(attendance._id), {
-                        status: pending.status,
-                        note: pending.note
+                        status: finalStatus,
+                        note: finalNote
                     }, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
@@ -395,8 +594,8 @@ const AttendanceList: React.FC = () => {
                         student: student._id,
                         class: selectedClass,
                         date: selectedDate,
-                        status: pending.status,
-                        note: pending.note,
+                        status: finalStatus,
+                        note: finalNote,
                         teacher: currentTeacher._id
                     };
 
@@ -504,6 +703,9 @@ const AttendanceList: React.FC = () => {
                                     ) : (
                                         students.map((student) => {
                                             const attendance = getAttendanceByStudent(student._id);
+                                            const leaveRequest = getLeaveRequestByStudent(student._id);
+                                            const hasLeaveRequest = !!leaveRequest;
+                                            
                                             return (
                                                 <TableRow key={student._id}>
                                                     <TableCell className="font-medium">{student.studentCode}</TableCell>
@@ -548,16 +750,37 @@ const AttendanceList: React.FC = () => {
                                                             className="cursor-not-allowed text-center "
                                                         />
                                                     </TableCell>
-                                                    {['present', 'absent', 'late', 'excused'].map((status) => (
-                                                        <TableCell key={status} className="text-center">
-                                                            <Checkbox
-                                                                checked={(pendingAttendances[student._id]?.status ?? attendance?.status) === status}
-                                                                onCheckedChange={(checked) => handlePendingStatusChange(student._id, status, checked as boolean)}
-                                                            />
-                                                        </TableCell>
-                                                    ))}
+                                                    {['present', 'absent', 'late', 'excused'].map((status) => {
+                                                        const isExcusedStatus = status === 'excused';
+                                                        const isChecked = (pendingAttendances[student._id]?.status ?? attendance?.status) === status;
+                                                        const shouldBeDisabled = isExcusedStatus && hasLeaveRequest;
+                                                        const shouldBeChecked = isExcusedStatus && hasLeaveRequest ? true : isChecked;
+                                                        
+                                                        return (
+                                                            <TableCell key={status} className="text-center">
+                                                                <Checkbox
+                                                                    checked={shouldBeChecked}
+                                                                    disabled={shouldBeDisabled}
+                                                                    onCheckedChange={(checked) => {
+                                                                        if (!shouldBeDisabled) {
+                                                                            handlePendingStatusChange(student._id, status, checked as boolean);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </TableCell>
+                                                        );
+                                                    })}
                                                     <TableCell>
-                                                        {['absent', 'late', 'excused'].includes(pendingAttendances[student._id]?.status || attendance?.status || '') ? (
+                                                        {hasLeaveRequest ? (
+                                                            <div className="text-sm">
+                                                                <div className="font-medium text-[#002855]">PH tạo đơn xin nghỉ</div>
+                                                                <div className="text-gray-600">{getLeaveRequestInfo(leaveRequest)}</div>
+                                                                {/* <div className="text-xs text-gray-500 mt-1">
+                                                                    Trạng thái: {leaveRequest?.status === 'pending' ? 'Chờ duyệt' : 
+                                                                                leaveRequest?.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}
+                                                                </div> */}
+                                                            </div>
+                                                        ) : ['absent', 'late', 'excused'].includes(pendingAttendances[student._id]?.status || attendance?.status || '') ? (
                                                             <input
                                                                 type="text"
                                                                 value={pendingAttendances[student._id]?.note ?? attendance?.note ?? ''}

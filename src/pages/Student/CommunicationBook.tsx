@@ -43,6 +43,8 @@ interface Student {
     _id: string;
     name: string;
     studentCode: string;
+    klass?: Array<{_id: string; className?: string}>;
+    class?: {_id: string} | string;
 }
 
 interface Teacher {
@@ -83,6 +85,14 @@ interface Class {
     homeroomTeachers?: Teacher[];
 }
 
+interface SchoolYear {
+    _id: string;
+    name?: string;
+    code: string;
+    isActive?: boolean;
+    status?: string;
+}
+
 const CommunicationBookComponent: React.FC = () => {
     const [communications, setCommunications] = useState<CommunicationBook[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
@@ -94,14 +104,14 @@ const CommunicationBookComponent: React.FC = () => {
 
     // New Attendance‐style controls
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    const [schoolYears, setSchoolYears] = useState<{ _id: string; name?: string; code: string }[]>([]);
+    const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
     const [classes, setClasses] = useState<{ _id: string; className: string }[]>([]);
     const [selectedClass, setSelectedClass] = useState<string>('');
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<string>('');
     const [userRole, setUserRole] = useState<string>('');
-    const [currentTeacher, setCurrentTeacher] = useState<any>(null);
+    const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
     const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 
     const { toast } = useToast();
@@ -114,7 +124,13 @@ const CommunicationBookComponent: React.FC = () => {
             const yrs = await axios.get(API_ENDPOINTS.SCHOOL_YEARS, { headers: { Authorization: `Bearer ${token}` } });
             const yearArr = Array.isArray(yrs.data) ? yrs.data : yrs.data.data || [];
             setSchoolYears(yearArr);
-            if (yearArr.length) setSelectedSchoolYear(yearArr[0]._id);
+            
+            // Find active school year or default to first one
+            if (yearArr.length) {
+                const activeYear = yearArr.find((y: SchoolYear) => y.isActive === true || y.status === 'active');
+                setSelectedSchoolYear(activeYear ? activeYear._id : yearArr[0]._id);
+            }
+            
             // fetch current user
             const me = await axios.get(API_ENDPOINTS.CURRENT_USER, { headers: { Authorization: `Bearer ${token}` } });
             setUserRole(me.data.role);
@@ -127,7 +143,7 @@ const CommunicationBookComponent: React.FC = () => {
         if (!selectedSchoolYear) return;
         const fetchClasses = async () => {
             const token = localStorage.getItem('token');
-            if (userRole === 'admin') {
+            if (userRole === 'admin' || userRole === 'superadmin') {
                 const res = await axios.get(API_ENDPOINTS.CLASSES, { params: { schoolYear: selectedSchoolYear }, headers: { Authorization: `Bearer ${token}` } });
                 const clsArr = Array.isArray(res.data) ? res.data : res.data.data || [];
                 setClasses(clsArr);
@@ -151,12 +167,27 @@ const CommunicationBookComponent: React.FC = () => {
 
     // 3. When class changes, load students
     useEffect(() => {
-        if (!selectedClass) return;
+        if (!selectedClass) {
+            setStudents([]);
+            setSelectedStudent('');
+            return;
+        }
         const fetchStus = async () => {
             const token = localStorage.getItem('token');
-            const res = await axios.get(API_ENDPOINTS.STUDENTS, { params: { classId: selectedClass }, headers: { Authorization: `Bearer ${token}` } });
-            const arr = Array.isArray(res.data) ? res.data : res.data.data || [];
-            setStudents(arr);
+            console.log('Loading students for class:', selectedClass);
+            
+            // Use the same endpoint as Attendance page - students-by-class
+            const res = await axios.get(API_ENDPOINTS.STUDENTS_BY_CLASS, { 
+                params: { classId: selectedClass },
+                headers: { Authorization: `Bearer ${token}` } 
+            });
+            
+            const studentsArr = Array.isArray(res.data) ? res.data : res.data.data || [];
+            console.log('Students loaded for class:', studentsArr.length, 'students for class', selectedClass);
+            
+            setStudents(studentsArr);
+            // Reset selected student when class changes
+            setSelectedStudent('');
         };
         fetchStus();
     }, [selectedClass]);
@@ -232,8 +263,10 @@ const CommunicationBookComponent: React.FC = () => {
             setStudyRating('');
             setDisciplineRating('');
             setExtracurricularRating('');
-        } catch (error: any) {
-            const msg = error.response?.data?.message || 'Có lỗi khi gửi sổ liên lạc';
+        } catch (error: unknown) {
+            const msg = error instanceof Error && 'response' in error 
+                ? (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Có lỗi khi gửi sổ liên lạc'
+                : 'Có lỗi khi gửi sổ liên lạc';
             toast({
                 variant: 'destructive',
                 title: 'Lỗi',
@@ -283,84 +316,88 @@ const CommunicationBookComponent: React.FC = () => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Chọn học sinh</label>
-                                <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                                    <SelectTrigger><SelectValue placeholder="Chọn học sinh" /></SelectTrigger>
-                                    <SelectContent>
-                                        {students.map(s => (
-                                            <SelectItem key={s._id} value={s._id}>
-                                                {s.name} ({s.studentCode})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            {selectedClass && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Chọn học sinh</label>
+                                    <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn học sinh" /></SelectTrigger>
+                                        <SelectContent>
+                                            {students.map(s => (
+                                                <SelectItem key={s._id} value={s._id}>
+                                                    {s.name} ({s.studentCode})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="w-full mb-6">
-                            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                                <div className="space-y-7">
-                                    <div className="w-full md:w-1/3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">Học tập</label>
-                                            <Select value={studyRating} onValueChange={setStudyRating}>
-                                                <SelectTrigger><SelectValue placeholder="Chọn" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="A">A</SelectItem>
-                                                    <SelectItem value="B">B</SelectItem>
-                                                    <SelectItem value="C">C</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                        {(userRole === 'admin' || userRole === 'superadmin' || userRole === 'teacher') && (
+                            <div className="w-full mb-6">
+                                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                                    <div className="space-y-7">
+                                        <div className="w-full md:w-1/3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Học tập</label>
+                                                <Select value={studyRating} onValueChange={setStudyRating}>
+                                                    <SelectTrigger><SelectValue placeholder="Chọn" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="A">A</SelectItem>
+                                                        <SelectItem value="B">B</SelectItem>
+                                                        <SelectItem value="C">C</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Kỷ luật</label>
+                                                <Select value={disciplineRating} onValueChange={setDisciplineRating}>
+                                                    <SelectTrigger><SelectValue placeholder="Chọn" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="A">A</SelectItem>
+                                                        <SelectItem value="B">B</SelectItem>
+                                                        <SelectItem value="C">C</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Ngoại khoá</label>
+                                                <Select value={extracurricularRating} onValueChange={setExtracurricularRating}>
+                                                    <SelectTrigger><SelectValue placeholder="Chọn" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="A">A</SelectItem>
+                                                        <SelectItem value="B">B</SelectItem>
+                                                        <SelectItem value="C">C</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">Kỷ luật</label>
-                                            <Select value={disciplineRating} onValueChange={setDisciplineRating}>
-                                                <SelectTrigger><SelectValue placeholder="Chọn" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="A">A</SelectItem>
-                                                    <SelectItem value="B">B</SelectItem>
-                                                    <SelectItem value="C">C</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                        <div className="grid gap-2">
+                                            <label className="font-medium">Nội dung</label>
+                                            <textarea
+                                                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                placeholder="Nhập nội dung liên lạc..."
+                                                rows={4}
+                                                value={content}
+                                                onChange={(e) => setContent(e.target.value)}
+                                            ></textarea>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">Ngoại khoá</label>
-                                            <Select value={extracurricularRating} onValueChange={setExtracurricularRating}>
-                                                <SelectTrigger><SelectValue placeholder="Chọn" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="A">A</SelectItem>
-                                                    <SelectItem value="B">B</SelectItem>
-                                                    <SelectItem value="C">C</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={
+                                                !selectedStudent ||
+                                                !content.trim() ||
+                                                !studyRating ||
+                                                !disciplineRating ||
+                                                !extracurricularRating
+                                            }
+                                        >
+                                            Gửi liên lạc
+                                        </Button>
                                     </div>
-                                    <div className="grid gap-2">
-                                        <label className="font-medium">Nội dung</label>
-                                        <textarea
-                                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                            placeholder="Nhập nội dung liên lạc..."
-                                            rows={4}
-                                            value={content}
-                                            onChange={(e) => setContent(e.target.value)}
-                                        ></textarea>
-                                    </div>
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            !selectedStudent ||
-                                            !content.trim() ||
-                                            !studyRating ||
-                                            !disciplineRating ||
-                                            !extracurricularRating
-                                        }
-                                    >
-                                        Gửi liên lạc
-                                    </Button>
-                                </div>
-                            </form>
-                        </div>
+                                </form>
+                            </div>
+                        )}
                     </div>
 
                     <div className="rounded-lg">
@@ -454,11 +491,14 @@ const CommunicationBookComponent: React.FC = () => {
                                                                     });
                                                                     // Đóng dialog sau khi lưu thành công
                                                                     setOpenDialogId(null);
-                                                                } catch (error: any) {
+                                                                } catch (error: unknown) {
+                                                                    const msg = error instanceof Error && 'response' in error 
+                                                                        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message || "Có lỗi khi cập nhật sổ liên lạc"
+                                                                        : "Có lỗi khi cập nhật sổ liên lạc";
                                                                     toast({
                                                                         variant: "destructive",
                                                                         title: "Lỗi",
-                                                                        description: error.response?.data?.message || "Có lỗi khi cập nhật sổ liên lạc",
+                                                                        description: msg,
                                                                     });
                                                                 }
                                                             }}>
