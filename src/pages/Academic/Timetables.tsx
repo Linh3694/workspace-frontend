@@ -461,9 +461,14 @@ const TimetablesPage = () => {
           if (!subjectDoc) continue;
 
           const teacherNames = teacherRows
-            .map((tr) => String(tr[c] || "").trim())
+            .map((tr) => {
+              const teacherCell = String(tr[c] || "").trim();
+              // Split by common separators to support multiple teachers in one cell
+              return teacherCell.split(/[,/\n]/).map(name => name.trim()).filter(Boolean);
+            })
+            .flat()
             .filter(Boolean)
-            .slice(0, 2);
+            .slice(0, 2); // Limit to max 2 teachers
           const teacherIds = teacherNames
             .map((n) => findTeacherId(n))
             .filter(Boolean);

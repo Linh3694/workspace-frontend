@@ -112,6 +112,8 @@ const CommunicationBookComponent: React.FC = () => {
     const [selectedStudent, setSelectedStudent] = useState<string>('');
     const [userRole, setUserRole] = useState<string>('');
     const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [selectedTeacher, setSelectedTeacher] = useState<string>('');
     const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 
     const { toast } = useToast();
@@ -144,10 +146,16 @@ const CommunicationBookComponent: React.FC = () => {
         const fetchClasses = async () => {
             const token = localStorage.getItem('token');
             if (userRole === 'admin' || userRole === 'superadmin') {
+                // Load all classes for admin/superadmin
                 const res = await axios.get(API_ENDPOINTS.CLASSES, { params: { schoolYear: selectedSchoolYear }, headers: { Authorization: `Bearer ${token}` } });
                 const clsArr = Array.isArray(res.data) ? res.data : res.data.data || [];
                 setClasses(clsArr);
                 setSelectedClass(clsArr[0]?._id || '');
+                
+                // Load all teachers for admin/superadmin to choose from
+                const tRes = await axios.get(API_ENDPOINTS.TEACHERS, { headers: { Authorization: `Bearer ${token}` } });
+                const teachersArr = Array.isArray(tRes.data) ? tRes.data : tRes.data.data || [];
+                setTeachers(teachersArr);
             } else if (userRole === 'teacher') {
                 // same logic as Attendance: fetch teachers, find current, then filter homeroomClasses
                 const tRes = await axios.get(API_ENDPOINTS.TEACHERS, { headers: { Authorization: `Bearer ${token}` } });
@@ -228,11 +236,21 @@ const CommunicationBookComponent: React.FC = () => {
 
         try {
             const token = localStorage.getItem('token');
+            
+            // Determine teacher ID based on user role
+            let teacherId;
+            if (userRole === 'teacher') {
+                teacherId = currentTeacher?._id;
+            } else if (userRole === 'admin' || userRole === 'superadmin') {
+                teacherId = selectedTeacher || null; // Allow admin/superadmin to select teacher or leave it null
+            }
+            
             await axios.post(`${API_URL}/communications`, {
                 student: selectedStudent,
                 class: selectedClass,
                 date: selectedDate,
-                teacher: currentTeacher?._id,
+                teacher: teacherId,
+                userRole: userRole, // Gửi thêm userRole để backend validate
                 content,
                 ratings: {
                     study: studyRating,
@@ -325,6 +343,21 @@ const CommunicationBookComponent: React.FC = () => {
                                             {students.map(s => (
                                                 <SelectItem key={s._id} value={s._id}>
                                                     {s.name} ({s.studentCode})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            {(userRole === 'admin' || userRole === 'superadmin') && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Chọn giáo viên</label>
+                                    <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn giáo viên (tùy chọn)" /></SelectTrigger>
+                                        <SelectContent>
+                                            {teachers.map(t => (
+                                                <SelectItem key={t._id} value={t._id}>
+                                                    {t.fullName || 'Không có tên'}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

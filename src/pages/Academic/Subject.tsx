@@ -395,10 +395,7 @@ const SubjectComponent: React.FC = () => {
       });
     }
   };
-
-  // When the selected school changes we (1) fetch its grade‑levels and
-  // (2) clear the currently chosen grade‑levels **only if** the user really
-  // changed the school, not when we first populate the form while editing.
+  
   useEffect(() => {
     const selectedSchoolId = form.watch("school");
 
@@ -845,109 +842,57 @@ const SubjectComponent: React.FC = () => {
           <TableBody>
             {subjects.length > 0 ? (
               <>
-                {subjects
-                  /* Only top‑level (không có parent) */
-                  .filter((s) => !s.parentSubject)
-                  .map((parent) => (
-                    <React.Fragment key={parent._id}>
-                      {/* ---------- Parent row ---------- */}
-                      <TableRow>
-                        <TableCell className="font-semibold">
-                          {parent.name}
-                          {parent.isParentSubject && (
-                            <span className="ml-2 text-sm opacity-70">(Môn học cha)</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{parent.school?.name || "—"}</TableCell>
-                        <TableCell>
-                          {parent.gradeLevels.map((l) => l.name).join(", ") || "—"}
-                        </TableCell>
-                        <TableCell>
-                          {renderRoomNames(parent).map((room, index) => (
-                            <div key={index}>{room}</div>
-                          ))}
-                        </TableCell>
-                        <TableCell>
-                          {parent.curriculums?.map((c) => c.curriculum.name).join(", ") ||
-                            "—"}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedSubject(parent);
-                              setIsParentSubject(parent.isParentSubject);
-                              setIsDialogOpen(true);
-                            }}
-                          >
-                            Cập nhật
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedSubject(parent);
-                              setIsCurriculumDialogOpen(true);
-                            }}
-                          >
-                            Thêm vào chương trình
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-
-                      {/* ---------- Child rows ---------- */}
-                      {parent.subSubjects.map((sub) => {
-                        // Tìm subject con đầy đủ thông tin (có thể đã có sẵn trong mảng subjects)
-                        const child =
-                          subjects.find((s) => s._id === sub._id) || (sub as Subject);
-
-                        return (
-                          <TableRow key={child._id}>
-                            <TableCell className="pl-8">{child.name}</TableCell>
-                            <TableCell>{child.school?.name || "—"}</TableCell>
-                            <TableCell>
-                              {child.gradeLevels?.map((l: GradeLevel) => l.name).join(", ") ||
-                                "—"}
-                            </TableCell>
-                            <TableCell>
-                              {renderRoomNames(child).map((room, index) => (
-                                <div key={index}>{room}</div>
-                              ))}
-                            </TableCell>
-                            <TableCell>
-                              {child.curriculums
-                                ?.map((c: { curriculum: { _id: string; name: string; } }) => c.curriculum?.name)
-                                .join(", ") || "—"}
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedSubject(child as Subject);
-                                  setIsParentSubject(false);
-                                  setIsDialogOpen(true);
-                                }}
-                              >
-                                Cập nhật
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedSubject(child as Subject);
-                                  setIsCurriculumDialogOpen(true);
-                                }}
-                              >
-                                Thêm vào chương trình
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+                {subjects.map((subject) => (
+                  <TableRow key={subject._id}>
+                    <TableCell className={subject.parentSubject ? "pl-8" : "font-semibold"}>
+                      {subject.name}
+                      {subject.isParentSubject && (
+                        <span className="ml-2 text-sm opacity-70">(Môn học cha)</span>
+                      )}
+                      {subject.parentSubject && (
+                        <span className="ml-2 text-sm opacity-70">
+                          (Con của: {subject.parentSubject.name})
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>{subject.school?.name || "—"}</TableCell>
+                    <TableCell>
+                      {subject.gradeLevels.map((l) => l.name).join(", ") || "—"}
+                    </TableCell>
+                    <TableCell>
+                      {renderRoomNames(subject).map((room, index) => (
+                        <div key={index}>{room}</div>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      {subject.curriculums?.map((c) => c.curriculum.name).join(", ") ||
+                        "—"}
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSubject(subject);
+                          setIsParentSubject(subject.isParentSubject);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        Cập nhật
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSubject(subject);
+                          setIsCurriculumDialogOpen(true);
+                        }}
+                      >
+                        Thêm vào chương trình
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </>
             ) : (
               <TableRow>

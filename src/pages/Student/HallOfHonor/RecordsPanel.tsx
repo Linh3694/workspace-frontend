@@ -8,9 +8,7 @@ import {
   CardTitle
 } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
-import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
-import { Separator } from '../../../components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -18,6 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/alert-dialog';
 import { 
   Trophy, 
   Edit, 
@@ -27,6 +35,7 @@ import {
   Download,
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
+import { toast } from 'sonner';
 
 interface SubAward {
   type: string;
@@ -125,6 +134,10 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [availableSchoolYears, setAvailableSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedSubAward, setSelectedSubAward] = useState<string>('');
   const [availableSubAwards, setAvailableSubAwards] = useState<SubAward[]>([]);
+  
+  // Delete confirmation states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [recordToDelete, setRecordToDelete] = useState<AwardRecord | null>(null);
 
   // Fetch school years from backend
   useEffect(() => {
@@ -233,32 +246,47 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
+
 
   const handleEditRecord = (recordId: string) => {
     // TODO: Implement edit record functionality
     console.log('Edit record:', recordId);
+    toast.info('Chức năng chỉnh sửa record đang được phát triển');
   };
 
-  const handleDeleteRecord = async (recordId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) {
-      return;
-    }
+  const handleDeleteRecord = (record: AwardRecord) => {
+    setRecordToDelete(record);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (!recordToDelete) return;
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_ENDPOINTS.AWARD_RECORDS}/${recordId}`, {
+      await axios.delete(`${API_ENDPOINTS.AWARD_RECORDS}/${recordToDelete._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      toast.success('Xóa bản ghi thành công');
+      
       // Refresh records after deletion
       if (selectedCategory && selectedSchoolYear) {
-        fetchRecords(selectedCategory._id, selectedSchoolYear);
+        const subAward = availableSubAwards.find(sa => {
+          const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+          return subAwardId === selectedSubAward;
+        });
+        
+        if (subAward) {
+          fetchRecords(selectedCategory._id, selectedSchoolYear, subAward);
+        }
       }
+      
+      setDeleteDialogOpen(false);
+      setRecordToDelete(null);
     } catch (error) {
       console.error('Lỗi khi xóa bản ghi:', error);
-      alert('Có lỗi xảy ra khi xóa bản ghi');
+      toast.error('Có lỗi xảy ra khi xóa bản ghi');
     }
   };
 
@@ -277,54 +305,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     console.log('Download Excel');
   };
 
-  const renderStudentInfo = (studentData: StudentData) => {
-    const { student, exam, score, activity, note, noteEng } = studentData;
-    
-    return (
-      <div className="space-y-1">
-        <div className="font-medium">
-          {student?.name || 'N/A'}
-          {student?.studentCode && (
-            <span className="text-muted-foreground ml-1">
-              ({student.studentCode})
-            </span>
-          )}
-        </div>
-        
-        {/* Hiển thị exam và score nếu có */}
-        {exam && (
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Bài thi:</span> {exam}
-            {score && (
-              <span className="ml-2">
-                <span className="font-medium">Điểm:</span> {score}
-              </span>
-            )}
-          </div>
-        )}
-        
-        {/* Hiển thị activity nếu có */}
-        {activity && activity.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Hoạt động:</span> {activity.join(', ')}
-          </div>
-        )}
-        
-        {/* Hiển thị note */}
-        {note && (
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Ghi chú:</span> {note}
-          </div>
-        )}
-        
-        {noteEng && (
-          <div className="text-xs text-muted-foreground italic">
-            <span className="font-medium">Note (EN):</span> {noteEng}
-          </div>
-        )}
-      </div>
-    );
-  };
+
 
   return (
     <Card className="h-full">
@@ -427,128 +408,124 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="gap-2">
                 {records.map((record) => (
-                  <Card key={record._id} className="hover:shadow-sm transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        {/* Header row with title and actions */}
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-base">
-                                {record.subAward.label}
-                              </h3>
-                              <Badge variant="outline" className="text-xs">
-                                {record.subAward.type}
-                              </Badge>
-                              {record.subAward.priority !== undefined && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Ưu tiên: {record.subAward.priority}
-                                </Badge>
-                              )}
+                  <div key={record._id}>
+                    {/* Hiển thị từng học sinh trong record */}
+                    {record.students?.map((studentData, idx) => (
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors mb-2"
+                      >
+                        <div className="flex-1">
+                          <span className="font-medium text-[#002855]">
+                            {studentData.student?.name} ({studentData.student?.studentCode})
+                          </span>
+                          {studentData.note && (
+                            <div className="text-xs text-[#002855] mt-1">
+                              Ghi chú: {studentData.note}
                             </div>
-                            
-                            {record.subAward.labelEng && (
-                              <p className="text-sm text-muted-foreground italic">
-                                {record.subAward.labelEng}
-                              </p>
-                            )}
-                            
-                            {/* Time info */}
-                            <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                              <span>Năm học: {record.subAward.schoolYear}</span>
-                              {record.subAward.semester && (
-                                <span>Học kỳ: {record.subAward.semester}</span>
-                              )}
-                              {record.subAward.month && (
-                                <span>Tháng: {record.subAward.month}</span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Action buttons */}
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEditRecord(record._id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteRecord(record._id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                          )}
                         </div>
-
-                        {/* Students section */}
-                        {record.students?.length > 0 && (
-                          <div>
-                            <Separator className="my-2" />
-                            <div>
-                              <span className="font-medium text-sm">
-                                Học sinh ({record.students.length}):
-                              </span>
-                              <div className="mt-2 space-y-2">
-                                {record.students.map((studentData, idx) => (
-                                  <div key={idx} className="p-2 bg-muted/30 rounded-md">
-                                    {renderStudentInfo(studentData)}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Classes section */}
-                        {record.awardClasses?.length > 0 && (
-                          <div>
-                            <Separator className="my-2" />
-                            <div>
-                              <span className="font-medium text-sm">
-                                Lớp ({record.awardClasses.length}):
-                              </span>
-                              <div className="mt-2 space-y-2">
-                                {record.awardClasses.map((classData, idx) => (
-                                  <div key={idx} className="p-2 bg-muted/30 rounded-md">
-                                    <div className="font-medium">
-                                      {classData.classInfo?.className || classData.class}
-                                    </div>
-                                    {classData.note && (
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        <span className="font-medium">Ghi chú:</span> {classData.note}
-                                      </div>
-                                    )}
-                                    {classData.noteEng && (
-                                      <div className="text-xs text-muted-foreground italic mt-1">
-                                        <span className="font-medium">Note (EN):</span> {classData.noteEng}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Created date */}
-                        <div className="text-xs text-muted-foreground text-right">
-                          Tạo: {formatDate(record.createdAt)}
+                        
+                        {/* Action buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditRecord(record._id)}
+                            title="Chỉnh sửa bản ghi"
+                            className="h-8 px-3 text-xs"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Sửa
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteRecord(record)}
+                            title="Xóa bản ghi"
+                            className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Xóa
+                          </Button>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    ))}
+
+                    {/* Hiển thị từng lớp trong record */}
+                    {record.awardClasses?.map((classData, idx) => (
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <span className="font-medium text-green-800">
+                            {classData.classInfo?.className || classData.class}
+                          </span>
+                          {classData.note && (
+                            <div className="text-xs text-green-600 mt-1">
+                              Ghi chú: {classData.note}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditRecord(record._id)}
+                            title="Chỉnh sửa bản ghi"
+                            className="h-8 px-3 text-xs"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Sửa
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteRecord(record)}
+                            title="Xóa bản ghi"
+                            className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ))}
               </div>
             )}
           </div>
         </ScrollArea>
       </CardContent>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa bản ghi</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa bản ghi vinh danh <strong>"{recordToDelete?.subAward.label}"</strong>?
+              <br />
+              Hành động này không thể hoàn tác và sẽ xóa tất cả thông tin học sinh/lớp trong bản ghi này.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteRecord}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Xóa bản ghi
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
