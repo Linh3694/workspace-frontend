@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, MapPin, Calendar, Monitor, Cpu, HardDrive, MemoryStick, Clock, Download, AlertTriangle, Plus, Trash2, Flower2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, MapPin, Calendar, Eye, UserX, UserRoundPlus, FilePlus, MapPinPlus, Monitor, Cpu, HardDrive, MemoryStick, Clock, Download, AlertTriangle, Plus, Trash2, Flower2, Upload, Wrench, History } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
@@ -7,9 +7,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../../components/ui/avat
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Textarea } from '../../../components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/tooltip';
 import { getAvatarUrl, getInitials } from '../../../lib/utils';
 import { inventoryService } from '../../../services/inventoryService';
 import type { DeviceType } from '../../../types/inventory';
+import { useAuth } from '../../../contexts/AuthContext';
 import AssignRoomModal from './AssignRoomModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import AssignDeviceModal from './AssignDeviceModal';
@@ -64,6 +66,19 @@ interface DeviceDetail {
   }>;
   reason?: string;
   brokenReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Activity {
+  _id: string;
+  entityType: string;
+  entityId: string;
+  type: 'repair' | 'update';
+  description: string;
+  details?: string;
+  date: string;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,7 +142,9 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   deviceType, 
   deviceId 
 }) => {
+  const { user } = useAuth();
   const [device, setDevice] = useState<DeviceDetail | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
@@ -151,9 +168,24 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   // Revoke device modal state
   const [isRevokeDeviceModalOpen, setIsRevokeDeviceModalOpen] = useState(false);
 
+  // Upload handover modal state
+  const [isUploadHandoverModalOpen, setIsUploadHandoverModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Add activity modal state
+  const [isAddActivityModalOpen, setIsAddActivityModalOpen] = useState(false);
+  const [newActivity, setNewActivity] = useState({
+    type: 'repair' as 'repair' | 'update',
+    description: '',
+    details: ''
+  });
+  const [isAddingActivity, setIsAddingActivity] = useState(false);
+
   useEffect(() => {
     if (open && deviceId) {
       fetchDeviceDetail();
+      fetchActivities();
     }
   }, [open, deviceId, deviceType]);
 
@@ -171,6 +203,21 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
       setError('Không thể tải thông tin chi tiết thiết bị.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchActivities = async () => {
+    if (!deviceId) return;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/activities/${deviceType}/${deviceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data);
+      }
+    } catch (err) {
+      console.error('Error fetching activities:', err);
+      // Không set error vì activities không phải thông tin quan trọng
     }
   };
 
@@ -194,6 +241,94 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   const handleRevokeDeviceSuccess = () => {
     // Refresh device data after successful device revoke
     fetchDeviceDetail();
+  };
+
+  const handleAddActivity = async () => {
+    if (!deviceId || !newActivity.description.trim()) return;
+    
+    setIsAddingActivity(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/activities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          entityType: deviceType,
+          entityId: deviceId,
+          type: newActivity.type,
+          description: newActivity.description.trim(),
+          details: newActivity.details.trim() || undefined,
+          updatedBy: user?.fullname || 'Không xác định',
+        }),
+      });
+
+      if (response.ok) {
+        await fetchActivities(); // Refresh activities
+        setIsAddActivityModalOpen(false);
+        setNewActivity({ type: 'repair', description: '', details: '' });
+      }
+    } catch (err) {
+      console.error('Error adding activity:', err);
+    } finally {
+      setIsAddingActivity(false);
+    }
+  };
+
+  // Upload handover handlers
+  const handleUploadHandover = () => {
+    setIsUploadHandoverModalOpen(true);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !device?.assigned?.[0] || !deviceId) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append(`${deviceType}Id`, deviceId);
+      formData.append('userId', device.assigned[0]._id);
+      formData.append('username', device.assigned[0].fullname);
+
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/inventory/${deviceType}s/upload-handover`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      console.log('Upload successful:', result);
+      
+      // Nếu thiết bị đang ở trạng thái "Thiếu biên bản", cập nhật sang "Đang sử dụng"
+      if (device.status === 'PendingDocumentation') {
+        try {
+          await inventoryService.updateDeviceStatus(deviceType, deviceId, 'Active');
+          console.log('Device status updated to Active');
+        } catch (statusError) {
+          console.error('Error updating device status:', statusError);
+          // Không throw error vì upload đã thành công, chỉ log lỗi
+        }
+      }
+      
+      // Refresh device data after successful upload
+      await fetchDeviceDetail();
+      setIsUploadHandoverModalOpen(false);
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading handover document:', error);
+      setError('Không thể tải lên biên bản bàn giao.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleGenerateHandoverDocument = async () => {
@@ -302,255 +437,285 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-3">
-            <span>Chi tiết thiết bị</span>
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="min-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogHeader>
+        <DialogTitle className="flex items-center space-x-3">
+          <span>Chi tiết thiết bị</span>
+        </DialogTitle>
+      </DialogHeader>
 
-        <div className="flex-1 overflow-auto space-y-6">
-          {isLoading && (
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-24 w-full" />
+      <div className="flex-1 overflow-auto space-y-6">
+        {isLoading && (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <p className="text-red-500">{error}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={fetchDeviceDetail}
+              >
+                Thử lại
+              </Button>
             </div>
-          )}
+          </div>
+        )}
 
-          {error && (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <p className="text-red-500">{error}</p>
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={fetchDeviceDetail}
-                >
-                  Thử lại
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {device && !isLoading && !error && (
-            <>
-              {/* Basic Information and Technical Specifications - Same Row */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Basic Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Monitor className="h-5 w-5" />
-                      <span>Thông tin cơ bản</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Tên thiết bị</p>
-                          <p className="text-sm font-semibold">{device.name}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-500">Serial</p>
-                          <p className="text-sm font-semibold">{device.serial}</p>
-                        </div>
-                        {device.manufacturer && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Hãng sản xuất</p>
-                            <p className="text-sm font-semibold">{device.manufacturer}</p>
-                          </div>
-                        )}
+        {device && !isLoading && !error && (
+          <>
+            {/* Basic Information and Technical Specifications - Same Row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Monitor className="h-5 w-5" />
+                    <span>Thông tin cơ bản</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Tên thiết bị</p>
+                        <p className="text-sm font-semibold">{device.name}</p>
                       </div>
-                      <div className="space-y-3">
-                        {device.type && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Loại</p>
-                            <p className="text-sm font-semibold">{device.type}</p>
-                          </div>
-                        )}
-                        {device.releaseYear && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Năm sản xuất</p>
-                            <p className="text-sm font-semibold">{device.releaseYear}</p>
-                          </div>
-                        )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Serial</p>
+                        <p className="text-sm font-semibold">{device.serial}</p>
+                      </div>
+                      {device.manufacturer && (
                         <div>
-                          <p className="text-sm font-medium text-gray-500">Trạng thái</p>
-                          <div className="mt-1">
-                            {getStatusBadge(device.status)}
-                          </div>
+                          <p className="text-sm font-medium text-gray-500">Hãng sản xuất</p>
+                          <p className="text-sm font-semibold">{device.manufacturer}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {device.type && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Loại</p>
+                          <p className="text-sm font-semibold">{device.type}</p>
+                        </div>
+                      )}
+                      {device.releaseYear && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Năm sản xuất</p>
+                          <p className="text-sm font-semibold">{device.releaseYear}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Trạng thái</p>
+                        <div className="mt-1">
+                          {getStatusBadge(device.status)}
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {device.status === 'Broken' && (device.reason || device.brokenReason) && (
-                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm font-medium text-red-800">Lý do báo hỏng</p>
-                        <p className="text-red-700">{device.reason || device.brokenReason}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  {device.status === 'Broken' && (device.reason || device.brokenReason) && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm font-medium text-red-800">Lý do báo hỏng</p>
+                      <p className="text-red-700">{device.reason || device.brokenReason}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                {/* Technical Specifications */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Cpu className="h-5 w-5" />
-                        <span>Thông số kỹ thuật</span>
-                      </div>
-                      {device.status !== 'Broken' ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleReportBroken}
-                          className="flex items-center space-x-1 text-red-600 border-red-300 hover:bg-red-50"
-                        >
-                          <AlertTriangle className="h-4 w-4" />
-                          <span>Báo hỏng</span>
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleReviveDevice}
-                          className="flex items-center space-x-1 text-green-600 border-green-300 hover:bg-green-50"
-                        >
-                          <Flower2 className="h-4 w-4" />
-                          <span>Hồi sinh</span>
-                        </Button>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {specs.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        {specs.map((spec, index) => {
-                          const Icon = spec.icon;
-                          return (
-                            <div key={index} className="flex items-center space-x-3">
-                              <Icon className="h-4 w-4 text-gray-500" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-500">{spec.label}</p>
-                                <p className="text-sm font-semibold">{spec.value}</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+              {/* Technical Specifications */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Cpu className="h-5 w-5" />
+                      <span>Thông số kỹ thuật</span>
+                    </div>
+                    {device.status !== 'Broken' ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleReportBroken}
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>Báo hỏng</span>
+                      </Button>
                     ) : (
-                      <p className="text-gray-500">Chưa có thông số kỹ thuật</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleReviveDevice}
+                        className="flex items-center space-x-1 text-green-600 border-green-300 hover:bg-green-50"
+                      >
+                        <Flower2 className="h-4 w-4" />
+                        <span>Hồi sinh</span>
+                      </Button>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {specs.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {specs.map((spec, index) => {
+                        const Icon = spec.icon;
+                        return (
+                          <div key={index} className="flex items-center space-x-3">
+                            <Icon className="h-4 w-4 text-gray-500" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-500">{spec.label}</p>
+                              <p className="text-sm font-semibold">{spec.value}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">Chưa có thông số kỹ thuật</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-              {/* Current Assignment and Assignment History - Same Row */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Current Assignment */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
+            {/* Current Assignment and Assignment History - Same Row */}
+            <div className="grid grid-cols-2 gap-4">
+                              {/* Current Assignment */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
                       <User className="h-5 w-5" />
                       <span>Thông tin sử dụng hiện tại</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {device.assigned && device.assigned.length > 0 ? (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage 
-                              src={getAvatarUrl(device.assigned[0]?.avatarUrl)} 
-                              alt={device.assigned[0]?.fullname}
-                              className="object-cover object-top" 
-                            />
-                            <AvatarFallback>
-                              {getInitials(device.assigned[0]?.fullname || '')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{device.assigned[0]?.fullname}</p>
-                            <p className="text-sm text-gray-500">{device.assigned[0]?.jobTitle}</p>
-                            {device.assigned[0]?.department && (
-                              <p className="text-xs text-gray-400">{device.assigned[0]?.department}</p>
-                            )}
-                          </div>
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsHistoryDialogOpen(true)}
+                          className="h-8 w-8 p-0"
+                          title="Xem lịch sử"
+                        >
+                          <Clock className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Lịch sử</TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {device.assigned && device.assigned.length > 0 ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage 
+                            src={getAvatarUrl(device.assigned[0]?.avatarUrl)} 
+                            alt={device.assigned[0]?.fullname}
+                            className="object-cover object-top" 
+                          />
+                          <AvatarFallback>
+                            {getInitials(device.assigned[0]?.fullname || '')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{device.assigned[0]?.fullname}</p>
+                          <p className="text-sm text-gray-500">{device.assigned[0]?.jobTitle}</p>
+                          {device.assigned[0]?.department && (
+                            <p className="text-xs text-gray-400">{device.assigned[0]?.department}</p>
+                          )}
                         </div>
-                        <div className="flex flex-col space-y-2">
-                          {getCurrentAssignmentDocument() && (
+                      </div>
+                      <div className="flex flex-row space-x-2">
+                        {getCurrentAssignmentDocument() && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadDocument(getCurrentAssignmentDocument()!)}
+                                className="text-xs"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Biên bản</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {device.status === 'PendingDocumentation' && (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleGenerateHandoverDocument}
+                                  className="text-xs text-[#002855] border-[#002855] hover:bg-green-50"
+                                >
+                                  <FilePlus className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Tạo biên bản</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setIsUploadHandoverModalOpen(true)}
+                                  className="text-xs text-[#002855] border-[#002855] hover:bg-blue-50"
+                                >
+                                  <Upload className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Cập nhật</TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownloadDocument(getCurrentAssignmentDocument()!)}
-                              className="text-xs"
+                              onClick={() => setIsRevokeDeviceModalOpen(true)}
+                              className="text-xs text-orange-600 border-orange-700 hover:bg-orange-50 hover:text-orange-600"
                             >
-                              <Download className="h-3 w-3 mr-1" />
-                              Tải biên bản
+                              <UserX className="h-3 w-3" />
                             </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGenerateHandoverDocument}
-                            className="text-xs text-green-600 border-green-300 hover:bg-green-50"
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Biên bản
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsRevokeDeviceModalOpen(true)}
-                            className="text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
-                          >
-                            <User className="h-3 w-3 mr-1" />
-                            Thu hồi
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsHistoryDialogOpen(true)}
-                            className="text-xs"
-                          >
-                            <Clock className="h-3 w-3 mr-1" />
-                            Lịch sử
-                          </Button>
-                        </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Thu hồi</TooltipContent>
+                        </Tooltip>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-500">Chưa có người sử dụng</p>
-                        <div className="flex flex-col space-y-2">
-                          {device.status === 'Standby' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsAssignDeviceModalOpen(true)}
-                              className="text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
-                            >
-                              <User className="h-3 w-3 mr-1" />
-                              Bàn giao
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsHistoryDialogOpen(true)}
-                            className="text-xs"
-                          >
-                            <Clock className="h-3 w-3 mr-1" />
-                            Xem lịch sử
-                          </Button>
-                        </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <p className="text-gray-500">Chưa có người sử dụng</p>
+                      <div className="flex flex-col space-y-2">
+                        {device.status === 'Standby' && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsAssignDeviceModalOpen(true)}
+                                className="text-xs text-[#002855] border-[#002855] hover:bg-blue-50"
+                              >
+                                <UserRoundPlus className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Bàn giao</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
                 {/* Location Information */}
                 <Card>
@@ -564,7 +729,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                     <div className="space-y-3">
                       {device.room ? (
                         <div>
-                          <div className="flex items-start justify-between">
+                          <div className="flex items-center justify-center">
                             <div className="flex-1">
                               <p className="font-medium">{device.room.name}</p>
                               <p className="text-sm mt-1 text-gray-600">
@@ -584,15 +749,20 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                               </p>
                             </div>
                             <div className="flex items-center space-x-1 ml-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleDeleteRoom}
-                                className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
-                                title="Xóa gán phòng"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleDeleteRoom}
+                                    className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                                    title="Xóa gán phòng"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Xóa gán phòng</TooltipContent>
+                              </Tooltip>
                             </div>
                           </div>
                         </div>
@@ -606,15 +776,21 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                                  <p className="text-sm text-gray-500">Thiết bị chưa được gán vào phòng cụ thể</p>
                                </div>
                              </div>
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               onClick={() => setIsAssignRoomModalOpen(true)}
-                               className="flex items-center space-x-2"
-                             >
-                               <Plus className="h-4 w-4" />
-                               <span>Gán phòng</span>
-                             </Button>
+                             <div className="flex items-center space-x-1 ml-3">
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => setIsAssignRoomModalOpen(true)}
+                                     className="flex items-center"
+                                   >
+                                     <MapPinPlus className="h-4 w-4" />
+                                   </Button>
+                                 </TooltipTrigger>
+                                 <TooltipContent>Gán phòng</TooltipContent>
+                               </Tooltip>
+                             </div>
                            </div>
                          </div>
                         )}
@@ -623,25 +799,68 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                 </Card>
               </div>
 
-              {/* Metadata */}
+              {/* Activities */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5" />
-                    <span>Thông tin hệ thống</span>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Wrench className="h-5 w-5" />
+                      <span>Nhật ký sửa chữa</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsAddActivityModalOpen(true)}
+                      className="text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Thêm
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Ngày tạo</p>
-                      <p className="text-sm">{formatDate(device.createdAt)}</p>
+                  {activities.length > 0 ? (
+                    <div className="space-y-3 max-h-48 overflow-y-auto">
+                      {activities
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map((activity) => (
+                        <div key={activity._id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                          <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
+                            activity.type === 'repair' ? 'bg-red-500' : 'bg-blue-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium text-gray-900">
+                                {activity.description}
+                              </p>
+                              <Badge variant={activity.type === 'repair' ? 'destructive' : 'default'} className="text-xs">
+                                {activity.type === 'repair' ? 'Sửa chữa' : 'Cập nhật'}
+                              </Badge>
+                            </div>
+                            {activity.details && (
+                              <p className="text-sm text-gray-600 mt-1">{activity.details}</p>
+                            )}
+                                                         <div className="flex items-center justify-between mt-2">
+                               <p className="text-xs text-gray-500">
+                                 {formatDate(activity.date)}
+                               </p>
+                               <div className="flex items-center space-x-1">
+                                 <User className="h-3 w-3 text-gray-400" />
+                                 <p className="text-xs text-gray-500">
+                                   {activity.updatedBy || 'Hệ thống'}
+                                 </p>
+                               </div>
+                             </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Cập nhật cuối</p>
-                      <p className="text-sm">{formatDate(device.updatedAt)}</p>
+                  ) : (
+                    <div className="text-center py-6">
+                      <History className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Chưa có nhật ký sửa chữa</p>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </>
@@ -801,9 +1020,11 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
               <p className="text-sm text-gray-600 mb-2">
                 Thiết bị: <span className="font-medium">{device?.name}</span>
               </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Vui lòng mô tả lý do báo hỏng:
-              </p>
+              {user && (
+                <p className="text-sm text-gray-600 mb-4">
+                  Người thực hiện: <span className="font-medium">{user.fullname}</span>
+                </p>
+              )}
               
               <Textarea
                 placeholder="Mô tả chi tiết lý do báo hỏng thiết bị..."
@@ -823,6 +1044,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                 Hủy
               </Button>
               <Button
+                variant="outline"
                 onClick={handleReportBrokenConfirm}
                 disabled={!brokenReason.trim() || isReporting}
                 className="bg-red-600 hover:bg-red-700 text-white"
@@ -894,6 +1116,147 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
         currentUser={device?.assigned?.[0]}
         onRevokeSuccess={handleRevokeDeviceSuccess}
       />
+
+      {/* Upload Handover Modal */}
+      <Dialog open={isUploadHandoverModalOpen} onOpenChange={setIsUploadHandoverModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Upload className="h-5 w-5 text-[#002855]" />
+              <span>Tải lên biên bản bàn giao</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-2">
+                Thiết bị: <span className="font-medium">{device?.name}</span>
+              </p>
+              <p className="text-sm text-gray-600 mb-2">
+                Người sử dụng: <span className="font-medium">{device?.assigned?.[0]?.fullname}</span>
+              </p>
+              <p className="text-sm text-gray-600 mb-2">
+                Trạng thái: <span className="font-medium text-orange-600">Thiếu biên bản</span>
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                Tải lên biên bản bàn giao để chuyển thiết bị sang trạng thái "Đang sử dụng":
+              </p>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+                disabled={isUploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? 'Đang tải lên...' : 'Chọn file'}
+              </Button>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsUploadHandoverModalOpen(false)}
+                disabled={isUploading}
+              >
+                Hủy
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Activity Modal */}
+      <Dialog open={isAddActivityModalOpen} onOpenChange={setIsAddActivityModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Wrench className="h-5 w-5" />
+              <span>Thêm nhật ký sửa chữa</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-2">
+                Thiết bị: <span className="font-medium">{device?.name}</span>
+              </p>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Loại hoạt động</label>
+                  <div className="flex space-x-2 mt-1">
+                    <Button
+                      type="button"
+                      variant={newActivity.type === 'repair' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setNewActivity(prev => ({ ...prev, type: 'repair' }))}
+                      className="text-xs"
+                    >
+                      Sửa chữa
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newActivity.type === 'update' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setNewActivity(prev => ({ ...prev, type: 'update' }))}
+                      className="text-xs"
+                    >
+                      Cập nhật
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Mô tả *</label>
+                  <Textarea
+                    placeholder="Mô tả hoạt động..."
+                    value={newActivity.description}
+                    onChange={(e) => setNewActivity(prev => ({ ...prev, description: e.target.value }))}
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Chi tiết</label>
+                  <Textarea
+                    placeholder="Chi tiết bổ sung (tùy chọn)..."
+                    value={newActivity.details}
+                    onChange={(e) => setNewActivity(prev => ({ ...prev, details: e.target.value }))}
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAddActivityModalOpen(false)}
+                disabled={isAddingActivity}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleAddActivity}
+                disabled={!newActivity.description.trim() || isAddingActivity}
+              >
+                {isAddingActivity ? 'Đang thêm...' : 'Thêm'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
