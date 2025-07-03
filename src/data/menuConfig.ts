@@ -175,6 +175,23 @@ export const MENU_SECTIONS: MenuSection[] = [
     ]
   },
   {
+    title: "Công nghệ thông tin",
+    items: [
+      {
+        title: "Quản lý thiết bị",
+        href: "/dashboard/technology/inventory",
+        description: "Quản lý thiết bị",
+        permission: "technology.inventory"
+      },
+      {
+        title: "Quản lý Ticket",
+        href: "/dashboard/application/tickets/management",
+        description: "Hệ thống quản lý ticket",
+        permission: "application.tickets.admin"
+      },
+    ]
+  },
+  {
     title: "Ứng dụng",
     items: [
       {
@@ -189,12 +206,7 @@ export const MENU_SECTIONS: MenuSection[] = [
         description: "Hệ thống quản lý ticket",
         permission: "application.tickets.user"
       },
-      {
-        title: "Quản lý Ticket",
-        href: "/dashboard/application/tickets/management",
-        description: "Hệ thống quản lý ticket",
-        permission: "application.tickets.admin"
-      },
+     
     ]
   },
   {

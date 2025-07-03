@@ -25,6 +25,7 @@ import LibraryManagement from './pages/Library/libraryManagement';
 import LibraryActivities from './pages/Library/libraryActivities';
 import { RecruitmentAdmin } from './pages/Recruitment';
 import  ApplicationList  from './pages/Recruitment/ApplicationList';
+import Inventory from './pages/Technology/Inventory';
 import { Toaster } from './components/ui/sonner';
 import { Toaster as HotToaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -162,6 +163,13 @@ function App() {
           <Route path="academic/exams" element={
             <RoleProtectedRoute permission="academic.exams">
               <div>Kiểm tra - Đang phát triển</div>
+            </RoleProtectedRoute>
+          } />
+
+          {/* Technology routes */}
+          <Route path="technology/inventory" element={
+            <RoleProtectedRoute permission="technology.inventory">
+              <Inventory />
             </RoleProtectedRoute>
           } />
 
