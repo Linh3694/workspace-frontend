@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, MapPin, Calendar, Eye, UserX, UserRoundPlus, FilePlus, MapPinPlus, Monitor, Cpu, HardDrive, MemoryStick, Clock, Download, AlertTriangle, Plus, Trash2, Flower2, Upload, Wrench, History } from 'lucide-react';
+import { User, MapPin, Eye, UserX, UserRoundPlus, FilePlus, MapPinPlus, Monitor, Cpu, HardDrive, MemoryStick, Clock, Download, AlertTriangle, Plus, Trash2, Flower2, Upload, Wrench, History, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
@@ -16,6 +16,7 @@ import AssignRoomModal from './AssignRoomModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import AssignDeviceModal from './AssignDeviceModal';
 import RevokeDeviceModal from './RevokeDeviceModal';
+import InspectModal from './InspectModal';
 
 interface DeviceDetailModalProps {
   open: boolean;
@@ -182,6 +183,9 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   });
   const [isAddingActivity, setIsAddingActivity] = useState(false);
 
+  // Inspect modal state
+  const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
+
   useEffect(() => {
     if (open && deviceId) {
       fetchDeviceDetail();
@@ -275,10 +279,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
     }
   };
 
-  // Upload handover handlers
-  const handleUploadHandover = () => {
-    setIsUploadHandoverModalOpen(true);
-  };
+
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -799,25 +800,27 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                 </Card>
               </div>
 
-              {/* Activities */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Wrench className="h-5 w-5" />
-                      <span>Nhật ký sửa chữa</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsAddActivityModalOpen(true)}
-                      className="text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Thêm
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
+              {/* Activities and Inspections */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Activities */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Wrench className="h-5 w-5" />
+                        <span>Nhật ký sửa chữa</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAddActivityModalOpen(true)}
+                        className="text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Thêm
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent>
                   {activities.length > 0 ? (
                     <div className="space-y-3 max-h-48 overflow-y-auto">
@@ -863,6 +866,34 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   )}
                 </CardContent>
               </Card>
+
+              {/* Inspections */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="h-5 w-5" />
+                      <span>Kết quả kiểm tra</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsInspectModalOpen(true)}
+                      className="text-xs"
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Xem
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-6">
+                    <CheckCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Xem kết quả kiểm tra kỹ thuật</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
             </>
           )}
         </div>
@@ -1257,6 +1288,15 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Inspect Modal */}
+      <InspectModal
+        open={isInspectModalOpen}
+        onOpenChange={setIsInspectModalOpen}
+        deviceType={deviceType}
+        deviceId={deviceId}
+        deviceName={device?.name || ''}
+      />
     </Dialog>
   );
 };

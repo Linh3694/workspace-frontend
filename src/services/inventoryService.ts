@@ -464,4 +464,52 @@ export const inventoryService = {
     });
     return response.data;
   },
+  /* ---------- INSPECTION APIs ---------- */
+
+/** Lấy bản kiểm tra mới nhất của một thiết bị */
+getLatestInspection: async (deviceId: string) => {
+  const res = await api.get(`/inspects/latest/${deviceId}`);
+  return res.data;               // { message, data }
+},
+
+/** Lấy danh sách inspections (có filter) */
+getInspections: async (params?: {
+  deviceId?: string;
+  inspectorId?: string;
+  startDate?: string;
+  endDate?: string;
+}) => {
+  const res = await api.get('/inspects', { params });
+  return res.data;
+},
+
+/** Tạo inspection mới */
+createInspection: async (payload: Record<string, unknown>) => {
+  const res = await api.post('/inspects', payload);
+  return res.data;
+},
+
+/** Cập nhật inspection */
+updateInspection: async (inspectId: string, payload: Record<string, unknown>) => {
+  const res = await api.put(`/inspects/${inspectId}`, payload);
+  return res.data;
+},
+
+/** Xoá inspection */
+deleteInspection: async (inspectId: string) => {
+  const res = await api.delete(`/inspects/${inspectId}`);
+  return res.data;
+},
+
+/** Upload biên bản (PDF) cho inspection */
+uploadInspectionReport: async (inspectId: string, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('inspectId', inspectId);
+
+  const res = await api.post('/inspects/uploadReport', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+},
 }; 
