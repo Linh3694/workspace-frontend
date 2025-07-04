@@ -116,6 +116,7 @@ interface UpdateDeviceData {
   releaseYear?: number;
   specs?: Record<string, string>;
   assigned?: string[];
+  assignmentHistory?: Array<Record<string, unknown>>;
 }
 
 // Update device function
@@ -129,6 +130,20 @@ const updateDevice = async (deviceType: DeviceType, deviceId: string, updateData
   };
 
   const response = await api.put(`${endpoints[deviceType]}/${deviceId}`, updateData);
+  return response.data;
+};
+
+// Delete device function
+const deleteDevice = async (deviceType: DeviceType, deviceId: string) => {
+  const endpoints = {
+    laptop: '/laptops',
+    monitor: '/monitors',
+    printer: '/printers',
+    projector: '/projectors',
+    tool: '/tools',
+  };
+
+  const response = await api.delete(`${endpoints[deviceType]}/${deviceId}`);
   return response.data;
 };
 
@@ -253,6 +268,9 @@ export const inventoryService = {
 
   // Update device
   updateDevice,
+
+  // Delete device
+  deleteDevice,
 
   // Assign device to room
   assignDeviceToRoom: async (type: DeviceType, deviceId: string, roomId: string) => {
@@ -721,4 +739,6 @@ addActivity: async (activityData: Record<string, unknown>) => {
   if (!response.ok) throw new Error('Failed to add activity');
   return await response.json();
 },
+
 }; 
+

@@ -18,6 +18,8 @@ import AssignDeviceModal from './AssignDeviceModal';
 import RevokeDeviceModal from './RevokeDeviceModal';
 import InspectModal from './InspectModal';
 import CreateInspectModal from './CreateInspectModal';
+import EditSpecsModal from './EditSpecsModal';
+import EditBasicInfoModal from './EditBasicInfoModal';
 
 interface DeviceDetailModalProps {
   open: boolean;
@@ -198,12 +200,21 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   // Inspect modal state
   const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
 
+  // Edit specs modal state
+  const [isEditSpecsModalOpen, setIsEditSpecsModalOpen] = useState(false);
+
+  // Edit basic info modal state
+  const [isEditBasicInfoModalOpen, setIsEditBasicInfoModalOpen] = useState(false);
+
   // Create inspect modal state
   const [isCreateInspectModalOpen, setIsCreateInspectModalOpen] = useState(false);
   
   // Inspection data state
   const [hasInspectionData, setHasInspectionData] = useState(false);
   const [inspectionData, setInspectionData] = useState<InspectionDataType | null>(null);
+
+  // Delete device modal state
+  const [isDeleteDeviceModalOpen, setIsDeleteDeviceModalOpen] = useState(false);
 
   useEffect(() => {
     if (open && deviceId) {
@@ -300,7 +311,8 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !device?.assigned?.[0] || !deviceId) return;
+    const currentUser = getCurrentUser();
+    if (!file || !currentUser || !deviceId) return;
 
     setIsUploading(true);
     try {
@@ -309,12 +321,12 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
         file,
         deviceType,
         deviceId,
-        device.assigned[0]._id,
-        device.assigned[0].fullname,
+        currentUser._id,
+        currentUser.fullname,
       );
 
       // Nếu thiết bị đang ở trạng thái "Thiếu biên bản", cập nhật sang "Đang sử dụng"
-      if (device.status === 'PendingDocumentation') {
+      if (device && device.status === 'PendingDocumentation') {
         try {
           await inventoryService.updateDeviceStatus(deviceType, deviceId, 'Active');
         } catch (statusError) {
@@ -337,7 +349,8 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   };
 
   const handleGenerateHandoverDocument = async () => {
-    if (!device?.assigned?.[0] || !deviceId) return;
+    const currentUser = getCurrentUser();
+    if (!currentUser || !deviceId) return;
 
     try {
       await inventoryService.generateHandoverDocument(
@@ -403,7 +416,14 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
     
     setIsReviving(true);
     try {
+      // Cập nhật trạng thái thiết bị về Standby
       await inventoryService.updateDeviceStatus(deviceType, deviceId, 'Standby');
+      
+      // Xóa toàn bộ lịch sử bàn giao bằng cách cập nhật assignmentHistory thành mảng rỗng
+      await inventoryService.updateDevice(deviceType, deviceId, {
+        assignmentHistory: []
+      });
+      
       await fetchDeviceDetail(); // Refresh device data
       setIsReviveModalOpen(false);
     } catch (err) {
@@ -413,6 +433,57 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
     } finally {
       setIsReviving(false);
     }
+  };
+
+  // Hàm kiểm tra thiết bị đã được bàn giao hay chưa
+  const isDeviceAssigned = () => {
+    if (!device) return false;
+    
+    // 1. Kiểm tra assignmentHistory có record đang mở (chưa có endDate)
+    if (device.assignmentHistory && device.assignmentHistory.length > 0) {
+      const openRecord = device.assignmentHistory.find(assignment => !assignment.endDate);
+      if (openRecord) return true;
+    }
+    
+    // 2. Kiểm tra assigned array
+    if (device.assigned && device.assigned.length > 0) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Hàm lấy thông tin người sử dụng hiện tại
+  const getCurrentUser = () => {
+    if (!device) return null;
+    
+    // 1. Tìm record đang mở trong assignmentHistory
+    if (device.assignmentHistory && device.assignmentHistory.length > 0) {
+      const openRecord = device.assignmentHistory.find(assignment => !assignment.endDate);
+      if (openRecord && openRecord.user) {
+        return {
+          _id: '', // assignmentHistory không có _id trong user
+          fullname: openRecord.userName || openRecord.user.fullname || 'Không xác định',
+          jobTitle: openRecord.user.jobTitle || 'Không xác định',
+          department: 'Không xác định', // assignmentHistory không có department
+          avatarUrl: openRecord.user.avatarUrl
+        };
+      }
+    }
+    
+    // 2. Fallback về assigned array
+    if (device.assigned && device.assigned.length > 0) {
+      return device.assigned[0];
+    }
+    
+    return null;
+  };
+
+  // Hàm kiểm tra có thể bàn giao thiết bị hay không
+  const canAssignDevice = () => {
+    return device && 
+           (device.status === 'Standby' || 
+            (device.status !== 'Broken' && !isDeviceAssigned()));
   };
 
   // Get current assignment document for download button
@@ -478,6 +549,24 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
     }
   };
 
+  // Liquidate device handlers
+const handleLiquidateDevice = () => {
+  setIsDeleteDeviceModalOpen(true);
+};
+
+const handleLiquidateConfirm = async () => {
+  if (!deviceId) return;
+  try {
+    await inventoryService.deleteDevice(deviceType, deviceId);
+    setIsDeleteDeviceModalOpen(false);
+    onOpenChange(false);          // đóng modal chi tiết
+    if (onDeviceUpdated) onDeviceUpdated();
+  } catch (err) {
+    console.error('Error deleting device:', err);
+    setError('Không thể xoá thiết bị.');
+  }
+};
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -520,9 +609,24 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
               {/* Basic Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Monitor className="h-5 w-5" />
-                    <span>Thông tin cơ bản</span>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Monitor className="h-5 w-5" />
+                      <span>Thông tin cơ bản</span>
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsEditBasicInfoModalOpen(true)}
+                          className="text-[#002855] border-[#002855] hover:bg-blue-50 h-8 w-8 p-0"
+                        >
+                          <Wrench className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Chỉnh sửa thông tin</TooltipContent>
+                    </Tooltip>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -582,26 +686,65 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                       <Cpu className="h-5 w-5" />
                       <span>Thông số kỹ thuật</span>
                     </div>
-                    {device.status !== 'Broken' ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleReportBroken}
-                      >
-                        <AlertTriangle className="h-4 w-4" />
-                        <span>Báo hỏng</span>
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleReviveDevice}
-                        className="flex items-center space-x-1 text-[#009483] border-green-300 hover:bg-green-50"
-                      >
-                        <Flower2 className="h-4 w-4" />
-                        <span>Hồi sinh</span>
-                      </Button>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditSpecsModalOpen(true)}
+                            className="text-[#002855] border-[#002855] hover:bg-blue-50 h-8 w-8 p-0"
+                          >
+                            <Wrench className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Cập nhật thông số</TooltipContent>
+                      </Tooltip>
+                      {device.status !== 'Broken' ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={handleReportBroken}
+                              className="h-8 w-8 p-0"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Báo hỏng</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                       <div className="flex space-x-2">
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleReviveDevice}
+          className="text-[#009483] border-green-300 hover:bg-green-50 h-8 w-8 p-0"
+        >
+          <Flower2 className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Hồi sinh</TooltipContent>
+    </Tooltip>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleLiquidateDevice}
+          className="h-8 w-8 p-0"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Thanh lý</TooltipContent>
+    </Tooltip>
+  </div>
+                      )}
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -654,24 +797,24 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {device.assigned && device.assigned.length > 0 ? (
+                  {isDeviceAssigned() ? (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <Avatar className="h-12 w-12">
                           <AvatarImage 
-                            src={getAvatarUrl(device.assigned[0]?.avatarUrl)} 
-                            alt={device.assigned[0]?.fullname}
+                            src={getCurrentUser()?.avatarUrl ? getAvatarUrl(getCurrentUser()!.avatarUrl) : undefined} 
+                            alt={getCurrentUser()?.fullname}
                             className="object-cover object-top" 
                           />
                           <AvatarFallback>
-                            {getInitials(device.assigned[0]?.fullname || '')}
+                            {getInitials(getCurrentUser()?.fullname || '')}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{device.assigned[0]?.fullname}</p>
-                          <p className="text-sm text-gray-500">{device.assigned[0]?.jobTitle}</p>
-                          {device.assigned[0]?.department && (
-                            <p className="text-xs text-gray-400">{device.assigned[0]?.department}</p>
+                          <p className="font-medium">{getCurrentUser()?.fullname}</p>
+                          <p className="text-sm text-gray-500">{getCurrentUser()?.jobTitle}</p>
+                          {getCurrentUser()?.department && (
+                            <p className="text-xs text-gray-400">{getCurrentUser()?.department}</p>
                           )}
                         </div>
                       </div>
@@ -740,7 +883,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                     <div className="flex items-center justify-between">
                       <p className="text-gray-500">Chưa có người sử dụng</p>
                       <div className="flex flex-col space-y-2">
-                        {device.status === 'Standby' && (
+                        {canAssignDevice() && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
@@ -827,7 +970,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                                      variant="outline"
                                      size="sm"
                                      onClick={() => setIsAssignRoomModalOpen(true)}
-                                     className="flex items-center"
+                                     className="h-8 w-8 p-0"
                                    >
                                      <MapPinPlus className="h-4 w-4" />
                                    </Button>
@@ -853,15 +996,19 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                         <Wrench className="h-5 w-5" />
                         <span>Nhật ký sửa chữa</span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsAddActivityModalOpen(true)}
-                        className="text-xs"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Thêm
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsAddActivityModalOpen(true)}
+                            className="text-xs h-8 w-8 p-0"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Thêm nhật ký</TooltipContent>
+                      </Tooltip>
                     </CardTitle>
                   </CardHeader>
                 <CardContent>
@@ -913,39 +1060,52 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-5 w-5" />
-                      <span>Kết quả kiểm tra</span>
+                      <span>Kiểm tra định kỳ</span>
                     </div>
                     <div className="flex space-x-2">
                       {hasInspectionData && (
                         <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleDownloadLatestInspectionReport}
-                            className="flex items-center space-x-1 text-xs"
-                          >
-                            <Download className="h-4 w-4" />
-                            Tải về
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsInspectModalOpen(true)}
-                            className="text-xs"
-                          >
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Xem
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleDownloadLatestInspectionReport}
+                                className="text-xs h-8 w-8 p-0"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Tải báo cáo</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsInspectModalOpen(true)}
+                                className="text-xs h-8 w-8 p-0"
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Xem chi tiết</TooltipContent>
+                          </Tooltip>
                         </>
                       )}
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => setIsCreateInspectModalOpen(true)}
-                        className="text-xs"
-                      >
-                        Kiểm tra
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setIsCreateInspectModalOpen(true)}
+                            className="text-xs h-8 w-8 p-0"
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Kiểm tra thiết bị</TooltipContent>
+                      </Tooltip>
                     </div>
                   </CardTitle>
                 </CardHeader>
@@ -1068,7 +1228,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                   <div key={assignment._id || index} className="flex items-start space-x-4 p-4 border rounded-lg">
                     <Avatar className="h-12 w-12">
                       <AvatarImage 
-                        src={getAvatarUrl(assignment.user?.avatarUrl)} 
+                        src={assignment.user?.avatarUrl ? getAvatarUrl(assignment.user.avatarUrl) : undefined} 
                         alt={assignment.user?.fullname || assignment.userName}
                         className="object-cover object-top" 
                       />
@@ -1108,14 +1268,19 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                       
                       {assignment.document && (
                         <div className="mt-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(assignment.document!)}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Tải biên bản bàn giao
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadDocument(assignment.document!)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Tải biên bản bàn giao</TooltipContent>
+                          </Tooltip>
                         </div>
                       )}
                       
@@ -1288,7 +1453,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
         deviceType={deviceType}
         deviceId={deviceId}
         deviceName={device?.name || ''}
-        currentUser={device?.assigned?.[0]}
+        currentUser={getCurrentUser() || undefined}
         onRevokeSuccess={handleRevokeDeviceSuccess}
       />
 
@@ -1308,7 +1473,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                 Thiết bị: <span className="font-medium">{device?.name}</span>
               </p>
               <p className="text-sm text-gray-600 mb-2">
-                Người sử dụng: <span className="font-medium">{device?.assigned?.[0]?.fullname}</span>
+                Người sử dụng: <span className="font-medium">{getCurrentUser()?.fullname || 'Không xác định'}</span>
               </p>
               <p className="text-sm text-gray-600 mb-2">
                 Trạng thái: <span className="font-medium text-orange-600">Thiếu biên bản</span>
@@ -1454,6 +1619,46 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
           // Refresh device data and inspection data after successful inspection
           fetchDeviceDetail();
           checkInspectionData();
+        }}
+      />
+
+      <DeleteConfirmationModal
+        open={isDeleteDeviceModalOpen}
+        title="Xác nhận thanh lý thiết bị"
+        description="Sau khi thanh lý, thiết bị sẽ bị xoá vĩnh viễn khỏi hệ thống. Bạn chắc chắn muốn tiếp tục?"  
+        onConfirm={handleLiquidateConfirm}
+        onOpenChange={setIsDeleteDeviceModalOpen}
+      />
+
+      {/* Edit Specs Modal */}
+      <EditSpecsModal
+        open={isEditSpecsModalOpen}
+        onOpenChange={setIsEditSpecsModalOpen}
+        deviceType={deviceType}
+        deviceId={deviceId || ''}
+        currentSpecs={device?.specs}
+        onSpecsUpdated={() => {
+          fetchDeviceDetail();
+          onDeviceUpdated?.();
+        }}
+      />
+
+      {/* Edit Basic Info Modal */}
+      <EditBasicInfoModal
+        open={isEditBasicInfoModalOpen}
+        onOpenChange={setIsEditBasicInfoModalOpen}
+        deviceType={deviceType}
+        deviceId={deviceId || ''}
+        currentInfo={{
+          name: device?.name,
+          manufacturer: device?.manufacturer,
+          serial: device?.serial,
+          type: device?.type,
+          releaseYear: device?.releaseYear
+        }}
+        onInfoUpdated={() => {
+          fetchDeviceDetail();
+          onDeviceUpdated?.();
         }}
       />
     </Dialog>

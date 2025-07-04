@@ -25,16 +25,19 @@ export const Avatar: React.FC<AvatarProps> = ({
   fallback,
   onError
 }) => {
-  const [currentSrc, setCurrentSrc] = useState<string>('');
+  const [currentSrc, setCurrentSrc] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const loadAvatar = async () => {
       setHasError(false);
+      console.log('🖼️ Avatar loadAvatar:', { src, name, email, size });
       
       if (src) {
         const avatarUrl = getOptimizedAvatarUrl(src, size, name, email);
+        console.log('🖼️ Avatar optimized URL:', avatarUrl);
         const isValid = await validateImageUrl(avatarUrl);
+        console.log('🖼️ Avatar validation result:', isValid);
         
         if (isValid) {
           setCurrentSrc(avatarUrl);
@@ -44,7 +47,9 @@ export const Avatar: React.FC<AvatarProps> = ({
       
       // Use fallback or default
       const fallbackUrl = fallback || getDefaultAvatar(name, email);
-      setCurrentSrc(fallbackUrl.replace(/size=\d+/, `size=${size}`));
+      const finalFallbackUrl = fallbackUrl.replace(/size=\d+/, `size=${size}`);
+      console.log('🖼️ Avatar using fallback:', finalFallbackUrl);
+      setCurrentSrc(finalFallbackUrl);
     };
 
     loadAvatar();
@@ -61,7 +66,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   return (
     <img
-      src={currentSrc}
+      src={currentSrc || undefined}
       alt={alt}
       className={`rounded-full object-cover ${className}`}
       style={{ width: size, height: size }}
@@ -138,9 +143,11 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
   showTooltip = false
 }) => {
+  console.log('🖼️ UserAvatar render:', { user: user.fullname, avatarUrl: user.avatarUrl });
+  
   const avatarElement = (
     <Avatar
-      src={user.avatarUrl}
+      src={user.avatarUrl ? getOptimizedAvatarUrl(user.avatarUrl, size, user.fullname, user.email) : undefined}
       name={user.fullname}
       email={user.email}
       alt={user.fullname || user.email || 'User'}

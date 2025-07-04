@@ -204,7 +204,7 @@ const DeviceTable: React.FC<{
                   {device.assigned && device.assigned.length > 0 ? (
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-8 w-8 ">
-                        <AvatarImage src={getAvatarUrl(device.assigned[0]?.avatarUrl)} alt={device.assigned[0]?.fullname} className="object-cover object-top" />
+                        <AvatarImage src={device.assigned[0]?.avatarUrl ? getAvatarUrl(device.assigned[0].avatarUrl) : undefined} alt={device.assigned[0]?.fullname} className="object-cover object-top" />
                         <AvatarFallback className="text-xs">
                           {getInitials(device.assigned[0]?.fullname || '')}
                         </AvatarFallback>
@@ -580,7 +580,7 @@ const Inventory: React.FC = () => {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Tìm kiếm thiết bị..."
+                    placeholder="Tìm kiếm thiết bị, tên người sử dụng..."
                     value={searchTerm}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className="pl-10 w-64"

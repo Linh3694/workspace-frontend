@@ -122,7 +122,7 @@ const RevokeDeviceModal: React.FC<RevokeDeviceModalProps> = ({
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage
-                    src={getAvatarUrl(currentUser.avatarUrl)}
+                    src={currentUser.avatarUrl ? getAvatarUrl(currentUser.avatarUrl) : undefined}
                     alt={currentUser.fullname}
                     className="object-cover object-top"
                   />

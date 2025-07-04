@@ -14,16 +14,23 @@ export const AVATAR_BASE_URL = "https://api-dev.wellspring.edu.vn/uploads/Avatar
  * @returns Full avatar URL or fallback
  */
 export function getAvatarUrl(avatarUrl?: string | null): string {
-  if (!avatarUrl) {
-    return getDefaultAvatar();
+  console.log('🖼️ getAvatarUrl input:', avatarUrl);
+  
+  if (!avatarUrl || avatarUrl.trim() === '') {
+    const result = getDefaultAvatar();
+    console.log('🖼️ getAvatarUrl using default:', result);
+    return result;
   }
   
   // If already a full URL, return as is
   if (avatarUrl.startsWith('http') || avatarUrl.startsWith('//')) {
+    console.log('🖼️ getAvatarUrl full URL:', avatarUrl);
     return avatarUrl;
   }
   
-  return `${AVATAR_BASE_URL}/${avatarUrl}`;
+  const result = `${AVATAR_BASE_URL}/${avatarUrl}`;
+  console.log('🖼️ getAvatarUrl constructed URL:', result);
+  return result;
 }
 
 /**
@@ -97,20 +104,28 @@ export function getOptimizedAvatarUrl(
   name?: string,
   email?: string
 ): string {
+  console.log('🖼️ getOptimizedAvatarUrl input:', { avatarUrl, size, name, email });
+  
   // If no avatar provided, use default with name/email
-  if (!avatarUrl) {
+  if (!avatarUrl || avatarUrl.trim() === '') {
     const defaultUrl = getDefaultAvatar(name, email);
-    return defaultUrl.replace(/size=\d+/, `size=${size}`);
+    const result = defaultUrl.replace(/size=\d+/, `size=${size}`);
+    console.log('🖼️ getOptimizedAvatarUrl using default:', result);
+    return result;
   }
   
   const fullUrl = getAvatarUrl(avatarUrl);
+  console.log('🖼️ getOptimizedAvatarUrl full URL:', fullUrl);
   
   // If it's our default avatar service, update size
   if (fullUrl.includes('ui-avatars.com')) {
-    return fullUrl.replace(/size=\d+/, `size=${size}`);
+    const result = fullUrl.replace(/size=\d+/, `size=${size}`);
+    console.log('🖼️ getOptimizedAvatarUrl ui-avatars result:', result);
+    return result;
   }
   
   // If it's a custom uploaded avatar, return as is
   // (You could add image resizing service here if needed)
+  console.log('🖼️ getOptimizedAvatarUrl custom avatar result:', fullUrl);
   return fullUrl;
 }

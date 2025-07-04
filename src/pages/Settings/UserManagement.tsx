@@ -163,10 +163,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      console.log('Fetching users...');
       const response = await api.get<ApiResponse>(API_ENDPOINTS.USERS);
-      console.log('API Response:', response);
-
       if (Array.isArray(response)) {
         setUsers(response);
       } else if (response && Array.isArray(response.data)) {
@@ -326,13 +323,14 @@ const UserManagement = () => {
         };
 
         // Xử lý upload avatar cho tạo mới
+        let response;
         if (data.newAvatarFile && data.newAvatarFile instanceof File) {
           const fd = new FormData();
           Object.entries(submissionData).forEach(([k, v]) => {
             if (v !== undefined && v !== null) fd.append(k, String(v));
           });
           fd.append("avatar", data.newAvatarFile);
-          await api.post<User>(API_ENDPOINTS.USERS, fd, {
+          response = await api.post<User>(API_ENDPOINTS.USERS, fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
         } else if (data.avatar && data.avatar instanceof File) {
@@ -341,12 +339,17 @@ const UserManagement = () => {
             if (v !== undefined && v !== null) fd.append(k, String(v));
           });
           fd.append("avatar", data.avatar);
-          await api.post<User>(API_ENDPOINTS.USERS, fd, {
+          response = await api.post<User>(API_ENDPOINTS.USERS, fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
         } else {
-          await api.post<User>(API_ENDPOINTS.USERS, submissionData);
+          response = await api.post<User>(API_ENDPOINTS.USERS, submissionData);
         }
+        
+        const newUser = response.data || response;
+        
+        // Thêm user mới vào danh sách
+        setUsers(prevUsers => [...prevUsers, newUser]);
         toast({
           variant: "success",
           title: "Thành công",
@@ -377,60 +380,55 @@ const UserManagement = () => {
         };
 
         // Xử lý upload avatar cho cập nhật
+        let response;
         if (data.newAvatarFile && data.newAvatarFile instanceof File) {
           const fd = new FormData();
           Object.entries(updateData).forEach(([k, v]) => {
             if (v !== undefined && v !== null) fd.append(k, String(v));
           });
           fd.append("avatar", data.newAvatarFile);
-          const response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
+          response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
-          const updatedUserFromServer = response.data || response;
-          // Cập nhật localStorage nếu là user hiện tại
-          const stored = localStorage.getItem("user");
-          if (stored) {
-            const currentUser = JSON.parse(stored);
-            if (currentUser._id === selectedUser._id) {
-              const newUser = { ...currentUser, avatarUrl: updatedUserFromServer.avatarUrl };
-              localStorage.setItem("user", JSON.stringify(newUser));
-              window.dispatchEvent(new Event("userUpdated"));
-            }
-          }
         } else if (data.avatar && data.avatar instanceof File) {
           const fd = new FormData();
           Object.entries(updateData).forEach(([k, v]) => {
             if (v !== undefined && v !== null) fd.append(k, String(v));
           });
           fd.append("avatar", data.avatar);
-          const response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
+          response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
-          const updatedUserFromServer = response.data || response;
-          // Cập nhật localStorage nếu là user hiện tại
-          const stored = localStorage.getItem("user");
-          if (stored) {
-            const currentUser = JSON.parse(stored);
-            if (currentUser._id === selectedUser._id) {
-              const newUser = { ...currentUser, avatarUrl: updatedUserFromServer.avatarUrl };
-              localStorage.setItem("user", JSON.stringify(newUser));
-              window.dispatchEvent(new Event("userUpdated"));
-            }
-          }
         } else {
-          const response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), updateData);
-          const updatedUserFromServer = response.data || response;
-          // Cập nhật localStorage nếu là user hiện tại
-          const stored = localStorage.getItem("user");
-          if (stored) {
-            const currentUser = JSON.parse(stored);
-            if (currentUser._id === selectedUser._id) {
-              const newUser = { ...currentUser, avatarUrl: updatedUserFromServer.avatarUrl };
-              localStorage.setItem("user", JSON.stringify(newUser));
-              window.dispatchEvent(new Event("userUpdated"));
-            }
+          response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), updateData);
+        }
+        
+        const updatedUserFromServer = response.data || response;
+        
+        console.log('✅ Updated user from server:', updatedUserFromServer);
+        console.log('✅ Avatar URL:', updatedUserFromServer.avatarUrl);
+        
+        // Cập nhật localStorage nếu là user hiện tại
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const currentUser = JSON.parse(stored);
+          if (currentUser._id === selectedUser._id) {
+            const newUser = { ...currentUser, avatarUrl: updatedUserFromServer.avatarUrl };
+            localStorage.setItem("user", JSON.stringify(newUser));
+            window.dispatchEvent(new Event("userUpdated"));
           }
         }
+        
+        // Cập nhật danh sách users ngay lập tức
+        setUsers(prevUsers => {
+          const updatedUsers = prevUsers.map(user => 
+            user._id === selectedUser._id 
+              ? { ...user, ...updatedUserFromServer }
+              : user
+          );
+          console.log('✅ Updated users list:', updatedUsers);
+          return updatedUsers;
+        });
         toast({
           variant: "success",
           title: "Thành công",

@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import { Avatar } from "../../lib/avatar";
+import { getAvatarUrl } from "../../lib/utils";
 
 // Function to translate role to Vietnamese
 const translateRole = (role: string): string => {
@@ -272,7 +273,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                           src={
                             formData.newAvatarFile
                               ? URL.createObjectURL(formData.newAvatarFile)
-                              : formData.avatarUrl || undefined
+                              : formData.avatarUrl ? getAvatarUrl(formData.avatarUrl) : undefined
                           }
                           alt="Ảnh đại diện"
                           name={formData.fullname}

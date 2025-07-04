@@ -160,7 +160,7 @@ const AssignDeviceModal: React.FC<AssignDeviceModalProps> = ({
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10">
                         <AvatarImage
-                          src={getAvatarUrl(user.avatarUrl)}
+                          src={user.avatarUrl ? getAvatarUrl(user.avatarUrl) : undefined}
                           alt={user.fullname}
                           className="object-cover object-top"
                         />
