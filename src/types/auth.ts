@@ -37,6 +37,7 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'library.books',
     'library.activities', 
   ],
+  technical: ['*'],
   user: [
     'application.tickets.user'
   ]
