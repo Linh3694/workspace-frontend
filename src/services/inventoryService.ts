@@ -458,7 +458,7 @@ export const inventoryService = {
   },
 
   // Upload handover report (PDF)
-  uploadHandoverReport: async (type: DeviceType, deviceId: string, userId: string, username: string, file: File) => {
+  uploadHandoverReport: async (file: File, type: DeviceType, deviceId: string, userId: string, username: string) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append(`${type}Id`, deviceId);

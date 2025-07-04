@@ -90,6 +90,7 @@ interface UserFormData {
   employeeCode?: string;
   department?: string;
   jobTitle?: string;
+  newAvatarFile?: File;
 }
 
 interface ApiResponse {
@@ -324,7 +325,17 @@ const UserManagement = () => {
           jobTitle: data.jobTitle?.trim() || undefined,
         };
 
-        if (data.avatar && data.avatar instanceof File) {
+        // Xử lý upload avatar cho tạo mới
+        if (data.newAvatarFile && data.newAvatarFile instanceof File) {
+          const fd = new FormData();
+          Object.entries(submissionData).forEach(([k, v]) => {
+            if (v !== undefined && v !== null) fd.append(k, String(v));
+          });
+          fd.append("avatar", data.newAvatarFile);
+          await api.post<User>(API_ENDPOINTS.USERS, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } else if (data.avatar && data.avatar instanceof File) {
           const fd = new FormData();
           Object.entries(submissionData).forEach(([k, v]) => {
             if (v !== undefined && v !== null) fd.append(k, String(v));
@@ -335,7 +346,8 @@ const UserManagement = () => {
           });
         } else {
           await api.post<User>(API_ENDPOINTS.USERS, submissionData);
-        } toast({
+        }
+        toast({
           variant: "success",
           title: "Thành công",
           description: "Đã tạo người dùng mới",
@@ -364,19 +376,38 @@ const UserManagement = () => {
           jobTitle: data.jobTitle?.trim() || undefined,
         };
 
-        if (data.avatar && data.avatar instanceof File) {
+        // Xử lý upload avatar cho cập nhật
+        if (data.newAvatarFile && data.newAvatarFile instanceof File) {
+          const fd = new FormData();
+          Object.entries(updateData).forEach(([k, v]) => {
+            if (v !== undefined && v !== null) fd.append(k, String(v));
+          });
+          fd.append("avatar", data.newAvatarFile);
+          const response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const updatedUserFromServer = response.data || response;
+          // Cập nhật localStorage nếu là user hiện tại
+          const stored = localStorage.getItem("user");
+          if (stored) {
+            const currentUser = JSON.parse(stored);
+            if (currentUser._id === selectedUser._id) {
+              const newUser = { ...currentUser, avatarUrl: updatedUserFromServer.avatarUrl };
+              localStorage.setItem("user", JSON.stringify(newUser));
+              window.dispatchEvent(new Event("userUpdated"));
+            }
+          }
+        } else if (data.avatar && data.avatar instanceof File) {
           const fd = new FormData();
           Object.entries(updateData).forEach(([k, v]) => {
             if (v !== undefined && v !== null) fd.append(k, String(v));
           });
           fd.append("avatar", data.avatar);
-          // Perform API update and capture updated user
           const response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
           const updatedUserFromServer = response.data || response;
-
-          // If the updated user is the one in localStorage, update it there
+          // Cập nhật localStorage nếu là user hiện tại
           const stored = localStorage.getItem("user");
           if (stored) {
             const currentUser = JSON.parse(stored);
@@ -387,11 +418,9 @@ const UserManagement = () => {
             }
           }
         } else {
-          // Perform API update and capture updated user
           const response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), updateData);
           const updatedUserFromServer = response.data || response;
-
-          // If the updated user is the one in localStorage, update it there
+          // Cập nhật localStorage nếu là user hiện tại
           const stored = localStorage.getItem("user");
           if (stored) {
             const currentUser = JSON.parse(stored);
@@ -401,7 +430,8 @@ const UserManagement = () => {
               window.dispatchEvent(new Event("userUpdated"));
             }
           }
-        } toast({
+        }
+        toast({
           variant: "success",
           title: "Thành công",
           description: "Đã cập nhật thông tin người dùng",

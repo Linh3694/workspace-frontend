@@ -304,34 +304,27 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append(`${deviceType}Id`, deviceId);
-      formData.append('userId', device.assigned[0]._id);
-      formData.append('username', device.assigned[0].fullname);
+      // Gọi service chuẩn
+      await inventoryService.uploadHandoverReport(
+        file,
+        deviceType,
+        deviceId,
+        device.assigned[0]._id,
+        device.assigned[0].fullname,
+      );
 
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/inventory/${deviceType}s/upload-handover`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }      // Nếu thiết bị đang ở trạng thái "Thiếu biên bản", cập nhật sang "Đang sử dụng"
+      // Nếu thiết bị đang ở trạng thái "Thiếu biên bản", cập nhật sang "Đang sử dụng"
       if (device.status === 'PendingDocumentation') {
         try {
           await inventoryService.updateDeviceStatus(deviceType, deviceId, 'Active');
         } catch (statusError) {
           console.error('Error updating device status:', statusError);
-          // Không throw error vì upload đã thành công, chỉ log lỗi
         }
       }
-      
-      // Refresh device data after successful upload
+
       await fetchDeviceDetail();
       setIsUploadHandoverModalOpen(false);
-      
-      // Reset file input
+
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
