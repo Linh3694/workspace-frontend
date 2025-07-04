@@ -17,6 +17,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal';
 import AssignDeviceModal from './AssignDeviceModal';
 import RevokeDeviceModal from './RevokeDeviceModal';
 import InspectModal from './InspectModal';
+import CreateInspectModal from './CreateInspectModal';
 
 interface DeviceDetailModalProps {
   open: boolean;
@@ -83,6 +84,15 @@ interface Activity {
   createdAt: string;
   updatedAt: string;
 }
+
+type InspectionDataType = {
+  overallAssessment?: string;
+  results?: { overallAssessment?: string };
+  inspectionDate?: string;
+  inspectorName?:  string;
+  createdBy?: { fullname?: string } | string;
+  technicalConclusion?: string;
+};
 
 // Status badge styling
 const getStatusBadge = (status: string) => {
@@ -186,12 +196,33 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   // Inspect modal state
   const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
 
+  // Create inspect modal state
+  const [isCreateInspectModalOpen, setIsCreateInspectModalOpen] = useState(false);
+  
+  // Inspection data state
+  const [hasInspectionData, setHasInspectionData] = useState(false);
+  const [inspectionData, setInspectionData] = useState<InspectionDataType | null>(null);
+
   useEffect(() => {
     if (open && deviceId) {
       fetchDeviceDetail();
       fetchActivities();
+      checkInspectionData();
     }
   }, [open, deviceId, deviceType]);
+
+  const checkInspectionData = async () => {
+    if (!deviceId) return;
+    try {
+      const res = await inventoryService.getLatestInspection(deviceId);
+      setHasInspectionData(!!res.data);
+      setInspectionData(res.data || null);
+      console.log('inspectionData:', res.data);
+    } catch {
+      setHasInspectionData(false);
+      setInspectionData(null);
+    }
+  };
 
   const fetchDeviceDetail = async () => {
     if (!deviceId) return;
@@ -212,13 +243,9 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   const fetchActivities = async () => {
     if (!deviceId) return;
-    
     try {
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/activities/${deviceType}/${deviceId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data);
-      }
+      const data = await inventoryService.fetchActivities(deviceType, deviceId);
+      setActivities(data);
     } catch (err) {
       console.error('Error fetching activities:', err);
       // Không set error vì activities không phải thông tin quan trọng
@@ -249,37 +276,25 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   const handleAddActivity = async () => {
     if (!deviceId || !newActivity.description.trim()) return;
-    
     setIsAddingActivity(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/activities`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          entityType: deviceType,
-          entityId: deviceId,
-          type: newActivity.type,
-          description: newActivity.description.trim(),
-          details: newActivity.details.trim() || undefined,
-          updatedBy: user?.fullname || 'Không xác định',
-        }),
+      await inventoryService.addActivity({
+        entityType: deviceType,
+        entityId: deviceId,
+        type: newActivity.type,
+        description: newActivity.description.trim(),
+        details: newActivity.details.trim() || undefined,
+        updatedBy: user?.fullname || 'Không xác định',
       });
-
-      if (response.ok) {
-        await fetchActivities(); // Refresh activities
-        setIsAddActivityModalOpen(false);
-        setNewActivity({ type: 'repair', description: '', details: '' });
-      }
+      await fetchActivities(); // Refresh activities
+      setIsAddActivityModalOpen(false);
+      setNewActivity({ type: 'repair', description: '', details: '' });
     } catch (err) {
       console.error('Error adding activity:', err);
     } finally {
       setIsAddingActivity(false);
     }
   };
-
-
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -436,6 +451,45 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   if (!open) return null;
 
+
+  const handleDownloadLatestInspectionReport = async () => {
+    if (!deviceId) return;
+    try {
+      const res = await inventoryService.getLatestInspection(deviceId);
+      const { documentUrl, _id: inspectId } = res.data ?? {};
+      
+      if (documentUrl && documentUrl !== '#') {
+        // Tải file đã có sẵn
+        const filename = documentUrl.split('/').pop() || 'report.docx';
+        const downloadUrl = `${import.meta.env.VITE_BASE_URL}/uploads/reports/${filename}`;
+        window.open(downloadUrl, '_blank');
+      } else if (inspectId) {
+        // Tạo file DOCX mới từ inspection data
+        const deviceResponse = await inventoryService.getDeviceById(deviceType, deviceId);
+        const currentUserResponse = await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        const currentUser = await currentUserResponse.json();
+        
+        await inventoryService.generateInspectionReportDocument(
+          res.data,
+          deviceResponse,
+          currentUser,
+          deviceResponse.assigned?.[0] || null,
+          null,
+          inspectId
+        );
+      } else {
+        console.warn('No inspection data found for this device.');
+      }
+    } catch (err) {
+      console.error('Error downloading inspection report:', err);
+    }
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="min-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -553,7 +607,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={handleReviveDevice}
-                        className="flex items-center space-x-1 text-green-600 border-green-300 hover:bg-green-50"
+                        className="flex items-center space-x-1 text-[#009483] border-green-300 hover:bg-green-50"
                       >
                         <Flower2 className="h-4 w-4" />
                         <span>Hồi sinh</span>
@@ -828,9 +882,6 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                         .map((activity) => (
                         <div key={activity._id} className="flex items-start space-x-3 p-3 border rounded-lg">
-                          <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                            activity.type === 'repair' ? 'bg-red-500' : 'bg-blue-500'
-                          }`} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-medium text-gray-900">
@@ -875,22 +926,126 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
                       <CheckCircle className="h-5 w-5" />
                       <span>Kết quả kiểm tra</span>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsInspectModalOpen(true)}
-                      className="text-xs"
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Xem
-                    </Button>
+                    <div className="flex space-x-2">
+                      {hasInspectionData && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDownloadLatestInspectionReport}
+                            className="flex items-center space-x-1 text-xs"
+                          >
+                            <Download className="h-4 w-4" />
+                            Tải về
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsInspectModalOpen(true)}
+                            className="text-xs"
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Xem
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setIsCreateInspectModalOpen(true)}
+                        className="text-xs"
+                      >
+                        Kiểm tra
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-6">
-                    <CheckCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Xem kết quả kiểm tra kỹ thuật</p>
-                  </div>
+                  {hasInspectionData ? (
+                    <div className="text-center py-6">
+                      {/* Thông báo theo đánh giá tổng thể */}
+                      {(() => {
+                        const oa = inspectionData?.overallAssessment || inspectionData?.results?.overallAssessment || '';
+                        if (oa === 'Tốt') {
+                          return (
+                            <div className="flex flex-col items-center mb-2 gap-4">
+                              <div className="flex flex-row items-center gap-2">
+                                <CheckCircle className="h-10 w-10 text-[#009483] mb-1" />
+                                <span className="text-[#009483] font-semibold text-3xl flex items-center">
+                                  Tốt
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-400 space-y-1 mt-1 text-center">
+                                <p>
+                                  <strong>Ngày kiểm tra:</strong> {inspectionData?.inspectionDate ? formatDate(inspectionData.inspectionDate) : 'Không rõ'}
+                                </p>
+                                <p>
+                                  <strong>Người kiểm tra:</strong> {
+                                    inspectionData?.inspectorName || 'Không rõ' 
+                                  }
+                                </p>
+                                <p>
+                                  <strong>Kết luận kỹ thuật:</strong> {inspectionData?.technicalConclusion || 'Không có'}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        } else if (oa === 'Trung Bình') {
+                          return (
+                            <div className="flex flex-col items-center mb-2 gap-4">
+                              <div className="flex flex-row items-center gap-2">
+                                <AlertTriangle className="h-8 w-8 text-yellow-400 mb-1" />
+                                <span className="bg-yellow-400 text-white font-semibold text-2xl px-3 py-1 rounded flex items-center">Trung Bình</span>
+                              </div>
+                              <div className="text-xs text-gray-400 space-y-1 mt-1 text-center">
+                                <p>
+                                  <strong>Ngày kiểm tra:</strong> {inspectionData?.inspectionDate ? formatDate(inspectionData.inspectionDate) : 'Không rõ'}
+                                </p>
+                                <p>
+                                  <strong>Người kiểm tra:</strong> {
+                                    inspectionData?.inspectorName || 'Không rõ' 
+                                  }
+                                </p>
+                                <p>
+                                  <strong>Kết luận kỹ thuật:</strong> {inspectionData?.technicalConclusion || 'Không có'}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        } else if (oa === 'Kém') {
+                          return (
+                            <div className="flex flex-col items-center mb-2 gap-4">
+                              <div className="flex flex-row items-center gap-2">
+                                <AlertTriangle className="h-8 w-8 text-red-500 mb-1" />
+                                <span className="bg-red-500 text-white font-semibold text-2xl px-3 py-1 rounded flex items-center">Kém</span>
+                              </div>
+                              <div className="text-xs text-gray-400 space-y-1 mt-1 text-center">
+                                <p>
+                                  <strong>Ngày kiểm tra:</strong> {inspectionData?.inspectionDate ? formatDate(inspectionData.inspectionDate) : 'Không rõ'}
+                                </p>
+                                <p>
+                                  <strong>Người kiểm tra:</strong> {
+                                    inspectionData?.inspectorName || 'Không rõ' 
+                                  }
+                                </p>
+                                <p>
+                                  <strong>Kết luận kỹ thuật:</strong> {inspectionData?.technicalConclusion || 'Không có'}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="text-xs text-gray-400">
+                        <p>Chưa có dữ liệu kiểm tra</p>
+                        <p>Nhấn "Kiểm tra" để tạo bản kiểm tra đầu tiên</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1092,7 +1247,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
-              <Flower2 className="h-5 w-5 text-green-600" />
+              <Flower2 className="h-5 w-5 text-[#009483]" />
               <span>Hồi sinh thiết bị</span>
             </DialogTitle>
           </DialogHeader>
@@ -1118,7 +1273,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
               <Button
                 onClick={handleReviveConfirm}
                 disabled={isReviving}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-[#009483] hover:bg-green-700 text-white"
               >
                 {isReviving ? 'Đang hồi sinh...' : 'Hồi sinh'}
               </Button>
@@ -1296,6 +1451,21 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
         deviceType={deviceType}
         deviceId={deviceId}
         deviceName={device?.name || ''}
+      />
+
+      {/* Create Inspect Modal */}
+      <CreateInspectModal
+        open={isCreateInspectModalOpen}
+        onOpenChange={setIsCreateInspectModalOpen}
+        deviceType={deviceType}
+        deviceId={deviceId}
+        deviceName={device?.name || ''}
+        onSuccess={() => {
+          setIsCreateInspectModalOpen(false);
+          // Refresh device data and inspection data after successful inspection
+          fetchDeviceDetail();
+          checkInspectionData();
+        }}
       />
     </Dialog>
   );

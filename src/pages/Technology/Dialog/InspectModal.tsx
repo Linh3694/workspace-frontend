@@ -69,6 +69,8 @@ interface InspectionResult {
       speakers: string;
       microphone: string;
     };
+    connectivity?: InspectSection;
+    software?: InspectSection;
     "Tổng thể"?: {
       overallCondition: string;
     };
@@ -78,6 +80,8 @@ interface InspectionResult {
   technicalConclusion: string;
   followUpRecommendation: string;
 }
+
+type InspectSection = Record<string, string | number | boolean | undefined>;
 
 const InspectModal: React.FC<InspectModalProps> = ({
   open,
@@ -151,9 +155,13 @@ const InspectModal: React.FC<InspectModalProps> = ({
     );
   };
 
-  const renderInspectionSection = (title: string, icon: React.ComponentType<{ className?: string }>, data: Record<string, string | number | boolean> | undefined) => {
+  const renderInspectionSectionV2 = (
+    title: string,
+    icon: React.ComponentType<{ className?: string }>,
+    fields: { label: string, key: string }[],
+    data: InspectSection | undefined
+  ) => {
     if (!data) return null;
-
     return (
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
@@ -161,11 +169,13 @@ const InspectModal: React.FC<InspectModalProps> = ({
           <h4 className="font-medium text-sm">{title}</h4>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          {Object.entries(data).map(([key, value]) => (
-            <div key={key} className="flex justify-between">
-              <span className="text-gray-600 capitalize">{key}:</span>
-              <span className="font-medium">{String(value)}</span>
-            </div>
+          {fields.map(({ label, key }) => (
+            data[key] !== undefined && (
+              <div key={key} className="flex justify-between">
+                <span className="text-gray-600">{label}:</span>
+                <span className="font-medium break-all">{String(data[key])}</span>
+              </div>
+            )
           ))}
         </div>
       </div>
@@ -176,7 +186,7 @@ const InspectModal: React.FC<InspectModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="min-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <CheckCircle className="h-5 w-5" />
@@ -217,105 +227,132 @@ const InspectModal: React.FC<InspectModalProps> = ({
           )}
 
           {inspection && !isLoading && !error && (
-            <>
-              {/* Header Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-5 w-5" />
-                      <span>Thông tin kiểm tra</span>
-                    </div>
-                    {getConditionBadge(inspection.overallCondition)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Bên trái: Thông tin cơ bản, kết luận, tải biên bản */}
+              <div className="space-y-6">
+                {/* Thông tin kiểm tra */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5" />
+                        <span>Thông tin kiểm tra</span>
+                      </div>
+                      {getConditionBadge(inspection.overallCondition)}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <Clock className="h-4 w-4 text-gray-500" />
                         <span className="text-sm font-medium">Ngày kiểm tra:</span>
                       </div>
                       <p className="text-sm text-gray-600">{formatDate(inspection.inspectionDate)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 mt-2">
                         <User className="h-4 w-4 text-gray-500" />
                         <span className="text-sm font-medium">Người kiểm tra:</span>
                       </div>
                       <p className="text-sm text-gray-600">{inspection.inspectorName}</p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Technical Results */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Cpu className="h-5 w-5" />
-                    <span>Kết quả kiểm tra kỹ thuật</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {renderInspectionSection('CPU', Cpu, inspection.results.cpu)}
-                  {renderInspectionSection('RAM', MemoryStick, inspection.results.ram)}
-                  {renderInspectionSection('Ổ cứng', HardDrive, inspection.results.storage)}
-                  {renderInspectionSection('Màn hình', Monitor, inspection.results.display)}
-                  {renderInspectionSection('Mạng', Wifi, inspection.results.network)}
-                  {renderInspectionSection('Pin', Battery, inspection.results.battery)}
-                  {renderInspectionSection('Âm thanh', Volume2, inspection.results.audio)}
-                </CardContent>
-              </Card>
-
-              {/* Technical Conclusion */}
-              {(inspection.technicalConclusion || inspection.followUpRecommendation) && (
+                  </CardContent>
+                </Card>
+                {/* Kết luận và khuyến nghị */}
+                {(inspection.technicalConclusion || inspection.followUpRecommendation) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <FileText className="h-5 w-5" />
+                        <span>Kết luận & khuyến nghị</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {inspection.technicalConclusion && (
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Kết luận kỹ thuật:</h4>
+                          <p className="text-sm text-gray-600">{inspection.technicalConclusion}</p>
+                        </div>
+                      )}
+                      {inspection.followUpRecommendation && (
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Khuyến nghị tiếp theo:</h4>
+                          <p className="text-sm text-gray-600">{inspection.followUpRecommendation}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                {/* Tải biên bản */}
+                {inspection.documentUrl && inspection.documentUrl !== '#' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <FileText className="h-5 w-5" />
+                        <span>Biên bản kiểm tra</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleDownloadReport(inspection.documentUrl)}
+                        className="flex items-center space-x-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Tải xuống biên bản</span>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+              {/* Bên phải: Thông số kỹ thuật kiểm tra */}
+              <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <FileText className="h-5 w-5" />
-                      <span>Kết luận và khuyến nghị</span>
+                      <Cpu className="h-5 w-5" />
+                      <span>Kết quả kiểm tra kỹ thuật</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {inspection.technicalConclusion && (
-                      <div>
-                        <h4 className="font-medium text-sm mb-2">Kết luận kỹ thuật:</h4>
-                        <p className="text-sm text-gray-600">{inspection.technicalConclusion}</p>
-                      </div>
-                    )}
-                    {inspection.followUpRecommendation && (
-                      <div>
-                        <h4 className="font-medium text-sm mb-2">Khuyến nghị tiếp theo:</h4>
-                        <p className="text-sm text-gray-600">{inspection.followUpRecommendation}</p>
-                      </div>
-                    )}
+                  <CardContent className="space-y-6">
+                    {renderInspectionSectionV2('CPU', Cpu, [
+                      { label: 'Hiệu suất', key: 'performance' },
+                      { label: 'Nhiệt độ', key: 'temperature' },
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.cpu)}
+                    {renderInspectionSectionV2('RAM', MemoryStick, [
+                      { label: 'Tiêu thụ', key: 'consumption' },
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.ram)}
+                    {renderInspectionSectionV2('Ổ cứng', HardDrive, [
+                      { label: 'Dung lượng còn lại', key: 'remainingCapacity' },
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.storage)}
+                    {renderInspectionSectionV2('Pin', Battery, [
+                      { label: 'Dung lượng', key: 'capacity' },
+                      { label: 'Hiệu suất', key: 'performance' },
+                      { label: 'Số chu kỳ nạp', key: 'chargeCycles' },
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.battery)}
+                    {renderInspectionSectionV2('Màn hình', Monitor, [
+                      { label: 'Màu sắc & độ sáng', key: 'colorAndBrightness' },
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.display)}
+                    {renderInspectionSectionV2('Kết nối', Wifi, [
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.network)}
+                    {renderInspectionSectionV2('Phần mềm', Volume2, [
+                      { label: 'Tình trạng', key: 'overallCondition' },
+                      { label: 'Ghi chú', key: 'notes' },
+                    ], inspection.results.software)}
                   </CardContent>
                 </Card>
-              )}
-
-              {/* Report Download */}
-              {inspection.documentUrl && inspection.documentUrl !== '#' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <FileText className="h-5 w-5" />
-                      <span>Biên bản kiểm tra</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDownloadReport(inspection.documentUrl)}
-                      className="flex items-center space-x-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>Tải xuống biên bản</span>
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </>
+              </div>
+            </div>
           )}
         </div>
 

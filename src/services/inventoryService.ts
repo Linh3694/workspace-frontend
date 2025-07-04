@@ -512,4 +512,205 @@ uploadInspectionReport: async (inspectId: string, file: File) => {
   });
   return res.data;
 },
+
+/**
+ * Sinh file báo cáo kiểm tra thiết bị (inspection report) từ template inspection_report.docx
+ * @param inspection: object chứa dữ liệu inspection (bao gồm results, technicalConclusion, ...)
+ * @param device: object thiết bị (laptop, ...)
+ * @param currentUser: người đang đăng nhập (có thể là kỹ thuật viên)
+ * @param assignedUser: người sử dụng/QL thiết bị (có thể null)
+ * @param inspector: thông tin kỹ thuật viên (nếu khác currentUser)
+ * @param inspectId: ID của inspection để upload file lên backend
+ */
+generateInspectionReportDocument: async (
+  inspection: Record<string, unknown>,
+  device: Record<string, unknown>,
+  currentUser: Record<string, unknown>,
+  assignedUser: Record<string, unknown> | null,
+  inspector: Record<string, unknown> | null = null,
+  inspectId?: string
+) => {
+  try {
+    const PizZip = (await import('pizzip')).default;
+    const Docxtemplater = (await import('docxtemplater')).default;
+
+    // 1. Load template file
+    const response = await fetch('/Template/inspection_report.docx');
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const zip = new PizZip(arrayBuffer);
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+    // 2. Chuẩn hóa dữ liệu cho template
+    const specs = (device.specs as Record<string, unknown>) || {};
+    const today = new Date();
+    const formatDate = (d: Date) => d.toLocaleDateString('vi-VN');
+    const getVal = (obj: Record<string, unknown> | null | undefined, key: string, fallback = 'Không xác định') => (obj && obj[key]) ? obj[key] : fallback;
+
+    // Lấy thông tin người sử dụng/QL thiết bị
+    const userFullname = getVal(assignedUser, 'fullname');
+    const userJobtitle = getVal(assignedUser, 'jobTitle');
+    const userDepartment = getVal(assignedUser, 'department');
+
+    // Lấy thông tin kỹ thuật viên
+    const inspectorName = getVal(inspector || currentUser, 'fullname');
+    const inspectorTitle = getVal(inspector || currentUser, 'jobTitle');
+
+    // Lấy thông tin thiết bị
+    const laptopName = getVal(device, 'name');
+    const laptopSerial = getVal(device, 'serial');
+    const laptopProcessor = getVal(specs, 'processor');
+    const laptopStorage = getVal(specs, 'storage');
+    const laptopRam = getVal(specs, 'ram');
+    const laptopreleaseYear = device.releaseYear ? String(device.releaseYear) : 'Không xác định';
+
+    // Lấy kết quả kiểm tra
+    const results = (inspection.results as Record<string, unknown>) || {};
+    // External
+    const externalCondition_overallCondition = getVal(results.externalCondition as Record<string, unknown>, 'overallCondition', '');
+    const externalCondition_notes = getVal(results.externalCondition as Record<string, unknown>, 'notes', '');
+    // CPU
+    const CPU_performance = getVal(results.cpu as Record<string, unknown>, 'performance', '');
+    const CPU_temperature = getVal(results.cpu as Record<string, unknown>, 'temperature', '');
+    const CPU_overallCondition = getVal(results.cpu as Record<string, unknown>, 'overallCondition', '');
+    const CPU_notes = getVal(results.cpu as Record<string, unknown>, 'notes', '');
+    // RAM
+    const RAM_consumption = getVal(results.ram as Record<string, unknown>, 'consumption', '');
+    const RAM_overallCondition = getVal(results.ram as Record<string, unknown>, 'overallCondition', '');
+    const RAM_notes = getVal(results.ram as Record<string, unknown>, 'notes', '');
+    // Storage
+    const storage_remainingCapacity = getVal(results.storage as Record<string, unknown>, 'remainingCapacity', '');
+    const storage_overallCondition = getVal(results.storage as Record<string, unknown>, 'overallCondition', '');
+    const storage_notes = getVal(results.storage as Record<string, unknown>, 'notes', '');
+    // Battery
+    const battery_capacity = getVal(results.battery as Record<string, unknown>, 'capacity', '');
+    const battery_performance = getVal(results.battery as Record<string, unknown>, 'performance', '');
+    const battery_chargeCycles = getVal(results.battery as Record<string, unknown>, 'chargeCycles', '');
+    const battery_overallCondition = getVal(results.battery as Record<string, unknown>, 'overallCondition', '');
+    const battery_notes = getVal(results.battery as Record<string, unknown>, 'notes', '');
+    // Display
+    const display_colorAndBrightness = getVal(results.display as Record<string, unknown>, 'colorAndBrightness', '');
+    const display_overallCondition = getVal(results.display as Record<string, unknown>, 'overallCondition', '');
+    const display_notes = getVal(results.display as Record<string, unknown>, 'notes', '');
+    // Connectivity
+    const connectivity_overallCondition = getVal(results.connectivity as Record<string, unknown>, 'overallCondition', '');
+    const connectivity_notes = getVal(results.connectivity as Record<string, unknown>, 'notes', '');
+    // Software
+    const software_overallCondition = getVal(results.software as Record<string, unknown>, 'overallCondition', '');
+    const software_notes = getVal(results.software as Record<string, unknown>, 'notes', '');
+    // Kết luận
+    const conclusion = (inspection.technicalConclusion as string) || '';
+    const recommendation = (inspection.followUpRecommendation as string) || '';
+
+    // 3. Chuẩn bị data cho template
+    const templateData = {
+      today: formatDate(today),
+      userDepartment,
+      userFullname,
+      userJobtitle,
+      inspectorName,
+      inspectorTitle,
+      laptopName,
+      laptopSerial,
+      laptopProcessor,
+      laptopStorage,
+      laptopRam,
+      laptopreleaseYear,
+      externalCondition_overallCondition,
+      externalCondition_notes,
+      CPU_performance,
+      CPU_temperature,
+      CPU_overallCondition,
+      CPU_notes,
+      RAM_consumption,
+      RAM_overallCondition,
+      RAM_notes,
+      storage_remainingCapacity,
+      storage_overallCondition,
+      storage_notes,
+      battery_capacity,
+      battery_performance,
+      battery_chargeCycles,
+      battery_overallCondition,
+      battery_notes,
+      display_colorAndBrightness,
+      display_overallCondition,
+      display_notes,
+      connectivity_overallCondition,
+      connectivity_notes,
+      software_overallCondition,
+      software_notes,
+      conclusion,
+      recommendation
+    };
+
+    // 4. Render docx
+    doc.setData(templateData);
+    doc.render();
+    const buffer = doc.getZip().generate({ type: 'arraybuffer', compression: 'DEFLATE' });
+    const blob2 = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    // 5. Upload file lên backend nếu có inspectId
+    if (inspectId) {
+      const formData = new FormData();
+      formData.append('file', blob2, `Bao-cao-kiem-tra-thiet-bi-${laptopName || 'device'}-${formatDate(today)}.docx`);
+      formData.append('inspectId', inspectId);
+
+      const uploadResponse = await api.post('/inspects/uploadReport', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      console.log('✅ File DOCX đã được upload lên backend:', uploadResponse.data);
+      return { success: true, message: 'Báo cáo kiểm tra đã được tạo và lưu thành công' };
+    } else {
+      // Fallback: tải xuống nếu không có inspectId
+      const url = window.URL.createObjectURL(blob2);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Bao-cao-kiem-tra-thiet-bi-${laptopName || 'device'}-${formatDate(today)}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      return { success: true, message: 'Báo cáo kiểm tra đã được tải xuống' };
+    }
+  } catch (error) {
+    console.error('Lỗi khi sinh báo cáo kiểm tra:', error);
+    throw error;
+  }
+},
+
+/** Fetch activities for a device */
+fetchActivities: async (deviceType: DeviceType, deviceId: string) => {
+  const response = await fetch(`${API_BASE_URL}/api/activities/${deviceType}/${deviceId}`);
+  if (!response.ok) return [];
+  return await response.json();
+},
+
+/** Fetch current user info */
+fetchCurrentUser: async () => {
+  const response = await fetch(`${API_BASE_URL}/users/me`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  if (!response.ok) return null;
+  return await response.json();
+},
+
+/** Thêm activity mới cho thiết bị */
+addActivity: async (activityData: Record<string, unknown>) => {
+  const response = await fetch(`${API_BASE_URL}/api/activities`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify(activityData),
+  });
+  if (!response.ok) throw new Error('Failed to add activity');
+  return await response.json();
+},
 }; 
