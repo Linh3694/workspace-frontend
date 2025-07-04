@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
+import EditRecordModal from './EditRecordModal';
 
 interface SubAward {
   type: string;
@@ -138,6 +139,10 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   // Delete confirmation states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [recordToDelete, setRecordToDelete] = useState<AwardRecord | null>(null);
+
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
+  const [recordToEdit, setRecordToEdit] = useState<AwardRecord | null>(null);
 
   // Fetch school years from backend
   useEffect(() => {
@@ -248,10 +253,9 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
 
 
 
-  const handleEditRecord = (recordId: string) => {
-    // TODO: Implement edit record functionality
-    console.log('Edit record:', recordId);
-    toast.info('Chức năng chỉnh sửa record đang được phát triển');
+  const handleEditRecord = (record: AwardRecord) => {
+    setRecordToEdit(record);
+    setEditModalOpen(true);
   };
 
   const handleDeleteRecord = (record: AwardRecord) => {
@@ -303,6 +307,20 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const handleDownloadExcel = () => {
     // TODO: Implement download Excel functionality
     console.log('Download Excel');
+  };
+
+  const handleEditSuccess = () => {
+    // Refresh records after successful edit
+    if (selectedCategory && selectedSchoolYear) {
+      const subAward = availableSubAwards.find(sa => {
+        const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+        return subAwardId === selectedSubAward;
+      });
+      
+      if (subAward) {
+        fetchRecords(selectedCategory._id, selectedSchoolYear, subAward);
+      }
+    }
   };
 
 
@@ -433,12 +451,11 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEditRecord(record._id)}
+                            onClick={() => handleEditRecord(record)}
                             title="Chỉnh sửa bản ghi"
                             className="h-8 px-3 text-xs"
                           >
                             <Edit className="h-3 w-3 mr-1" />
-                            Sửa
                           </Button>
                           <Button
                             size="sm"
@@ -448,7 +465,6 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                             className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
-                            Xóa
                           </Button>
                         </div>
                       </div>
@@ -476,12 +492,12 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEditRecord(record._id)}
+                            onClick={() => handleEditRecord(record)}
                             title="Chỉnh sửa bản ghi"
                             className="h-8 px-3 text-xs"
                           >
                             <Edit className="h-3 w-3 mr-1" />
-                            Sửa
+                            
                           </Button>
                           <Button
                             size="sm"
@@ -491,7 +507,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                             className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
-                            Xóa
+                            
                           </Button>
                         </div>
                       </div>
@@ -526,6 +542,17 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Record Modal */}
+      <EditRecordModal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setRecordToEdit(null);
+        }}
+        record={recordToEdit}
+        onSuccess={handleEditSuccess}
+      />
     </Card>
   );
 };
