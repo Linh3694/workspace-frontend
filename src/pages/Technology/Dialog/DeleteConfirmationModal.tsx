@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
 
@@ -72,8 +72,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {isDeleting ? 'Đang xóa...' : 'Xóa phòng'}
+              {isDeleting ? 'Đang xóa...' : 'Xóa'}
             </Button>
           </div>
         </div>

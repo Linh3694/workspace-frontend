@@ -206,6 +206,11 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   // Edit basic info modal state
   const [isEditBasicInfoModalOpen, setIsEditBasicInfoModalOpen] = useState(false);
 
+  // Delete activity state
+  const [isDeletingActivity, setIsDeletingActivity] = useState<string | null>(null);
+  const [isDeleteActivityModalOpen, setIsDeleteActivityModalOpen] = useState(false);
+  const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
+
   // Create inspect modal state
   const [isCreateInspectModalOpen, setIsCreateInspectModalOpen] = useState(false);
   
@@ -306,6 +311,28 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
       console.error('Error adding activity:', err);
     } finally {
       setIsAddingActivity(false);
+    }
+  };
+
+  const handleDeleteActivity = (activity: Activity) => {
+    setActivityToDelete(activity);
+    setIsDeleteActivityModalOpen(true);
+  };
+
+  const handleDeleteActivityConfirm = async () => {
+    if (!activityToDelete) return;
+    
+    setIsDeletingActivity(activityToDelete._id);
+    try {
+      await inventoryService.deleteActivity(activityToDelete._id);
+      await fetchActivities();
+      onDeviceUpdated?.();
+      setIsDeleteActivityModalOpen(false);
+      setActivityToDelete(null);
+    } catch (err) {
+      console.error('Error deleting activity:', err);
+    } finally {
+      setIsDeletingActivity(null);
     }
   };
 
@@ -1023,9 +1050,29 @@ const handleLiquidateConfirm = async () => {
                               <p className="text-sm font-medium text-gray-900">
                                 {activity.description}
                               </p>
-                              <Badge variant={activity.type === 'repair' ? 'destructive' : 'default'} className="text-xs">
-                                {activity.type === 'repair' ? 'Sửa chữa' : 'Cập nhật'}
-                              </Badge>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant={activity.type === 'repair' ? 'destructive' : 'default'} className="text-xs">
+                                  {activity.type === 'repair' ? 'Sửa chữa' : 'Cập nhật'}
+                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteActivity(activity)}
+                                      disabled={isDeletingActivity === activity._id}
+                                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      {isDeletingActivity === activity._id ? (
+                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
+                                      ) : (
+                                        <Trash2 className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Xóa nhật ký</TooltipContent>
+                                </Tooltip>
+                              </div>
                             </div>
                             {activity.details && (
                               <p className="text-sm text-gray-600 mt-1">{activity.details}</p>
@@ -1628,6 +1675,15 @@ const handleLiquidateConfirm = async () => {
         description="Sau khi thanh lý, thiết bị sẽ bị xoá vĩnh viễn khỏi hệ thống. Bạn chắc chắn muốn tiếp tục?"  
         onConfirm={handleLiquidateConfirm}
         onOpenChange={setIsDeleteDeviceModalOpen}
+      />
+
+      {/* Delete Activity Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={isDeleteActivityModalOpen}
+        title="Xác nhận xóa nhật ký"
+        description={`Bạn có chắc chắn muốn xóa nhật ký "${activityToDelete?.description}"? Hành động này không thể hoàn tác.`}
+        onConfirm={handleDeleteActivityConfirm}
+        onOpenChange={setIsDeleteActivityModalOpen}
       />
 
       {/* Edit Specs Modal */}

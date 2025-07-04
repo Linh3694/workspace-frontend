@@ -740,5 +740,17 @@ addActivity: async (activityData: Record<string, unknown>) => {
   return await response.json();
 },
 
+/** Xóa activity */
+deleteActivity: async (activityId: string) => {
+  const response = await fetch(`${API_BASE_URL}/activities/${activityId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+  });
+  if (!response.ok) throw new Error('Failed to delete activity');
+  return await response.json();
+},
+
 }; 
 
