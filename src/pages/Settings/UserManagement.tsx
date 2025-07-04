@@ -69,8 +69,11 @@ interface User {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  school?: string; // Added school field
+  school?: string;
   avatarUrl?: string;
+  employeeCode?: string;
+  department?: string;
+  jobTitle?: string;
 }
 
 interface UserFormData {
@@ -82,8 +85,11 @@ interface UserFormData {
   oldPassword?: string;
   confirmPassword?: string;
   active: boolean;
-  school?: string; // Added school field
+  school?: string;
   avatar?: File | string;
+  employeeCode?: string;
+  department?: string;
+  jobTitle?: string;
 }
 
 interface ApiResponse {
@@ -312,7 +318,10 @@ const UserManagement = () => {
           phone: data.phone?.trim() || undefined,
           fullname: data.fullname.trim(),
           role: data.role.trim(),
-          school: data.role === 'teacher' ? data.school : undefined // Assign school for teachers
+          school: data.role === 'teacher' ? data.school : undefined,
+          employeeCode: data.employeeCode?.trim() || undefined,
+          department: data.department?.trim() || undefined,
+          jobTitle: data.jobTitle?.trim() || undefined,
         };
 
         if (data.avatar && data.avatar instanceof File) {
@@ -349,7 +358,10 @@ const UserManagement = () => {
           fullname: data.fullname.trim(),
           role: data.role.trim(),
           active: data.active,
-          school: data.role === 'teacher' ? data.school : undefined // Assign school for teachers
+          school: data.role === 'teacher' ? data.school : undefined,
+          employeeCode: data.employeeCode?.trim() || undefined,
+          department: data.department?.trim() || undefined,
+          jobTitle: data.jobTitle?.trim() || undefined,
         };
 
         if (data.avatar && data.avatar instanceof File) {
@@ -514,6 +526,9 @@ const UserManagement = () => {
               <TableHead className="font-semibold">Số điện thoại</TableHead>
               <TableHead className="font-semibold">Vai trò</TableHead>
               <TableHead className="font-semibold">Ngày tạo</TableHead>
+              <TableHead className="font-semibold">Mã NV</TableHead>
+              <TableHead className="font-semibold">Phòng ban</TableHead>
+              <TableHead className="font-semibold">Chức danh</TableHead>
               <TableHead className="text-right font-semibold">Hành Động</TableHead>
             </TableRow>
           </TableHeader>
@@ -541,6 +556,9 @@ const UserManagement = () => {
                 <TableCell>
                   {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: vi })}
                 </TableCell>
+                <TableCell>{user.employeeCode || '-'}</TableCell>
+                <TableCell>{user.department || '-'}</TableCell>
+                <TableCell>{user.jobTitle || '-'}</TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button
                     size="sm"
@@ -628,6 +646,9 @@ const UserManagement = () => {
           avatarUrl: selectedUser.avatarUrl,
           createdAt: selectedUser.createdAt,
           updatedAt: selectedUser.updatedAt,
+          employeeCode: selectedUser.employeeCode,
+          department: selectedUser.department,
+          jobTitle: selectedUser.jobTitle,
         } : undefined}
         onSubmit={handleDialogSubmit}
         onDelete={handleDeleteUser}

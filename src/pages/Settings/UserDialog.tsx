@@ -84,6 +84,9 @@ interface BaseUser {
   createdAt: string;
   updatedAt: string;
   avatarUrl?: string;
+  employeeCode?: string;
+  department?: string;
+  jobTitle?: string;
 }
 
 interface UserFormData extends BaseUser {
@@ -115,7 +118,10 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     _id: '',
     createdAt: '',
     updatedAt: '',
-    avatarUrl: ''  
+    avatarUrl: '',
+    employeeCode: '',
+    department: '',
+    jobTitle: ''
   });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -134,8 +140,10 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
         _id: userData._id,
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
-        avatarUrl: userData.avatarUrl,  
-
+        avatarUrl: userData.avatarUrl,
+        employeeCode: userData.employeeCode,
+        department: userData.department,
+        jobTitle: userData.jobTitle
       });
     } else if (!open) {
       // Reset form khi dialog đóng
@@ -151,7 +159,10 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
         _id: '',
         createdAt: '',
         updatedAt: '',
-        avatarUrl: ''
+        avatarUrl: '',
+        employeeCode: '',
+        department: '',
+        jobTitle: ''
       });
     }
   }, [open, userData]);
@@ -295,6 +306,42 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="employeeCode" className="text-right">
+                      Mã nhân viên
+                    </Label>
+                    <Input
+                      id="employeeCode"
+                      name="employeeCode"
+                      value={formData.employeeCode || ''}
+                      onChange={handleInputChange}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="department" className="text-right">
+                      Phòng ban
+                    </Label>
+                    <Input
+                      id="department"
+                      name="department"
+                      value={formData.department || ''}
+                      onChange={handleInputChange}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="jobTitle" className="text-right">
+                      Chức danh
+                    </Label>
+                    <Input
+                      id="jobTitle"
+                      name="jobTitle"
+                      value={formData.jobTitle || ''}
+                      onChange={handleInputChange}
+                      className="col-span-3"
+                    />
                   </div>
                   {mode === 'create' && (
                     <div className="grid grid-cols-4 items-center gap-4">

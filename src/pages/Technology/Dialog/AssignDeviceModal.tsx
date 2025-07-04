@@ -76,20 +76,12 @@ const AssignDeviceModal: React.FC<AssignDeviceModalProps> = ({
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // Giả sử có API để lấy danh sách users
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/users?active=true`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      // Lấy toàn bộ user
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const activeUsers = (data.users || data.data || []).filter((user: User) => user.active);
-        setUsers(activeUsers);
-      } else {
-        throw new Error('Failed to fetch users');
-      }
+      const users = await response.json();
+      setUsers(users);
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Không thể tải danh sách người dùng.');
@@ -162,9 +154,7 @@ const AssignDeviceModal: React.FC<AssignDeviceModalProps> = ({
                 filteredUsers.map((user) => (
                   <div
                     key={user._id}
-                    className={`p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
-                      selectedUser?._id === user._id ? 'bg-blue-50 border-blue-200' : ''
-                    }`}
+                    className={`p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 `}
                     onClick={() => setSelectedUser(user)}
                   >
                     <div className="flex items-center space-x-3">
@@ -231,7 +221,7 @@ const AssignDeviceModal: React.FC<AssignDeviceModalProps> = ({
           <Button
             onClick={handleAssign}
             disabled={!selectedUser || isAssigning}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-[#002855] hover:bg-[#002855] text-white"
           >
             {isAssigning ? 'Đang bàn giao...' : 'Bàn giao'}
           </Button>

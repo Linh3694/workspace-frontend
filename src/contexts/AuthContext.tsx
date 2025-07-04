@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Store the system token and user data
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
+        console.log('token', data.token);
         setUser(data.user);
         setIsAuthenticated(true);
         setIsLoading(false);

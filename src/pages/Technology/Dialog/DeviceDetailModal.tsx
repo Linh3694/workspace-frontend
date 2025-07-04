@@ -24,6 +24,7 @@ interface DeviceDetailModalProps {
   onOpenChange: (open: boolean) => void;
   deviceType: DeviceType;
   deviceId: string | null;
+  onDeviceUpdated?: () => void;
 }
 
 interface DeviceDetail {
@@ -151,7 +152,8 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   open, 
   onOpenChange, 
   deviceType, 
-  deviceId 
+  deviceId,
+  onDeviceUpdated
 }) => {
   const { user } = useAuth();
   const [device, setDevice] = useState<DeviceDetail | null>(null);
@@ -217,7 +219,6 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
       const res = await inventoryService.getLatestInspection(deviceId);
       setHasInspectionData(!!res.data);
       setInspectionData(res.data || null);
-      console.log('inspectionData:', res.data);
     } catch {
       setHasInspectionData(false);
       setInspectionData(null);
@@ -265,8 +266,9 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   };
 
   const handleAssignDeviceSuccess = () => {
-    // Refresh device data after successful device assignment
     fetchDeviceDetail();
+    fetchActivities();
+    if (onDeviceUpdated) onDeviceUpdated();
   };
 
   const handleRevokeDeviceSuccess = () => {
@@ -315,16 +317,10 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
       if (!response.ok) {
         throw new Error('Upload failed');
-      }
-
-      const result = await response.json();
-      console.log('Upload successful:', result);
-      
-      // Nếu thiết bị đang ở trạng thái "Thiếu biên bản", cập nhật sang "Đang sử dụng"
+      }      // Nếu thiết bị đang ở trạng thái "Thiếu biên bản", cập nhật sang "Đang sử dụng"
       if (device.status === 'PendingDocumentation') {
         try {
           await inventoryService.updateDeviceStatus(deviceType, deviceId, 'Active');
-          console.log('Device status updated to Active');
         } catch (statusError) {
           console.error('Error updating device status:', statusError);
           // Không throw error vì upload đã thành công, chỉ log lỗi

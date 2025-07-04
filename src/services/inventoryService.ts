@@ -15,6 +15,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+
 });
 
 // Add auth token to requests
@@ -23,6 +24,13 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Add timestamp to prevent caching
+  if (config.method === 'get') {
+    const separator = config.url?.includes('?') ? '&' : '?';
+    config.url = `${config.url}${separator}_t=${Date.now()}`;
+  }
+  
   return config;
 });
 
@@ -684,7 +692,7 @@ generateInspectionReportDocument: async (
 
 /** Fetch activities for a device */
 fetchActivities: async (deviceType: DeviceType, deviceId: string) => {
-  const response = await fetch(`${API_BASE_URL}/api/activities/${deviceType}/${deviceId}`);
+  const response = await fetch(`${API_BASE_URL}/activities/${deviceType}/${deviceId}`);
   if (!response.ok) return [];
   return await response.json();
 },
@@ -702,7 +710,7 @@ fetchCurrentUser: async () => {
 
 /** Thêm activity mới cho thiết bị */
 addActivity: async (activityData: Record<string, unknown>) => {
-  const response = await fetch(`${API_BASE_URL}/api/activities`, {
+  const response = await fetch(`${API_BASE_URL}/activities`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

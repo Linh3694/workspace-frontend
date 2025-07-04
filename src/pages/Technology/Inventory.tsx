@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Laptop, Monitor, Printer, Server, HardDrive, Search, Filter, X } from 'lucide-react';
+import { Laptop, Monitor, Printer, Server, HardDrive, Search, Filter, X, RefreshCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -325,7 +325,7 @@ const Inventory: React.FC = () => {
   // Device detail modal states
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-
+  
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -344,6 +344,7 @@ const Inventory: React.FC = () => {
     setSearchTerm(value);
     setCurrentPage(1); // Reset to first page when searching
   };
+  
 
   // Handle filter change
   const handleFilterChange = (newFilters: DeviceFilters) => {
@@ -443,7 +444,86 @@ const Inventory: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [selectedCategory, currentPage, searchTerm, filters]);
 
+  // Auto refresh when component mounts or when there are important changes
+  useEffect(() => {
+    // Force refresh on mount to ensure fresh data
+    if (devices.length === 0 && !isLoading) {
+      refetchDevices();
+    }
+  }, []); // Only run on mount
+
   const selectedCategoryInfo = deviceCategories.find(cat => cat.id === selectedCategory);
+
+  const refetchDevices = () => {
+    // Clear browser cache for this domain
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          caches.delete(name);
+        });
+      });
+    }
+    
+    // Force refresh by clearing cache and refetching
+    setDevices([]);
+    setCurrentPage(1);
+    setSearchTerm('');
+    setFilters({});
+    setIsLoading(true);
+    
+    // Force a new fetch with current timestamp
+    const fetchDevices = async () => {
+      try {
+        const searchFilters = {
+          search: searchTerm || undefined,
+          status: filters.status || undefined,
+          manufacturer: filters.manufacturer || undefined,
+          type: filters.type || undefined,
+          releaseYear: filters.releaseYear || undefined,
+        };
+
+        const response = await inventoryService.getDevicesByType(selectedCategory, 1, 20, searchFilters);
+        
+        // Handle different response structures
+        let deviceList: Device[] = [];
+        let paginationData = null;
+        
+        if ('populatedLaptops' in response) {
+          deviceList = response.populatedLaptops;
+          paginationData = response.pagination;
+        } else if ('populatedMonitors' in response) {
+          deviceList = response.populatedMonitors;
+          paginationData = response.pagination;
+        } else if ('populatedPrinters' in response) {
+          deviceList = response.populatedPrinters;
+          paginationData = response.pagination;
+        } else if ('populatedTools' in response) {
+          deviceList = response.populatedTools;
+          setTotalPages(1);
+        } else if ('populatedProjectors' in response) {
+          deviceList = response.populatedProjectors;
+          paginationData = response.pagination;
+        }
+        
+        if (paginationData) {
+          setTotalPages(paginationData.totalPages);
+        }
+        
+        setDevices(deviceList);
+      } catch (err) {
+        console.error('Error fetching devices:', err);
+        setError('Không thể tải dữ liệu thiết bị. Vui lòng thử lại.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDevices();
+  };
+
+  const handleDeviceUpdated = () => {
+  refetchDevices();            // Gọi hàm đã có để tải lại danh sách
+};
 
   return (
     <div className="flex min-h-screen">
@@ -484,6 +564,18 @@ const Inventory: React.FC = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-bold text-gray-900">Danh sách {selectedCategoryInfo?.name}</CardTitle>
               <div className="flex items-center space-x-3">
+                {/* Refresh Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refetchDevices}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>Làm mới</span>
+                </Button>
+                
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -667,6 +759,7 @@ const Inventory: React.FC = () => {
         onOpenChange={handleCloseDetailModal}
         deviceType={selectedCategory}
         deviceId={selectedDeviceId}
+        onDeviceUpdated={handleDeviceUpdated}
       />
     </div>
   );
