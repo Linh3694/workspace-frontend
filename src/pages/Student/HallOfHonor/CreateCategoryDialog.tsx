@@ -11,8 +11,16 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Textarea } from '../../../components/ui/textarea';
 import { Label } from '../../../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../components/ui/select';
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
+import type { AwardCategory, RecipientType } from '../../../types';
 
 interface CreateCategoryDialogProps {
   open: boolean;
@@ -20,32 +28,12 @@ interface CreateCategoryDialogProps {
   onCategoryCreated: (category: AwardCategory) => void;
 }
 
-interface AwardCategory {
-  _id: string;
-  name: string;
-  nameEng: string;
-  description: string;
-  descriptionEng: string;
-  coverImage?: string;
-  subAwards: SubAward[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface SubAward {
-  type: string;
-  label: string;
-  labelEng?: string;
-  priority?: number;
-  schoolYear?: string;
-}
-
 interface FormData {
   name: string;
   nameEng: string;
   description: string;
   descriptionEng: string;
-  coverImage: string;
+  recipientType: RecipientType;
 }
 
 const CreateCategoryDialog: React.FC<CreateCategoryDialogProps> = ({
@@ -58,7 +46,7 @@ const CreateCategoryDialog: React.FC<CreateCategoryDialogProps> = ({
     nameEng: '',
     description: '',
     descriptionEng: '',
-    coverImage: '',
+    recipientType: 'student',
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<Partial<FormData>>({});
@@ -118,7 +106,7 @@ const CreateCategoryDialog: React.FC<CreateCategoryDialogProps> = ({
         nameEng: '',
         description: '',
         descriptionEng: '',
-        coverImage: '',
+        recipientType: 'student',
       });
       setErrors({});
       
@@ -141,7 +129,7 @@ const CreateCategoryDialog: React.FC<CreateCategoryDialogProps> = ({
         nameEng: '',
         description: '',
         descriptionEng: '',
-        coverImage: '',
+        recipientType: 'student',
       });
       setErrors({});
       onOpenChange(false);
@@ -230,21 +218,30 @@ const CreateCategoryDialog: React.FC<CreateCategoryDialogProps> = ({
               )}
             </div>
 
-            {/* Ảnh bìa */}
+            {/* Loại đối tượng vinh danh */}
             <div className="space-y-2">
-              <Label htmlFor="coverImage">URL ảnh bìa</Label>
-              <Input
-                id="coverImage"
-                value={formData.coverImage}
-                onChange={(e) => handleInputChange('coverImage', e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className={errors.coverImage ? 'border-red-500' : ''}
+              <Label htmlFor="recipientType">
+                Loại đối tượng vinh danh <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={formData.recipientType}
+                onValueChange={(value: RecipientType) => handleInputChange('recipientType', value)}
                 disabled={loading}
-              />
-              {errors.coverImage && (
-                <p className="text-sm text-red-500">{errors.coverImage}</p>
+              >
+                <SelectTrigger className={errors.recipientType ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Chọn loại đối tượng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">Học sinh</SelectItem>
+                  <SelectItem value="class">Lớp</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.recipientType && (
+                <p className="text-sm text-red-500">{errors.recipientType}</p>
               )}
             </div>
+
+
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

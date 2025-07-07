@@ -78,4 +78,19 @@ export type {
 export type { ExcelRow, ImportResult } from './import.types';
 
 // Admission types
-export type { AdmissionFormData, ParentFormData, EntranceTestRecord } from './admission'; 
+export type { AdmissionFormData, ParentFormData, EntranceTestRecord } from './admission';
+
+// Hall of Honor types
+export type { 
+  SubAward, 
+  AwardCategory, 
+  Photo, 
+  StudentData, 
+  ClassData, 
+  AwardRecord,
+  AwardCategoryFormData,
+  SubAwardFormData,
+  AwardRecordFormData,
+  SchoolYearExtended,
+  RecipientType
+} from './hall-of-honor.types'; 

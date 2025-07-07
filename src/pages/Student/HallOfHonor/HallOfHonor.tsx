@@ -15,32 +15,7 @@ import CreateCategoryDialog from './CreateCategoryDialog';
 import EditCategoryDialog from './EditCategoryDialog';
 import SubAwardsModal from './SubAwardsModal';
 import RecordsPanel from './RecordsPanel';
-
-interface SubAward {
-  type: string;
-  label: string;
-  labelEng?: string;
-  priority?: number;
-  schoolYear?: string;
-  semester?: number;
-  month?: number;
-}
-
-interface AwardCategory {
-  _id: string;
-  name: string;
-  nameEng: string;
-  description: string;
-  descriptionEng: string;
-  coverImage?: string;
-  subAwards: SubAward[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-
-
-
+import type { AwardCategory } from '../../../types';
 
 const HallOfHonor: React.FC = () => {
   const [categories, setCategories] = useState<AwardCategory[]>([]);
@@ -189,14 +164,21 @@ const HallOfHonor: React.FC = () => {
                               {category.description}
                             </p>
                             <div className="flex justify-between items-center pt-2">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="text-xs h-6 px-2 hover:bg-secondary/80"
-                                onClick={(e) => handleSubAwardsClick(category, e)}
-                              >
-                                {category.subAwards?.length || 0} Hạng mục
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="text-xs h-6 px-2 hover:bg-secondary/80"
+                                  onClick={(e) => handleSubAwardsClick(category, e)}
+                                >
+                                  {category.subAwards?.length || 0} Hạng mục
+                                </Button>
+                                <span
+                                  className="text-xs h-6 px-2 rounded bg-secondary text-secondary-foreground flex items-center"
+                                >
+                                  {category.recipientType === 'student' ? 'Học sinh' : 'Lớp'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </CardContent>

@@ -16,68 +16,28 @@ import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Plus, Trash2 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
-
-interface Student {
-  _id: string;
-  name: string;
-  studentCode: string;
-}
-
-interface Class {
-  _id: string;
-  className: string;
-  classCode: string;
-}
-
-interface StudentData {
-  student: Student;
-  exam?: string;
-  score?: number | string;
-  note?: string;
-  noteEng?: string;
-}
-
-interface ClassData {
-  class: string;
-  note?: string;
-  noteEng?: string;
-  classInfo?: Class;
-}
-
-interface AwardRecord {
-  _id: string;
-  awardCategory: {
-    _id: string;
-    name: string;
-    nameEng: string;
-  };
-  subAward: {
-    type: string;
-    label: string;
-    labelEng?: string;
-    schoolYear: string;
-    semester?: number;
-    month?: number;
-    priority?: number;
-  };
-  students: StudentData[];
-  awardClasses: ClassData[];
-  createdAt: string;
-  updatedAt: string;
-}
+import type { 
+  AwardRecord, 
+  StudentData, 
+  ClassData,
+  RecipientType
+} from '../../../types';
+import type { Student, Class } from '../../../types';
 
 interface EditRecordModalProps {
   isOpen: boolean;
   onClose: () => void;
   record: AwardRecord | null;
   onSuccess: () => void;
+  studentData?: StudentData | null;
 }
 
 const EditRecordModal: React.FC<EditRecordModalProps> = ({
   isOpen,
   onClose,
   record,
-  onSuccess
+  onSuccess,
+  studentData
 }) => {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<StudentData[]>([]);
@@ -85,12 +45,19 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
   const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
 
+  // Determine recipient type from the record's category
+  const recipientType: RecipientType = record?.awardCategory?.recipientType || 'student';
+
   useEffect(() => {
     if (record) {
-      setStudents(record.students || []);
+      if (studentData) {
+        setStudents([studentData]);
+      } else {
+        setStudents(record.students || []);
+      }
       setClasses(record.awardClasses || []);
     }
-  }, [record]);
+  }, [record, studentData]);
 
   // Fetch available students and classes
   useEffect(() => {
@@ -126,7 +93,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
 
   const handleAddStudent = () => {
     setStudents([...students, {
-      student: { _id: '', name: '', studentCode: '' },
+      student: { _id: '', name: '', studentCode: '', fullname: '' },
       exam: '',
       score: '',
       note: '',
@@ -138,13 +105,18 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
     setStudents(students.filter((_, i) => i !== index));
   };
 
-  const handleStudentChange = (index: number, field: keyof StudentData, value: string | number) => {
+  const handleStudentChange = (index: number, field: keyof StudentData, value: string | number | string[]) => {
     const updatedStudents = [...students];
     if (field === 'student') {
       const selectedStudent = availableStudents.find(s => s._id === value);
       updatedStudents[index] = {
         ...updatedStudents[index],
         student: selectedStudent || { _id: '', name: '', studentCode: '' }
+      };
+    } else if (field === 'activity') {
+      updatedStudents[index] = {
+        ...updatedStudents[index],
+        activity: Array.isArray(value) ? value : [],
       };
     } else {
       updatedStudents[index] = {
@@ -232,99 +204,69 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-[60vh]">
             <div className="space-y-6 p-1">
-              {/* Students Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Học sinh</h3>
-                  <Button size="sm" onClick={handleAddStudent}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Thêm học sinh
-                  </Button>
+              {/* Students Section - Only show if recipientType is 'student' */}
+              {recipientType === 'student' && (
+                <div>
+                  <div className="space-y-4">
+                    {students.map((student, index) => {
+                      const type = record.subAward.type;
+                      return (
+                        <div key={index} className="border rounded-lg p-4 space-y-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Học sinh</Label>
+                              <select
+                                value={student.student._id}
+                                onChange={(e) => handleStudentChange(index, 'student', e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                                disabled
+                              >
+                                <option value="">Chọn học sinh</option>
+                                {availableStudents.map((s) => (
+                                  <option key={s._id} value={s._id}>
+                                    {s.name} ({s.studentCode})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* Ghi chú */}
+                            <div>
+                              <Label>Ghi chú</Label>
+                              <Textarea
+                                value={student.note || ''}
+                                onChange={(e) => handleStudentChange(index, 'note', e.target.value)}
+                                placeholder="Ghi chú"
+                                rows={2}
+                              />
+                            </div>
+                          </div>
+                          {/* Ghi chú (Tiếng Anh) */}
+                          <div>
+                            <Label>Ghi chú (Tiếng Anh)</Label>
+                            <Textarea
+                              value={student.noteEng || ''}
+                              onChange={(e) => handleStudentChange(index, 'noteEng', e.target.value)}
+                              placeholder="Ghi chú bằng tiếng Anh"
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
 
-                <div className="space-y-4">
-                  {students.map((student, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Học sinh {index + 1}</h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveStudent(index)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Học sinh</Label>
-                          <select
-                            value={student.student._id}
-                            onChange={(e) => handleStudentChange(index, 'student', e.target.value)}
-                            className="w-full p-2 border rounded-md"
-                          >
-                            <option value="">Chọn học sinh</option>
-                            {availableStudents.map((s) => (
-                              <option key={s._id} value={s._id}>
-                                {s.name} ({s.studentCode})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <Label>Kỳ thi</Label>
-                          <Input
-                            value={student.exam || ''}
-                            onChange={(e) => handleStudentChange(index, 'exam', e.target.value)}
-                            placeholder="Tên kỳ thi"
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Điểm số</Label>
-                          <Input
-                            value={student.score || ''}
-                            onChange={(e) => handleStudentChange(index, 'score', e.target.value)}
-                            placeholder="Điểm số"
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Ghi chú</Label>
-                          <Input
-                            value={student.note || ''}
-                            onChange={(e) => handleStudentChange(index, 'note', e.target.value)}
-                            placeholder="Ghi chú"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Ghi chú (Tiếng Anh)</Label>
-                        <Textarea
-                          value={student.noteEng || ''}
-                          onChange={(e) => handleStudentChange(index, 'noteEng', e.target.value)}
-                          placeholder="Ghi chú bằng tiếng Anh"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Classes Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Lớp</h3>
-                  <Button size="sm" onClick={handleAddClass}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Thêm lớp
-                  </Button>
-                </div>
+              {/* Classes Section - Only show if recipientType is 'class' */}
+              {recipientType === 'class' && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Lớp</h3>
+                    <Button size="sm" onClick={handleAddClass}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Thêm lớp
+                    </Button>
+                  </div>
 
                 <div className="space-y-4">
                   {classes.map((classData, index) => (
@@ -350,11 +292,11 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
                             className="w-full p-2 border rounded-md"
                           >
                             <option value="">Chọn lớp</option>
-                            {availableClasses.map((c) => (
-                              <option key={c._id} value={c._id}>
-                                {c.className} ({c.classCode})
-                              </option>
-                            ))}
+                                                          {availableClasses.map((c) => (
+                                <option key={c._id} value={c._id}>
+                                  {c.className}
+                                </option>
+                              ))}
                           </select>
                         </div>
 
@@ -381,6 +323,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
                   ))}
                 </div>
               </div>
+              )}
             </div>
           </ScrollArea>
         </div>

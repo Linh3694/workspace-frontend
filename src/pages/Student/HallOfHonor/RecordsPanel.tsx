@@ -25,7 +25,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../../../components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { 
   Trophy, 
   Edit, 
@@ -37,92 +37,16 @@ import {
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
 import EditRecordModal from './EditRecordModal';
-
-interface SubAward {
-  type: string;
-  label: string;
-  labelEng?: string;
-  priority?: number;
-  schoolYear?: string;
-  semester?: number;
-  month?: number;
-}
-
-interface AwardCategory {
-  _id: string;
-  name: string;
-  nameEng: string;
-  description: string;
-  descriptionEng: string;
-  coverImage?: string;
-  subAwards: SubAward[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Student {
-  _id: string;
-  name: string;
-  studentCode: string;
-}
-
-interface Photo {
-  _id: string;
-  student: string;
-  schoolYear: string;
-  url: string;
-}
-
-interface Class {
-  _id: string;
-  className: string;
-  classCode: string;
-}
-
-interface SchoolYear {
-  _id: string;
-  code: string;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-  displayName?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface StudentData {
-  student: Student;
-  exam?: string;
-  score?: number | string;
-  photo?: Photo;
-  currentClass?: Class;
-  activity?: string[];
-  note?: string;
-  noteEng?: string;
-}
-
-interface AwardRecord {
-  _id: string;
-  awardCategory: AwardCategory;
-  subAward: {
-    type: string;
-    label: string;
-    labelEng?: string;
-    schoolYear: string;
-    semester?: number;
-    month?: number;
-    priority?: number;
-  };
-  students: StudentData[];
-  awardClasses: Array<{
-    class: string;
-    note?: string;
-    noteEng?: string;
-    classInfo?: Class;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { 
+  AwardCategory, 
+  SubAward, 
+  StudentData, 
+  AwardRecord,
+  Photo,
+  ClassData,
+  SchoolYearExtended
+} from '../../../types';
+import type { Student, Class } from '../../../types';
 
 interface RecordsPanelProps {
   selectedCategory: AwardCategory | null;
@@ -132,7 +56,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [records, setRecords] = useState<AwardRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState<boolean>(false);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
-  const [availableSchoolYears, setAvailableSchoolYears] = useState<SchoolYear[]>([]);
+  const [availableSchoolYears, setAvailableSchoolYears] = useState<SchoolYearExtended[]>([]);
   const [selectedSubAward, setSelectedSubAward] = useState<string>('');
   const [availableSubAwards, setAvailableSubAwards] = useState<SubAward[]>([]);
   
@@ -143,6 +67,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   // Edit modal states
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
   const [recordToEdit, setRecordToEdit] = useState<AwardRecord | null>(null);
+  const [studentToEdit, setStudentToEdit] = useState<StudentData | null>(null);
 
   // Fetch school years from backend
   useEffect(() => {
@@ -157,7 +82,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
         setAvailableSchoolYears(schoolYears);
         
         // Set active school year as default, or first one if no active year
-        const activeYear = schoolYears.find((year: SchoolYear) => year.isActive);
+        const activeYear = schoolYears.find((year: SchoolYearExtended) => year.isActive);
         if (activeYear) {
           setSelectedSchoolYear(activeYear._id);
         } else if (schoolYears.length > 0) {
@@ -251,10 +176,9 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     }
   };
 
-
-
-  const handleEditRecord = (record: AwardRecord) => {
+  const handleEditRecord = (record: AwardRecord, studentData?: StudentData) => {
     setRecordToEdit(record);
+    setStudentToEdit(studentData || null);
     setEditModalOpen(true);
   };
 
@@ -322,8 +246,6 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
       }
     }
   };
-
-
 
   return (
     <Card className="h-full">
@@ -430,45 +352,78 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                 {records.map((record) => (
                   <div key={record._id}>
                     {/* Hiển thị từng học sinh trong record */}
-                    {record.students?.map((studentData, idx) => (
-                      <div 
-                        key={idx} 
-                        className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors mb-2"
-                      >
-                        <div className="flex-1">
-                          <span className="font-medium text-[#002855]">
-                            {studentData.student?.name} ({studentData.student?.studentCode})
-                          </span>
-                          {studentData.note && (
-                            <div className="text-xs text-[#002855] mt-1">
-                              Ghi chú: {studentData.note}
-                            </div>
-                          )}
+                    {record.students?.map((studentData, idx) => {
+                      const type = record.subAward.type;
+                      return (
+                        <div 
+                          key={idx} 
+                          className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors mb-2"
+                        >
+                          <div className="flex-1">
+                            <span className="font-medium text-[#002855]">
+                              {studentData.student?.name} ({studentData.student?.studentCode})
+                            </span>
+                            {/* Định kỳ: chỉ Tên, Note, NoteEng */}
+                            {['year', 'semester', 'month', 'schoolYear'].includes(type) && (
+                              <>
+                                {studentData.note && (
+                                  <div className="text-xs text-[#002855] mt-1">Ghi chú: {studentData.note}</div>
+                                )}
+                                {studentData.noteEng && (
+                                  <div className="text-xs text-[#002855] mt-1">Note (EN): {studentData.noteEng}</div>
+                                )}
+                              </>
+                            )}
+                            {/* Tuỳ chọn: Tên, Activities, ActivitiesEng, Note, NoteEng */}
+                            {type === 'custom' && (
+                              <>
+                                {studentData.activity && studentData.activity.length > 0 && (
+                                  <div className="text-xs text-[#002855] mt-1">Hoạt động: {studentData.activity.join(', ')}</div>
+                                )}
+                                {studentData.note && (
+                                  <div className="text-xs text-[#002855] mt-1">Ghi chú: {studentData.note}</div>
+                                )}
+                                {studentData.noteEng && (
+                                  <div className="text-xs text-[#002855] mt-1">Note (EN): {studentData.noteEng}</div>
+                                )}
+                              </>
+                            )}
+                            {/* Tuỳ chọn có mô tả: Tên, Bài thi, Điểm */}
+                            {type === 'custom_with_description' && (
+                              <>
+                                {studentData.exam && (
+                                  <div className="text-xs text-[#002855] mt-1">Bài thi: {studentData.exam}</div>
+                                )}
+                                {studentData.score !== undefined && studentData.score !== '' && (
+                                  <div className="text-xs text-[#002855] mt-1">Điểm: {studentData.score}</div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditRecord(record, studentData)}
+                              title="Chỉnh sửa học sinh"
+                              className="h-8 px-3 text-xs"
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteRecord(record)}
+                              title="Xóa bản ghi"
+                              className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                            </Button>
+                          </div>
                         </div>
-                        
-                        {/* Action buttons */}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditRecord(record)}
-                            title="Chỉnh sửa bản ghi"
-                            className="h-8 px-3 text-xs"
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteRecord(record)}
-                            title="Xóa bản ghi"
-                            className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Hiển thị từng lớp trong record */}
                     {record.awardClasses?.map((classData, idx) => (
@@ -549,8 +504,10 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
         onClose={() => {
           setEditModalOpen(false);
           setRecordToEdit(null);
+          setStudentToEdit(null);
         }}
         record={recordToEdit}
+        studentData={studentToEdit}
         onSuccess={handleEditSuccess}
       />
     </Card>
