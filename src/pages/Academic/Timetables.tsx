@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import {
@@ -34,6 +34,7 @@ import { TimetableListDialog } from './Dialog/TimetableListDialog';
 // Import types
 import type { SchoolYear, School } from '../../types/school.types';
 import type { Class } from '../../types/class.types';
+
 import type { Room } from '../../types/room.types';
 import type {
   TimetableEntry,

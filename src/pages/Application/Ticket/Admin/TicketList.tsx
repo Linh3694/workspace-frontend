@@ -249,8 +249,8 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
       match = match && (
         ticket.ticketCode.toLowerCase().includes(searchLower) ||
         ticket.title.toLowerCase().includes(searchLower) ||
-        ticket.creator.fullname.toLowerCase().includes(searchLower) ||
-        ticket.creator.email.toLowerCase().includes(searchLower) ||
+        (ticket.creator?.fullname || "").toLowerCase().includes(searchLower) ||
+        (ticket.creator?.email || "").toLowerCase().includes(searchLower) ||
         (ticket.assignedTo?.fullname || "").toLowerCase().includes(searchLower)
       );
     }
@@ -463,8 +463,8 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p className="font-medium">{ticket.creator.fullname}</p>
-                  <p className="text-sm text-gray-500">{ticket.creator.email}</p>
+                  <p className="font-medium">{ticket.creator?.fullname || "N/A"}</p>
+                  <p className="text-sm text-gray-500">{ticket.creator?.email || "N/A"}</p>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
