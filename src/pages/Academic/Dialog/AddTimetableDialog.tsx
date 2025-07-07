@@ -136,6 +136,8 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
     return true;
   };
 
+
+
   const parseExcelFile = async (file: File, periodDefinitions: PeriodDefinition[]): Promise<TimetableImportRecord[]> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -176,30 +178,54 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
             classes: classes
           });
           
-          // ✅ THÊM: Tạo period map và log thông tin
-          const periodMap: { [key: number]: PeriodDefinition } = {};
-          const regularPeriods: number[] = [];
-          const specialPeriods: number[] = [];
-          
-          periodDefinitions.forEach(p => { 
-            periodMap[p.periodNumber] = p; 
-            if (p.type === 'regular') {
-              regularPeriods.push(p.periodNumber);
-            } else {
-              specialPeriods.push(p.periodNumber);
-            }
+          // ===== PERIOD MAPPING LOGIC (v2) =====
+          // Excel luôn đánh số “Tiết 1 → Tiết N” liên tục theo thứ tự thời gian,
+          // KHÔNG tính các tiết đặc biệt như Ăn trưa / Ngủ trưa.  
+          // Do đó chúng ta cần:
+          //   1. Lấy *chỉ* các periods type === 'regular'
+          //   2. Sắp xếp chúng theo startTime tăng dần
+          //   3. Gán Excel Tiết i  ↔  periodDefinitionsSorted[i‑1]
+          //
+          // Điều này đảm bảo Excel Tiết 7 (sau giờ trưa) map đúng tới periodNumber
+          // của tiết học thực tế (không bị lệch do Lunch/Nap có periodNumber 6,7).
+          const regularPeriods = periodDefinitions.filter(p => p.type === 'regular');
+          const specialPeriods = periodDefinitions.filter(p => p.type !== 'regular');
+
+          // Sắp xếp regular periods theo startTime
+          const regularPeriodsSorted = [...regularPeriods].sort((a, b) =>
+            a.startTime.localeCompare(b.startTime)
+          );
+
+          // Tạo mapping: Excel Tiết N → DB PeriodDefinition
+          const correctedExcelPeriodMap: { [key: number]: PeriodDefinition } = {};
+          const excelToDbMapping: { [key: number]: number } = {};
+
+          regularPeriodsSorted.forEach((p, idx) => {
+            const excelPeriodNumber = idx + 1; // Tiết 1,2,3,...
+            correctedExcelPeriodMap[excelPeriodNumber] = p;
+            excelToDbMapping[excelPeriodNumber] = p.periodNumber;
           });
 
-          console.log('🔍 Period analysis:', {
+          // DEBUG
+          console.log(
+            '🔍 Period mapping by chronological order:',
+            Object.keys(correctedExcelPeriodMap).map(k => {
+              const p = correctedExcelPeriodMap[parseInt(k, 10)];
+              return `Excel Tiết ${k} → DB Period ${p.periodNumber} (${p.startTime}-${p.endTime})`;
+            })
+          );
+
+          console.log('🔍 Mapping analysis summary:', {
             totalPeriods: periodDefinitions.length,
-            regularPeriods: regularPeriods.sort((a, b) => a - b),
-            specialPeriods: specialPeriods.sort((a, b) => a - b),
-            periodTypes: periodDefinitions.map(p => `${p.periodNumber}:${p.type}`)
+            regularPeriods: regularPeriods.length,
+            specialPeriods: specialPeriods.length,
+            maxExcelPeriod: Object.keys(excelToDbMapping).length,
+            note: '🎯 Excel Tiết N được ánh xạ theo vị trí thời gian của các Period regular'
           });
           
           let lastDayOfWeek = '';
           let processedCount = 0;
-          let skippedSpecialCount = 0;
+                      const skippedSpecialCount = 0;
           let skippedInvalidCount = 0;
           
           for (let i = 1; i < jsonData.length; i++) {
@@ -221,19 +247,18 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
               continue;
             }
             
-            // ✅ KIỂM TRA: Period definition và type
-            const periodDef = periodMap[periodNumber];
-            if (!periodDef) {
-              console.warn(`⚠️ Period ${periodNumber} chưa được khai báo trong hệ thống`);
+            // ✅ KIỂM TRA: Period mapping từ Excel sang DB
+            const excelPeriodDef = correctedExcelPeriodMap[periodNumber];
+            if (!excelPeriodDef) {
+              console.warn(`⚠️ Excel period ${periodNumber} không hợp lệ. Chỉ chấp nhận từ 1-${Object.keys(correctedExcelPeriodMap).length}`);
               skippedInvalidCount++;
               continue;
             }
             
-            if (periodDef.type !== 'regular') {
-              console.log(`⏭️ Skipping special period ${periodNumber} (${periodDef.type}): ${periodDef.label || 'No label'}`);
-              skippedSpecialCount++;
-              continue; // Bỏ qua tiết đặc biệt
-            }
+            // Tất cả periods trong correctedExcelPeriodMap đều là regular, nên không cần check type
+            console.log(`✅ Valid Excel period ${periodNumber} -> UI: ${excelPeriodDef.label} -> DB period ${excelPeriodDef.periodNumber}`);
+            
+            const dbPeriodNumber = excelPeriodDef.periodNumber; // Lấy period number thực trong DB
             
             // Duyệt qua từng lớp (từ cột C trở đi)
             for (let j = 2; j < row.length && j - 2 < classes.length; j++) {
@@ -244,7 +269,8 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
                 dayOfWeekVietnamese,
                 dayOfWeek,
                 periodNumber,
-                periodType: periodDef.type,
+                dbPeriodNumber,
+                periodType: 'regular',
                 classCode,
                 subject,
                 hasSubject: !!subject,
@@ -267,11 +293,13 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
               
               if (isValidSubject && isValidClass) {
                 const record: TimetableImportRecord = {
-                  dayOfWeek: dayOfWeek,
-                  periodNumber: periodNumber,
+                  dayOfWeek,
+                  // **IMPORTANT**: Lưu periodNumber đúng như trong Excel (1‑10).
+                  // Backend sẽ tự chuyển đổi Excel period → DB period thông qua PeriodMappingHelper.
+                  periodNumber,
                   classCode: classCode.toString().trim(),
                   subject: subject.toString().trim(),
-                  teachers: [], 
+                  teachers: [],
                   room: 'Homeroom'
                 };
                 
@@ -301,7 +329,8 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
             periodDistribution: records.reduce((acc, r) => {
               acc[r.periodNumber] = (acc[r.periodNumber] || 0) + 1;
               return acc;
-            }, {} as { [key: number]: number })
+            }, {} as { [key: number]: number }),
+            excelToDbPeriodMapping: Object.keys(correctedExcelPeriodMap).map(k => `Excel${k}→DB${correctedExcelPeriodMap[parseInt(k)].periodNumber}`)
           });
           
           resolve(records);
@@ -596,7 +625,7 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
           
           toast({
             title: "Thành công",
-            description: `Thời khoá biểu đã được thêm thành công với ${cleanRecords.length}/${records.length} bản ghi`
+            description: `Thời khoá biểu đã được thêm thành công với ${cleanRecords.length}/${records.length} bản ghi. 🎯 Mapping đã sửa: Excel Tiết N = Regular Period N (không còn lệch tiết).`
           });
         } catch (parseError) {
           console.error('Error parsing Excel file:', parseError);
@@ -730,7 +759,9 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
             <p className="text-xs text-gray-500">
               Hỗ trợ file Excel (.xlsx, .xls). Kích thước tối đa 5MB
               <br />
-              Format: Cột A=Thứ (VD: Thứ Hai), Cột B=Tiết (VD: 1), Cột C trở đi=Các lớp (VD: 1A1), Giá trị=Tên môn học (VD: Toán)
+              Format: Cột A=Thứ (VD: Thứ Hai), Cột B=Tiết (VD: 1-10), Cột C trở đi=Các lớp (VD: 1A1), Giá trị=Tên môn học (VD: Toán)
+              <br />
+              <strong>🎯 Mapping đã sửa:</strong> Excel Tiết N = Regular Period N (theo thứ tự thời gian) - Không còn lệch tiết
             </p>
           </div>
         </div>

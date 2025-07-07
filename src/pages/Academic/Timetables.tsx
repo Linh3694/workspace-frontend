@@ -168,6 +168,20 @@ const TimetablesPage = () => {
     });
   };
 
+  // ① Auto-select schedule (đặt ngay sau khai báo selectedScheduleId)
+  useEffect(() => {
+    if (!schedules.length) return;
+
+    const monday = getWeekDates(currentWeek)[0];
+    const active = schedules.find(s => {
+      const sStart = new Date(s.startDate); sStart.setHours(0,0,0,0);
+      const sEnd   = new Date(s.endDate);   sEnd.setHours(0,0,0,0);
+      return monday >= sStart && monday <= sEnd;
+    });
+
+    setSelectedScheduleId(active ? active._id : '');
+  }, [schedules, currentWeek]);
+
   // Effects
   useEffect(() => {
     // Chỉ fetch data khi authentication đã sẵn sàng
@@ -317,9 +331,9 @@ const TimetablesPage = () => {
       setSchedules(schedulesData);
       
       // Tự động chọn schedule đầu tiên nếu có
-      if (schedulesData.length > 0 && !selectedScheduleId) {
-        setSelectedScheduleId(schedulesData[0]._id);
-      }
+      // if (schedulesData.length > 0 && !selectedScheduleId) {
+      //   setSelectedScheduleId(schedulesData[0]._id);
+      // }
     } catch (error) {
       console.error("Error fetching schedules:", error);
       setSchedules([]);
@@ -352,6 +366,45 @@ const TimetablesPage = () => {
       const response = await api.get<{ data: TimetableGrid }>(`${API_ENDPOINTS.TIMETABLES_GRID(yearId, classId)}?${params}`);
       console.log("Timetable grid response:", response);
       setTimetableGrid(response.data.data);
+        /** -----------------------------------------------------------
+         *  FILTER GRID BY SELECTED SCHEDULE DATE RANGE
+         *  Nếu ngày trong tuần nằm ngoài [schedule.startDate, schedule.endDate]
+         *  thì xoá dữ liệu để tránh hiển thị nhầm tiết.
+         *  ----------------------------------------------------------- */
+        const selectedSchedule = schedules.find(s => s._id === selectedScheduleId);
+        if (selectedSchedule) {
+          const scheduleStart = new Date(selectedSchedule.startDate);
+          const scheduleEnd   = new Date(selectedSchedule.endDate);
+          
+          // Reset giờ để so sánh thuần tuý ngày
+          scheduleStart.setHours(0, 0, 0, 0);
+          scheduleEnd.setHours(0, 0, 0, 0);
+          
+          // Tính lại mảng ngày của tuần hiện tại
+          const weekDates = getWeekDates(currentWeek); // [Mon..Fri]
+          const dayKeys: ('Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday')[] = 
+            ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+          
+          const filteredGrid = { ...response.data.data };
+          
+          dayKeys.forEach((dayKey, idx) => {
+            const date = new Date(weekDates[idx]);
+            date.setHours(0, 0, 0, 0);
+            
+            // Nếu date nằm ngoài range của schedule đã chọn
+            if (date < scheduleStart || date > scheduleEnd) {
+              if (filteredGrid[dayKey]) {
+                // Xoá toàn bộ tiết của ngày này
+                Object.keys(filteredGrid[dayKey]).forEach(periodKey => {
+                  filteredGrid[dayKey][periodKey] = null;
+                });
+              }
+            }
+          });
+          
+          // Ghi đè grid đã lọc
+          setTimetableGrid(filteredGrid);
+        }
     } catch (error: unknown) {
       console.error("Error fetching timetable grid:", error);
       
