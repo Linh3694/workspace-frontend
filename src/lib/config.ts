@@ -85,6 +85,7 @@ export const API_ENDPOINTS = {
     `${API_URL}/timetables/draft/${schoolYearId}/${classId}`,
   TEACHER_TIMETABLE: (teacherId: string, schoolYearId: string) => `${API_URL}/timetables/teacher/${teacherId}/${schoolYearId}`,
   TIMETABLES_TEACHERS: `${API_URL}/timetables/teachers`,
+  TIMETABLES_IMPORT: `${API_URL}/timetables/import`,
 
   // Timetable Schedule endpoints
   TIMETABLE_SCHEDULES: `${API_URL}/timetable-schedules`,

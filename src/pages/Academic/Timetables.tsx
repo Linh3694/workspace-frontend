@@ -49,6 +49,31 @@ import {
 import type { SchoolYearEvent } from '../../types/school-year.types';
 import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from '../../types/school-year.types';
 
+// Thêm type cho TimetableSchedule
+interface TimetableSchedule {
+  _id: string;
+  name: string;
+  schoolYear: {
+    _id: string;
+    code: string;
+  };
+  class: {
+    _id: string;
+    className: string;
+  };
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'inactive';
+  fileUrl?: string;
+  fileName?: string;
+  createdBy?: {
+    _id: string;
+    fullname: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Validation schemas - moved to inline validation
 
 const TimetablesPage = () => {
@@ -82,6 +107,10 @@ const TimetablesPage = () => {
   
   // State cho school year events
   const [schoolYearEvents, setSchoolYearEvents] = useState<SchoolYearEvent[]>([]);
+
+  // Thêm state cho schedules và selected schedule
+  const [schedules, setSchedules] = useState<TimetableSchedule[]>([]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
 
   // Hàm tính toán ngày trong tuần
   const getWeekDates = (weekStart: Date) => {
@@ -162,10 +191,11 @@ const TimetablesPage = () => {
 
   useEffect(() => {
     if (selectedSchoolYear && selectedSchool && selectedClass) {
+      fetchSchedules();
       fetchTimetableGrid(selectedSchoolYear, selectedClass);
       fetchSchoolYearEvents();
     }
-  }, [selectedSchoolYear, selectedSchool, selectedClass, currentWeek]);
+  }, [selectedSchoolYear, selectedSchool, selectedClass, currentWeek, selectedScheduleId]);
 
   // Hiển thị loading khi đang chờ authentication
   if (authLoading) {
@@ -278,7 +308,23 @@ const TimetablesPage = () => {
     }
   };
 
-
+  const fetchSchedules = async () => {
+    try {
+      if (!selectedSchoolYear || !selectedClass) return;
+      
+      const response = await api.get(`${API_ENDPOINTS.TIMETABLE_SCHEDULES}?schoolYearId=${selectedSchoolYear}&classId=${selectedClass}`);
+      const schedulesData = Array.isArray(response.data) ? response.data : response.data.data || [];
+      setSchedules(schedulesData);
+      
+      // Tự động chọn schedule đầu tiên nếu có
+      if (schedulesData.length > 0 && !selectedScheduleId) {
+        setSelectedScheduleId(schedulesData[0]._id);
+      }
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      setSchedules([]);
+    }
+  };
 
   const fetchRooms = async () => {
     try {
@@ -292,8 +338,18 @@ const TimetablesPage = () => {
   const fetchTimetableGrid = async (yearId: string, classId: string) => {
     setLoading(true);
     try {
-      console.log("Fetching timetable grid for:", { yearId, classId });
-      const response = await api.get<{ data: TimetableGrid }>(API_ENDPOINTS.TIMETABLES_GRID(yearId, classId));
+      console.log("Fetching timetable grid for:", { yearId, classId, selectedScheduleId, currentWeek });
+      
+      // Tính toán ngày bắt đầu của tuần hiện tại
+      const weekDates = getWeekDates(currentWeek);
+      const weekStartDate = weekDates[0].toISOString().split('T')[0];
+      
+      const params = new URLSearchParams({
+        ...(selectedScheduleId && { scheduleId: selectedScheduleId }),
+        weekStartDate: weekStartDate
+      });
+      
+      const response = await api.get<{ data: TimetableGrid }>(`${API_ENDPOINTS.TIMETABLES_GRID(yearId, classId)}?${params}`);
       console.log("Timetable grid response:", response);
       setTimetableGrid(response.data.data);
     } catch (error: unknown) {
@@ -399,72 +455,91 @@ const TimetablesPage = () => {
     setIsPeriodDialogOpen(true);
   };
 
-
-
   // Helper functions
-  const getPeriodMeta = (): { number: number; label: string; time?: string; type: string; start: string }[] => {
+  const getPeriodMeta = (): { number: number; label: string; time?: string; type: string; start: string; uniqueKey: string }[] => {
     if (Array.isArray(periodDefinitions) && periodDefinitions.length) {
-      // Tạo map để xử lý duplicate periodNumbers
-      const map = new Map<number, PeriodDefinition>();
+      // Tách biệt regular periods và special periods
+      const regularPeriods: PeriodDefinition[] = [];
+      const specialPeriods: PeriodDefinition[] = [];
+      
+      // Tạo map để xử lý duplicate periodNumbers cho special periods
+      const specialMap = new Map<number, PeriodDefinition>();
+      
       periodDefinitions.forEach((p) => {
-        const ex = map.get(p.periodNumber);
-        if (!ex) {
-          map.set(p.periodNumber, p);
-          return;
+        if (p.type === "regular") {
+          regularPeriods.push(p);
+        } else {
+          const ex = specialMap.get(p.periodNumber);
+          if (!ex) {
+            specialMap.set(p.periodNumber, p);
+            return;
+          }
+
+          const score = (pd: PeriodDefinition) =>
+            (pd.label ? 1 : 0);
+
+          const exScore = score(ex);
+          const pScore = score(p);
+
+          if (
+            pScore > exScore ||
+            (pScore === exScore && p.startTime < ex.startTime)
+          ) {
+            specialMap.set(p.periodNumber, p);
+          }
         }
+      });
 
-        const score = (pd: PeriodDefinition) =>
-          (pd.type !== "regular" ? 2 : 0) + (pd.label ? 1 : 0);
+      // Lấy tất cả special periods
+      specialPeriods.push(...specialMap.values());
 
-        const exScore = score(ex);
-        const pScore = score(p);
+      // Sắp xếp regular periods theo startTime
+      regularPeriods.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      
+      // Tạo danh sách tất cả periods với unique keys
+      const allPeriods: { number: number; label: string; time?: string; type: string; start: string; uniqueKey: string }[] = [];
+      
+      // Thêm regular periods với số thứ tự từ 1-10 và unique key
+      regularPeriods.forEach((p, index) => {
+        allPeriods.push({
+          number: index + 1, // Đánh số từ 1-10 bất kể periodNumber trong DB
+          label: `Tiết ${index + 1}`,
+          time: `${p.startTime} – ${p.endTime}`,
+          type: p.type,
+          start: p.startTime,
+          uniqueKey: `regular-${index + 1}`, // Unique key để tránh duplicate
+        });
+      });
 
-        if (
-          pScore > exScore ||
-          (pScore === exScore && p.startTime < ex.startTime)
-        ) {
-          map.set(p.periodNumber, p);
-        }
+      // Thêm special periods với unique key
+      specialPeriods.forEach((p) => {
+        allPeriods.push({
+          number: p.periodNumber,
+          label: p.label || PERIOD_TYPE_LABELS[p.type],
+          time: `${p.startTime} – ${p.endTime}`,
+          type: p.type,
+          start: p.startTime,
+          uniqueKey: `special-${p.periodNumber}-${p.type}`, // Unique key để tránh duplicate
+        });
       });
 
       // Log để debug
       console.log("Period definitions found:", periodDefinitions.length);
-      console.log("Unique periods after dedup:", map.size);
-      console.log("Period types:", [...map.values()].map(p => `${p.periodNumber}:${p.type}`));
+      console.log("Regular periods:", regularPeriods.length);
+      console.log("Special periods:", specialPeriods.length);
+      console.log("All periods:", allPeriods.map(p => `${p.uniqueKey}:${p.number}:${p.type}:${p.start}`));
 
-      return [...map.values()]
-        .sort((a, b) => {
-          // Sort by start time first, then by period number
-          if (a.startTime !== b.startTime) {
-            return a.startTime.localeCompare(b.startTime);
-          }
-          return a.periodNumber - b.periodNumber;
-        })
-        .map((p) => ({
-          number: p.periodNumber,
-          label: p.label || (p.type === "regular" ? `Tiết ${p.periodNumber}` : PERIOD_TYPE_LABELS[p.type]),
-          time: `${p.startTime} – ${p.endTime}`,
-          type: p.type,
-          start: p.startTime,
-        }));
+      // Sắp xếp tất cả theo startTime
+      return allPeriods.sort((a, b) => a.start.localeCompare(b.start));
     }
 
-    // Fallback khi không có period definitions
-    const nums = new Set<number>();
-    if (timetableGrid) {
-      Object.values(timetableGrid).forEach((dayObj: Record<string, TimetableEntry | null>) => {
-        Object.keys(dayObj || {}).forEach((k) => nums.add(Number(k)));
-      });
-    }
-    if (nums.size === 0) {
-      [...Array(10)].forEach((_, i) => nums.add(i + 1));
-    }
-
-    return [...nums].sort((a, b) => a - b).map((n, idx) => ({
-      number: n,
-      label: `Tiết ${n}`,
+    // Fallback khi không có period definitions - tạo 10 tiết regular
+    return [...Array(10)].map((_, i) => ({
+      number: i + 1,
+      label: `Tiết ${i + 1}`,
       type: "regular",
-      start: `${idx.toString().padStart(2, "0")}:00`,
+      start: `${(i + 7).toString().padStart(2, "0")}:00`, // Bắt đầu từ 7:00
+      uniqueKey: `regular-${i + 1}`, // Unique key
     }));
   };
 
@@ -593,7 +668,7 @@ const TimetablesPage = () => {
                   
                   if (isSpecialPeriod) {
                     return (
-                      <TableRow key={pm.number} className="hover:bg-gray-50">
+                      <TableRow key={pm.uniqueKey} className="hover:bg-gray-50">
                         {/* Merge từ cột tiết học sang tất cả các cột ngày */}
                         <TableCell 
                           colSpan={days.length + 1}
@@ -610,7 +685,7 @@ const TimetablesPage = () => {
                   
                   // Tiết học thường - hiển thị như cũ
                   return (
-                    <TableRow key={pm.number} className="hover:bg-gray-50">
+                    <TableRow key={pm.uniqueKey} className="hover:bg-gray-50">
                       <TableCell className="border text-center font-medium bg-gray-25">
                         <div>
                           <div className="font-semibold text-[#002855]">{pm.label}</div>
@@ -624,7 +699,7 @@ const TimetablesPage = () => {
                         
                         return (
                           <TableCell 
-                            key={`${day}-${pm.number}`} 
+                            key={`${day}-${pm.uniqueKey}`} 
                             className={`border p-3 transition-colors ${
                               event ? 'bg-gray-100' : 'cursor-pointer hover:bg-[#002855]/5'
                             }`}
@@ -794,6 +869,27 @@ const TimetablesPage = () => {
               Danh sách thời khoá biểu
             </Button>
           </div>
+          
+          {/* Schedule Selection */}
+          {schedules.length > 0 && (
+            <div className="flex justify-start items-center gap-4 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <Label>Thời khoá biểu:</Label>
+                <Select value={selectedScheduleId} onValueChange={setSelectedScheduleId}>
+                  <SelectTrigger className="w-[300px]">
+                    <SelectValue placeholder="Chọn thời khoá biểu" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
+                    {schedules.map((schedule) => (
+                      <SelectItem key={schedule._id} value={schedule._id}>
+                        {schedule.name} ({new Date(schedule.startDate).toLocaleDateString('vi-VN')} - {new Date(schedule.endDate).toLocaleDateString('vi-VN')})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </CardHeader>
       </Card>
 
@@ -821,11 +917,11 @@ const TimetablesPage = () => {
         selectedSchoolYear={selectedSchoolYear}
         selectedClass={selectedClass}
         onTimetableAdded={() => {
-          // Refresh timetable data
           if (selectedSchoolYear && selectedClass) {
             fetchTimetableGrid(selectedSchoolYear, selectedClass);
           }
         }}
+        periodDefinitions={periodDefinitions}
       />
 
       <TimetableListDialog

@@ -56,6 +56,7 @@ export interface TimetableImportRecord {
   subject: string;
   teachers: string[];
   room: string | "Homeroom";
+  scheduleId?: string;
 }
 
 export interface TimetableImportPayload {

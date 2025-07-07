@@ -40,123 +40,287 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
   schools,
   onPeriodUpdated
 }) => {
-  const [periodSchoolSelection, setPeriodSchoolSelection] = useState<string>('');
-  const [editingPeriods, setEditingPeriods] = useState<PeriodDefinition[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<string>('');
+  const [periods, setPeriods] = useState<PeriodDefinition[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   // Fetch periods for selected school
-  const fetchPeriodsForSchool = async (schoolId: string) => {
+  const fetchPeriods = async (schoolId: string) => {
     if (!selectedSchoolYear || !schoolId) return;
     
     try {
+      setLoading(true);
       const response = await api.get<ApiResponse<PeriodDefinition[]>>(
         `${API_ENDPOINTS.PERIOD_DEFINITIONS(selectedSchoolYear)}?schoolId=${schoolId}`
       );
-      setEditingPeriods(response.data.data);
+      setPeriods(response.data.data);
     } catch (error) {
-      console.error("Error fetching periods for school:", error);
-      setEditingPeriods([]);
+      console.error("Error fetching periods:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải danh sách tiết học",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle school selection in dialog
-  const handlePeriodSchoolChange = (schoolId: string) => {
-    setPeriodSchoolSelection(schoolId);
-    fetchPeriodsForSchool(schoolId);
+  // Handle school selection
+  const handleSchoolChange = (schoolId: string) => {
+    setSelectedSchool(schoolId);
+    fetchPeriods(schoolId);
   };
 
-  // Add new period to editing list
+  // Add new period
   const handleAddPeriod = () => {
     const newPeriod: PeriodDefinition = {
-      _id: `new-${Date.now()}`,
+      _id: `new-${Date.now()}`, // Temporary ID until saved
       schoolYear: selectedSchoolYear,
-      school: periodSchoolSelection,
-      periodNumber: editingPeriods.length + 1,
+      school: selectedSchool,
+      periodNumber: periods.length + 1,
       startTime: '',
       endTime: '',
       type: 'regular',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    setEditingPeriods([...editingPeriods, newPeriod]);
+    setPeriods([...periods, newPeriod]);
   };
 
-  // Update period in editing list
-  const handleUpdatePeriod = (index: number, field: keyof PeriodDefinition, value: any) => {
-    const updated = [...editingPeriods];
-    (updated[index] as any)[field] = value;
-    setEditingPeriods(updated);
+  // Update period
+  const handleUpdatePeriod = (index: number, field: keyof PeriodDefinition, value: string | number) => {
+    const updated = [...periods];
+    if (field === 'periodNumber' && typeof value === 'string') {
+      updated[index][field] = parseInt(value) || 0;
+    } else {
+      (updated[index] as unknown as Record<string, unknown>)[field] = value;
+    }
+    setPeriods(updated);
   };
 
-  // Remove period from editing list
+  // Remove period
   const handleRemovePeriod = (index: number) => {
-    const updated = editingPeriods.filter((_, i) => i !== index);
-    setEditingPeriods(updated);
+    setPeriods(periods.filter((_, i) => i !== index));
   };
 
-  // Save all periods
-  const handleSavePeriods = async () => {
-    if (!selectedSchoolYear || !periodSchoolSelection) {
+  // Simple validation
+  const validatePeriods = (): boolean => {
+    for (const period of periods) {
+      if (!period.startTime || !period.endTime) {
+        toast({
+          title: "Lỗi",
+          description: "Vui lòng điền đầy đủ thời gian cho tất cả tiết học",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      if (period.startTime >= period.endTime) {
+        toast({
+          title: "Lỗi",
+          description: `Tiết ${period.periodNumber}: Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc`,
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      if (period.periodNumber <= 0 || period.periodNumber > 25) {
+        toast({
+          title: "Lỗi",
+          description: "Số tiết phải từ 1 đến 25",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    // Check for duplicate period numbers
+    const periodNumbers = periods.map(p => p.periodNumber);
+    const uniqueNumbers = [...new Set(periodNumbers)];
+    if (periodNumbers.length !== uniqueNumbers.length) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng chọn năm học và trường",
+        description: "Không được có số tiết trùng lặp",
         variant: "destructive"
       });
+      return false;
+    }
+
+    return true;
+  };
+
+  // Save periods
+  const handleSavePeriods = async () => {
+    if (!selectedSchoolYear || !selectedSchool) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn trường",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validatePeriods()) {
       return;
     }
 
     try {
       setLoading(true);
       
-      // Validate periods
-      for (const period of editingPeriods) {
-        if (!period.startTime || !period.endTime) {
-          toast({
-            title: "Lỗi",
-            description: "Vui lòng điền đầy đủ thời gian cho tất cả tiết học",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
-      // Delete existing periods for this school/year
-      const existingPeriods = await api.get<ApiResponse<PeriodDefinition[]>>(
-        `${API_ENDPOINTS.PERIOD_DEFINITIONS(selectedSchoolYear)}?schoolId=${periodSchoolSelection}`
+      // Get existing periods
+      const existingResponse = await api.get<ApiResponse<PeriodDefinition[]>>(
+        `${API_ENDPOINTS.PERIOD_DEFINITIONS(selectedSchoolYear)}?schoolId=${selectedSchool}`
       );
       
-      for (const period of existingPeriods.data.data) {
-        await api.delete(`${API_ENDPOINTS.TIMETABLES}/period-definitions/${period._id}`);
-      }
-
-      // Create new periods
-      for (const period of editingPeriods) {
-        const payload = {
-          periodNumber: period.periodNumber,
-          startTime: period.startTime,
-          endTime: period.endTime,
-          type: period.type,
-          label: period.type === "regular" ? `Tiết ${period.periodNumber}` : PERIOD_TYPE_LABELS[period.type],
-          schoolYear: selectedSchoolYear,
-          school: periodSchoolSelection
-        };
+      const existingPeriods = existingResponse.data.data;
+      const newPeriods = [...periods].sort((a, b) => a.periodNumber - b.periodNumber);
+      
+      // Compare and find differences
+      const toCreate = [];
+      const toUpdate = [];
+      const toDelete = [];
+      
+      // Find periods to create or update
+      for (const newPeriod of newPeriods) {
+        // Check if it's a new period (temporary ID)
+        const isNewPeriod = newPeriod._id.startsWith('new-');
         
-        await api.post(API_ENDPOINTS.PERIOD_DEFINITIONS(selectedSchoolYear), payload);
+        if (isNewPeriod) {
+          // This is a new period to create
+          toCreate.push(newPeriod);
+        } else {
+          // This is an existing period, check if it needs update
+          const existing = existingPeriods.find(p => p._id === newPeriod._id);
+          
+          if (existing) {
+            const needsUpdate = 
+              existing.startTime !== newPeriod.startTime ||
+              existing.endTime !== newPeriod.endTime ||
+              existing.type !== newPeriod.type ||
+              existing.periodNumber !== newPeriod.periodNumber;
+              
+            if (needsUpdate) {
+              toUpdate.push({ existing, new: newPeriod });
+            }
+          } else {
+            // Period not found in existing, treat as new
+            toCreate.push(newPeriod);
+          }
+        }
       }
-
-      // Refresh data
-      await onPeriodUpdated(selectedSchoolYear, periodSchoolSelection);
+      
+      // Find periods to delete (existing periods not in new periods)
+      for (const existingPeriod of existingPeriods) {
+        const stillExists = newPeriods.find(p => 
+          !p._id.startsWith('new-') && p._id === existingPeriod._id
+        );
+        if (!stillExists) {
+          toDelete.push(existingPeriod);
+        }
+      }
+      
+      console.log(`Changes: ${toCreate.length} to create, ${toUpdate.length} to update, ${toDelete.length} to delete`);
+      console.log('🔍 Period analysis:', {
+        existing: existingPeriods.map(p => ({ id: p._id, period: p.periodNumber, type: p.type })),
+        new: newPeriods.map(p => ({ id: p._id, period: p.periodNumber, type: p.type, isTemp: p._id.startsWith('new-') })),
+        toCreate: toCreate.map(p => ({ period: p.periodNumber, type: p.type })),
+        toUpdate: toUpdate.map(u => ({ id: u.existing._id, period: u.new.periodNumber })),
+        toDelete: toDelete.map(p => ({ id: p._id, period: p.periodNumber }))
+      });
+      
+      // Execute changes
+      
+      // Delete periods
+      if (toDelete.length > 0) {
+        console.log('Deleting periods...');
+        await Promise.all(
+          toDelete.map(async (period) => {
+            try {
+              await api.delete(API_ENDPOINTS.PERIOD_DEFINITION(period._id));
+              console.log(`Deleted period ${period.periodNumber}`);
+            } catch (error) {
+              console.error(`Failed to delete period ${period.periodNumber}:`, error);
+            }
+          })
+        );
+      }
+      
+      // Update periods
+      if (toUpdate.length > 0) {
+        console.log('Updating periods...');
+        for (const { existing, new: newPeriod } of toUpdate) {
+          try {
+            const payload = {
+              periodNumber: newPeriod.periodNumber,
+              startTime: newPeriod.startTime,
+              endTime: newPeriod.endTime,
+              type: newPeriod.type || 'regular',
+              label: newPeriod.type === "regular" ? `Tiết ${newPeriod.periodNumber}` : 
+                     PERIOD_TYPE_LABELS[newPeriod.type as keyof typeof PERIOD_TYPE_LABELS] || 
+                     `Tiết ${newPeriod.periodNumber}`,
+              school: selectedSchool
+            };
+            
+            await api.put(API_ENDPOINTS.PERIOD_DEFINITION(existing._id), payload);
+            console.log(`Updated period ${newPeriod.periodNumber}`);
+          } catch (error) {
+            console.error(`Failed to update period ${newPeriod.periodNumber}:`, error);
+            throw new Error(`Không thể cập nhật tiết ${newPeriod.periodNumber}`);
+          }
+        }
+      }
+      
+      // Create new periods
+      if (toCreate.length > 0) {
+        console.log('Creating new periods...');
+        for (const newPeriod of toCreate) {
+          try {
+            const payload = {
+              periodNumber: newPeriod.periodNumber,
+              startTime: newPeriod.startTime,
+              endTime: newPeriod.endTime,
+              type: newPeriod.type || 'regular',
+              label: newPeriod.type === "regular" ? `Tiết ${newPeriod.periodNumber}` : 
+                     PERIOD_TYPE_LABELS[newPeriod.type as keyof typeof PERIOD_TYPE_LABELS] || 
+                     `Tiết ${newPeriod.periodNumber}`,
+              school: selectedSchool
+            };
+            
+            await api.post(API_ENDPOINTS.PERIOD_DEFINITIONS(selectedSchoolYear), payload);
+            console.log(`Created period ${newPeriod.periodNumber}`);
+          } catch (error) {
+            console.error(`Failed to create period ${newPeriod.periodNumber}:`, error);
+            throw new Error(`Không thể tạo tiết ${newPeriod.periodNumber}`);
+          }
+        }
+      }
+      
+      // Refresh data and close dialog
+      await onPeriodUpdated(selectedSchoolYear, selectedSchool);
       onClose();
       
+      const totalChanges = toCreate.length + toUpdate.length + toDelete.length;
       toast({
         title: "Thành công",
-        description: "Cập nhật tiết học thành công"
+        description: totalChanges > 0 ? `Đã cập nhật ${totalChanges} thay đổi` : "Không có thay đổi nào"
       });
+
     } catch (error) {
+      console.error('Save periods error:', error);
+      
+      // Refresh data to show current state
+      try {
+        await onPeriodUpdated(selectedSchoolYear, selectedSchool);
+        await fetchPeriods(selectedSchool);
+      } catch (refreshError) {
+        console.error('Failed to refresh after error:', refreshError);
+      }
+      
       toast({
         title: "Lỗi",
-        description: error instanceof Error ? error.message : "Không thể cập nhật tiết học",
+        description: error instanceof Error ? error.message : "Không thể lưu tiết học. Vui lòng thử lại.",
         variant: "destructive"
       });
     } finally {
@@ -166,16 +330,16 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
 
   // Reset state when dialog opens
   useEffect(() => {
-    if (isOpen && schools.length > 0 && !periodSchoolSelection) {
-      setPeriodSchoolSelection(schools[0]._id);
-      fetchPeriodsForSchool(schools[0]._id);
+    if (isOpen && schools.length > 0) {
+      setSelectedSchool(schools[0]._id);
+      fetchPeriods(schools[0]._id);
     }
   }, [isOpen, schools]);
 
   // Handle close
   const handleClose = () => {
-    setEditingPeriods([]);
-    setPeriodSchoolSelection('');
+    setPeriods([]);
+    setSelectedSchool('');
     onClose();
   };
 
@@ -193,7 +357,7 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
           {/* School Selection */}
           <div className="space-y-2">
             <Label>Chọn trường</Label>
-            <Select value={periodSchoolSelection} onValueChange={handlePeriodSchoolChange}>
+            <Select value={selectedSchool} onValueChange={handleSchoolChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Chọn trường" />
               </SelectTrigger>
@@ -206,13 +370,13 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
               </SelectContent>
             </Select>
             <p className="text-sm text-gray-600">
-              💡 <strong>Lưu ý:</strong> Tiết số phải theo thứ tự thời gian trong ngày. 
+              💡 <strong>Lưu ý:</strong> Tiết số phải từ 1-25 và theo thứ tự thời gian trong ngày. 
               Các tiết đặc biệt (ăn trưa, ngủ trưa) cũng cần được đánh số tuần tự.
             </p>
           </div>
 
           {/* Periods List */}
-          {periodSchoolSelection && (
+          {selectedSchool && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -233,77 +397,83 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
                 <div className="col-span-1 text-center">Thao tác</div>
               </div>
 
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {editingPeriods.map((period, index) => (
-                  <div key={period._id} className="grid grid-cols-6 gap-2 items-center p-3 border rounded-lg hover:bg-gray-50">
-                    {/* Period Number */}
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        value={period.periodNumber}
-                        onChange={(e) => handleUpdatePeriod(index, 'periodNumber', parseInt(e.target.value) || 0)}
-                        placeholder="Số"
-                        min="0"
-                        max="14"
-                        className="text-center"
-                      />
-                    </div>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {periods.map((period, index) => (
+                    <div key={period._id} className="grid grid-cols-6 gap-2 items-center p-3 border rounded-lg hover:bg-gray-50">
+                      {/* Period Number */}
+                      <div className="col-span-1">
+                        <Input
+                          type="number"
+                          value={period.periodNumber}
+                          onChange={(e) => handleUpdatePeriod(index, 'periodNumber', parseInt(e.target.value) || 0)}
+                          placeholder="Số"
+                          min="1"
+                          max="25"
+                          className="text-center"
+                        />
+                      </div>
 
-                    {/* Period Type */}
-                    <div className="col-span-2">
-                      <Select
-                        value={period.type}
-                        onValueChange={(value) => handleUpdatePeriod(index, 'type', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PERIOD_TYPE_LABELS).map(([key, label]) => (
-                            <SelectItem key={key} value={key}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      {/* Period Type */}
+                      <div className="col-span-2">
+                        <Select
+                          value={period.type}
+                          onValueChange={(value) => handleUpdatePeriod(index, 'type', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PERIOD_TYPE_LABELS).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    {/* Start Time */}
-                    <div className="col-span-1">
-                      <Input
-                        type="time"
-                        value={period.startTime}
-                        onChange={(e) => handleUpdatePeriod(index, 'startTime', e.target.value)}
-                        placeholder="Bắt đầu"
-                      />
-                    </div>
+                      {/* Start Time */}
+                      <div className="col-span-1">
+                        <Input
+                          type="time"
+                          value={period.startTime}
+                          onChange={(e) => handleUpdatePeriod(index, 'startTime', e.target.value)}
+                          placeholder="Bắt đầu"
+                        />
+                      </div>
 
-                    {/* End Time */}
-                    <div className="col-span-1">
-                      <Input
-                        type="time"
-                        value={period.endTime}
-                        onChange={(e) => handleUpdatePeriod(index, 'endTime', e.target.value)}
-                        placeholder="Kết thúc"
-                      />
-                    </div>
+                      {/* End Time */}
+                      <div className="col-span-1">
+                        <Input
+                          type="time"
+                          value={period.endTime}
+                          onChange={(e) => handleUpdatePeriod(index, 'endTime', e.target.value)}
+                          placeholder="Kết thúc"
+                        />
+                      </div>
 
-                    {/* Remove Button */}
-                    <div className="col-span-1 flex justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRemovePeriod(index)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:border-red-300"
-                      >
-                        ×
-                      </Button>
+                      {/* Remove Button */}
+                      <div className="col-span-1 flex justify-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemovePeriod(index)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:border-red-300"
+                        >
+                          ×
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
-              {editingPeriods.length === 0 && (
+              {periods.length === 0 && !loading && (
                 <div className="text-center py-8 text-gray-500">
                   <Clock className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                   <p>Chưa có tiết học nào</p>
@@ -322,7 +492,7 @@ export const PeriodManagementDialog: React.FC<PeriodManagementDialogProps> = ({
           >
             Hủy
           </Button>
-          {periodSchoolSelection && (
+          {selectedSchool && (
             <Button onClick={handleSavePeriods} disabled={loading}>
               {loading ? (
                 <>
