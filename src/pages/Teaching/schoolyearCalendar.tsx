@@ -350,7 +350,7 @@ const SchoolYearCalendar: React.FC = () => {
       {selectedSchoolYear && dateRange && (
         <>
           <CalendarYearView
-            events={Array.isArray(events) ? events : []}
+            events={(Array.isArray(events) ? events : [])}
             schoolYear={schoolYears.find(sy => sy._id === selectedSchoolYear)!}
           />
         </>
