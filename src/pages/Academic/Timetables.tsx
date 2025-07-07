@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import {
   Table,
@@ -22,11 +23,13 @@ import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
 import * as XLSX from 'xlsx';
-import { Loader2, Upload, Settings, Plus, Calendar, Clock, Users, MapPin } from "lucide-react";
+import { Loader2, Upload, Settings, Plus, Calendar, Clock, Users, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Dialog components
 import { TimetableDetailDialog } from './Dialog/TimetableDetailDialog';
 import { PeriodManagementDialog } from './Dialog/PeriodManagementDialog';
+import { AddTimetableDialog } from './Dialog/AddTimetableDialog';
+import { TimetableListDialog } from './Dialog/TimetableListDialog';
 
 // Import types
 import type { SchoolYear, School } from '../../types/school.types';
@@ -44,10 +47,14 @@ import {
   DAY_OF_WEEK_LABELS,
   PERIOD_TYPE_LABELS
 } from '../../types/timetable.types';
+import type { SchoolYearEvent } from '../../types/school-year.types';
+import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from '../../types/school-year.types';
 
 // Validation schemas - moved to inline validation
 
 const TimetablesPage = () => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  
   // State management
   const [timetableGrid, setTimetableGrid] = useState<TimetableGrid | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -59,6 +66,8 @@ const TimetablesPage = () => {
   const [loading, setLoading] = useState(false);
   const [periodDefinitions, setPeriodDefinitions] = useState<PeriodDefinition[]>([]);
   const [isPeriodDialogOpen, setIsPeriodDialogOpen] = useState(false);
+  const [isAddTimetableDialogOpen, setIsAddTimetableDialogOpen] = useState(false);
+  const [isTimetableListDialogOpen, setIsTimetableListDialogOpen] = useState(false);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<string>('');
@@ -69,10 +78,88 @@ const TimetablesPage = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [, setRooms] = useState<Room[]>([]);
   const { toast } = useToast();
+
+  // Thêm state cho tuần hiện tại
+  const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
+  
+  // State cho school year events
+  const [schoolYearEvents, setSchoolYearEvents] = useState<SchoolYearEvent[]>([]);
+
+  // Hàm tính toán ngày trong tuần
+  const getWeekDates = (weekStart: Date) => {
+    const dates = [];
+    const startOfWeek = new Date(weekStart);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Bắt đầu từ thứ 2
+    
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
+  // Hàm format ngày
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  // Hàm điều hướng tuần
+  const goToPreviousWeek = () => {
+    const newWeek = new Date(currentWeek);
+    newWeek.setDate(currentWeek.getDate() - 7);
+    setCurrentWeek(newWeek);
+  };
+
+  const goToNextWeek = () => {
+    const newWeek = new Date(currentWeek);
+    newWeek.setDate(currentWeek.getDate() + 7);
+    setCurrentWeek(newWeek);
+  };
+
+  const goToCurrentWeek = () => {
+    setCurrentWeek(new Date());
+  };
+
+  // Hàm kiểm tra event cho một ngày
+  const getEventForDate = (date: Date) => {
+    return schoolYearEvents.find(event => {
+      const eventStart = new Date(event.startDate);
+      const eventEnd = new Date(event.endDate);
+      const checkDate = new Date(date);
+      
+      // Reset time để so sánh chỉ ngày
+      eventStart.setHours(0, 0, 0, 0);
+      eventEnd.setHours(0, 0, 0, 0);
+      checkDate.setHours(0, 0, 0, 0);
+      
+      return checkDate >= eventStart && checkDate <= eventEnd;
+    });
+  };
+
   // Effects
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    // Chỉ fetch data khi authentication đã sẵn sàng
+    if (!authLoading && isAuthenticated) {
+      fetchInitialData();
+    }
+  }, [authLoading, isAuthenticated]);
+
+  // Hiển thị loading khi đang chờ authentication
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Đang tải...</span>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (selectedSchoolYear) {
@@ -90,8 +177,16 @@ const TimetablesPage = () => {
   useEffect(() => {
     if (selectedSchoolYear && selectedSchool && selectedClass) {
       fetchTimetableGrid(selectedSchoolYear, selectedClass);
+      fetchSchoolYearEvents();
     }
   }, [selectedSchoolYear, selectedSchool, selectedClass]);
+
+  // Refresh events khi thay đổi tuần
+  useEffect(() => {
+    if (selectedSchoolYear && selectedSchool && selectedClass) {
+      fetchSchoolYearEvents();
+    }
+  }, [currentWeek, selectedSchoolYear, selectedSchool, selectedClass]);
 
   // API calls
   const fetchInitialData = async () => {
@@ -156,6 +251,23 @@ const TimetablesPage = () => {
       if (!yearId || !schoolId) {
         setClasses([]);
         return;
+      }
+
+      // Debug: Kiểm tra token
+      const token = localStorage.getItem('token');
+      console.log('🔍 Debug fetchClasses - Token exists:', !!token);
+      console.log('🔍 Debug fetchClasses - Token preview:', token ? token.substring(0, 20) + '...' : 'null');
+      
+      if (!token) {
+        console.error('❌ No token found, waiting for authentication...');
+        // Đợi một chút để token được lưu
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const retryToken = localStorage.getItem('token');
+        if (!retryToken) {
+          console.error('❌ Still no token after retry');
+          setClasses([]);
+          return;
+        }
       }
 
       // Lấy lớp theo trường thông qua grade levels
@@ -261,6 +373,31 @@ const TimetablesPage = () => {
     }
   };
 
+  const fetchSchoolYearEvents = async () => {
+    if (!selectedSchoolYear) return;
+    
+    try {
+      // Tính toán khoảng thời gian cho tuần hiện tại
+      const weekDates = getWeekDates(currentWeek);
+      const startDate = weekDates[0];
+      const endDate = weekDates[4];
+      
+      const response = await api.get(API_ENDPOINTS.SCHOOL_YEAR_EVENTS_BY_DATE_RANGE, {
+        params: {
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          schoolYear: selectedSchoolYear
+        }
+      });
+      
+      const eventsData = Array.isArray(response.data) ? response.data : response.data.data || [];
+      setSchoolYearEvents(eventsData);
+    } catch (error) {
+      console.error("Error fetching school year events:", error);
+      // Không hiển thị toast lỗi vì events không quan trọng bằng timetable
+    }
+  };
+
   // Event handlers
   const handleSelectClass = (id: string) => {
     setSelectedClass(id);
@@ -292,8 +429,6 @@ const TimetablesPage = () => {
     }
     setIsPeriodDialogOpen(true);
   };
-
-
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -631,10 +766,47 @@ const TimetablesPage = () => {
 
     const days = Object.keys(DAY_OF_WEEK_LABELS).slice(0, 5); // Only weekdays
     const periodMetas = rawMetas;
+    const weekDates = getWeekDates(currentWeek);
 
     return (
       <Card>
         <CardContent className="p-0">
+          {/* Week Navigation */}
+          <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousWeek}
+              className="flex items-center gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Tuần trước
+            </Button>
+            
+            <div className="flex items-center gap-4">
+              <span className="font-semibold text-[#002855]">
+                Tuần {formatDate(weekDates[0])} - {formatDate(weekDates[4])}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToCurrentWeek}
+              >
+                Tuần hiện tại
+              </Button>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextWeek}
+              className="flex items-center gap-2"
+            >
+              Tuần sau
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <div className="overflow-auto">
             <Table>
               <TableHeader>
@@ -645,11 +817,26 @@ const TimetablesPage = () => {
                       Tiết học
                     </div>
                   </TableHead>
-                  {days.map(day => (
-                    <TableHead key={day} className="border text-center min-w-[200px] bg-gray-50 font-semibold">
-                      {DAY_OF_WEEK_LABELS[day as keyof typeof DAY_OF_WEEK_LABELS]}
-                    </TableHead>
-                  ))}
+                  {days.map((day, index) => {
+                    const date = weekDates[index];
+                    const event = getEventForDate(date);
+                    
+                    return (
+                      <TableHead key={day} className="border text-center min-w-[200px] bg-gray-50 font-semibold">
+                        <div>
+                          <div>{DAY_OF_WEEK_LABELS[day as keyof typeof DAY_OF_WEEK_LABELS]}</div>
+                          <div className="text-sm text-gray-600 font-normal">
+                            {formatDate(date)}
+                          </div>
+                          {event && (
+                            <div className={`mt-1 px-2 py-1 rounded text-xs font-medium text-white ${EVENT_TYPE_COLORS[event.type]}`}>
+                              {EVENT_TYPE_LABELS[event.type]}
+                            </div>
+                          )}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -683,15 +870,30 @@ const TimetablesPage = () => {
                           <div className="text-xs text-gray-500">{pm.time}</div>
                         </div>
                       </TableCell>
-                      {days.map(day => {
+                      {days.map((day, dayIndex) => {
                         const entry = timetableGrid[day]?.[String(pm.number)];
+                        const date = weekDates[dayIndex];
+                        const event = getEventForDate(date);
+                        
                         return (
                           <TableCell 
                             key={`${day}-${pm.number}`} 
-                            className="border p-3 cursor-pointer hover:bg-[#002855]/5 transition-colors" 
-                            onClick={() => handleCellClick(day, pm.number, entry)}
+                            className={`border p-3 transition-colors ${
+                              event ? 'bg-gray-100' : 'cursor-pointer hover:bg-[#002855]/5'
+                            }`}
+                            onClick={event ? undefined : () => handleCellClick(day, pm.number, entry)}
                           >
-                            {entry ? (
+                            {event ? (
+                              <div className="text-center py-4">
+                                <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white text-sm font-medium ${EVENT_TYPE_COLORS[event.type]}`}>
+                                  <Calendar className="h-4 w-4" />
+                                  {event.name}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-2">
+                                  {EVENT_TYPE_LABELS[event.type]}
+                                </div>
+                              </div>
+                            ) : entry ? (
                               <div className="space-y-2">
                                 <div className="font-semibold text-[#002855] flex items-center gap-1">
                                   <div className="h-2 w-2 bg-[#002855] rounded-full"></div>
@@ -828,22 +1030,22 @@ const TimetablesPage = () => {
               Khai báo tiết học
             </Button>
 
-            <div className="relative inline-block">
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-                disabled={loading}
-              />
-              <Button asChild disabled={loading}>
-                <label htmlFor="file-upload" className="cursor-pointer flex items-center gap-2">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Tải lên TKB
-                </label>
-              </Button>
-            </div>
+            <Button 
+              onClick={() => setIsAddTimetableDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Thêm thời khoá biểu
+            </Button>
+
+            <Button 
+              onClick={() => setIsTimetableListDialogOpen(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Calendar className="h-4 w-4" />
+              Danh sách thời khoá biểu
+            </Button>
           </div>
         </CardHeader>
       </Card>
@@ -864,6 +1066,32 @@ const TimetablesPage = () => {
         selectedSchoolYear={selectedSchoolYear}
         schools={schools}
         onPeriodUpdated={fetchPeriodDefinitions}
+      />
+
+      <AddTimetableDialog
+        isOpen={isAddTimetableDialogOpen}
+        onClose={() => setIsAddTimetableDialogOpen(false)}
+        selectedSchoolYear={selectedSchoolYear}
+        selectedClass={selectedClass}
+        onTimetableAdded={() => {
+          // Refresh timetable data
+          if (selectedSchoolYear && selectedClass) {
+            fetchTimetableGrid(selectedSchoolYear, selectedClass);
+          }
+        }}
+      />
+
+      <TimetableListDialog
+        isOpen={isTimetableListDialogOpen}
+        onClose={() => setIsTimetableListDialogOpen(false)}
+        selectedSchoolYear={selectedSchoolYear}
+        selectedClass={selectedClass}
+        onTimetableUpdated={() => {
+          // Refresh timetable data
+          if (selectedSchoolYear && selectedClass) {
+            fetchTimetableGrid(selectedSchoolYear, selectedClass);
+          }
+        }}
       />
     </div>
   );

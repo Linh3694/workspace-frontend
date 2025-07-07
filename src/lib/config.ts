@@ -24,6 +24,10 @@ export const API_ENDPOINTS = {
   SCHOOL_YEAR: (id: string) => `${API_URL}/school-years/${id}`,
   SCHOOL_YEAR_EVENTS: `${API_URL}/school-year-events`,
   SCHOOL_YEAR_EVENT: (id: string) => `${API_URL}/school-year-events/${id}`,
+  SCHOOL_YEAR_EVENTS_BY_SCHOOL_YEAR: (schoolYearId: string) => `${API_URL}/school-year-events/school-year/${schoolYearId}`,
+  SCHOOL_YEAR_EVENTS_BY_TYPE: (type: string) => `${API_URL}/school-year-events/type/${type}`,
+  SCHOOL_YEAR_EVENTS_BY_MONTH: (year: number, month: number) => `${API_URL}/school-year-events/month/${year}/${month}`,
+  SCHOOL_YEAR_EVENTS_BY_DATE_RANGE: `${API_URL}/school-year-events/date-range`,
   // Class endpoints
   CLASSES: `${API_URL}/classes`,
   CLASS: (id: string) => `${API_URL}/classes/${id}`,
@@ -81,6 +85,11 @@ export const API_ENDPOINTS = {
     `${API_URL}/timetables/draft/${schoolYearId}/${classId}`,
   TEACHER_TIMETABLE: (teacherId: string, schoolYearId: string) => `${API_URL}/timetables/teacher/${teacherId}/${schoolYearId}`,
   TIMETABLES_TEACHERS: `${API_URL}/timetables/teachers`,
+
+  // Timetable Schedule endpoints
+  TIMETABLE_SCHEDULES: `${API_URL}/timetable-schedules`,
+  TIMETABLE_SCHEDULE: (id: string) => `${API_URL}/timetable-schedules/${id}`,
+  TIMETABLE_SCHEDULE_UPLOAD: (id: string) => `${API_URL}/timetable-schedules/${id}/upload`,
 
   // Period definition endpoints
   PERIOD_DEFINITIONS: (schoolYearId: string) => `${API_URL}/timetables/period-definitions/${schoolYearId}`,
