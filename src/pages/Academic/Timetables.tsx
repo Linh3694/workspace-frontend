@@ -23,7 +23,7 @@ import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
 import * as XLSX from 'xlsx';
-import { Loader2, Upload, Settings, Plus, Calendar, Clock, Users, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Settings, Plus, Calendar, Clock, Users, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Dialog components
 import { TimetableDetailDialog } from './Dialog/TimetableDetailDialog';
@@ -149,18 +149,6 @@ const TimetablesPage = () => {
     }
   }, [authLoading, isAuthenticated]);
 
-  // Hiển thị loading khi đang chờ authentication
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Đang tải...</span>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (selectedSchoolYear) {
       fetchSchools();
@@ -179,14 +167,19 @@ const TimetablesPage = () => {
       fetchTimetableGrid(selectedSchoolYear, selectedClass);
       fetchSchoolYearEvents();
     }
-  }, [selectedSchoolYear, selectedSchool, selectedClass]);
+  }, [selectedSchoolYear, selectedSchool, selectedClass, currentWeek]);
 
-  // Refresh events khi thay đổi tuần
-  useEffect(() => {
-    if (selectedSchoolYear && selectedSchool && selectedClass) {
-      fetchSchoolYearEvents();
-    }
-  }, [currentWeek, selectedSchoolYear, selectedSchool, selectedClass]);
+  // Hiển thị loading khi đang chờ authentication
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Đang tải...</span>
+        </div>
+      </div>
+    );
+  }
 
   // API calls
   const fetchInitialData = async () => {
@@ -430,6 +423,7 @@ const TimetablesPage = () => {
     setIsPeriodDialogOpen(true);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;

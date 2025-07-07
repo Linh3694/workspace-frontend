@@ -15,7 +15,6 @@ import { Loader2, Upload, Calendar, FileText } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
 import { API_ENDPOINTS } from "../../../lib/config";
-import * as XLSX from 'xlsx';
 
 interface AddTimetableDialogProps {
   isOpen: boolean;
@@ -178,9 +177,9 @@ export const AddTimetableDialog: React.FC<AddTimetableDialogProps> = ({
 
       onTimetableAdded();
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding timetable:', error);
-      const errorMessage = error.response?.data?.message || "Không thể thêm thời khoá biểu. Vui lòng thử lại.";
+      const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message || "Không thể thêm thời khoá biểu. Vui lòng thử lại.";
       toast({
         title: "Lỗi",
         description: errorMessage,

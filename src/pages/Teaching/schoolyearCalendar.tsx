@@ -54,8 +54,8 @@ const SchoolYearCalendar: React.FC = () => {
   const [events, setEvents] = useState<SchoolYearEvent[]>([]);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [, setCurrentDate] = useState(new Date());
+  const [, setSelectedDate] = useState<Date | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<SchoolYearEvent | null>(null);
   const { toast } = useToast();
@@ -105,13 +105,14 @@ const SchoolYearCalendar: React.FC = () => {
 
   const fetchSchoolYears = async () => {
     try {
-      const response = await api.get<any>(API_ENDPOINTS.SCHOOL_YEARS);
+      const response = await api.get<unknown>(API_ENDPOINTS.SCHOOL_YEARS);
       let schoolYearsData: SchoolYear[] = [];
       if (Array.isArray(response)) {
         schoolYearsData = response;
       } else if (response && typeof response === 'object' && 'data' in response) {
         // response.data.data mới là mảng!
-        schoolYearsData = Array.isArray(response.data.data) ? response.data.data : [];
+        const responseData = response as { data: { data: SchoolYear[] } };
+        schoolYearsData = Array.isArray(responseData.data.data) ? responseData.data.data : [];
       }
       setSchoolYears(schoolYearsData);
 
@@ -138,10 +139,10 @@ const SchoolYearCalendar: React.FC = () => {
       let eventsData: SchoolYearEvent[] = [];
       if (Array.isArray(response)) {
         eventsData = response;
-      } else if (response && typeof response === 'object' && Array.isArray((response as any).data)) {
-        eventsData = (response as any).data;
-      } else if (response && typeof response === 'object' && Array.isArray((response as any).data?.data)) {
-        eventsData = (response as any).data.data;
+      } else if (response && typeof response === 'object' && Array.isArray((response as { data: SchoolYearEvent[] }).data)) {
+        eventsData = (response as { data: SchoolYearEvent[] }).data;
+      } else if (response && typeof response === 'object' && Array.isArray((response as { data: { data: SchoolYearEvent[] } }).data?.data)) {
+        eventsData = (response as { data: { data: SchoolYearEvent[] } }).data.data;
       }
       setEvents(eventsData || []);
     } catch (error: unknown) {
@@ -192,6 +193,7 @@ const SchoolYearCalendar: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
     setSelectedEvent(null);
@@ -200,6 +202,7 @@ const SchoolYearCalendar: React.FC = () => {
     setValue("endDate", formatDate(date));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMonthChange = (date: Date) => {
     setCurrentDate(date);
   };

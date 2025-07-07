@@ -1,8 +1,8 @@
 import React from "react";
-import { startOfMonth, endOfMonth, addMonths, isSameDay, isSameMonth, format, eachDayOfInterval } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, isSameMonth, format, eachDayOfInterval } from "date-fns";
 import { vi } from "date-fns/locale";
 import type { SchoolYear, SchoolYearEvent } from "../../types/school-year.types";
-import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from "../../types/school-year.types";
+import { EVENT_TYPE_COLORS } from "../../types/school-year.types";
 
 interface CalendarYearViewProps {
   events: SchoolYearEvent[];
@@ -64,15 +64,6 @@ export const CalendarYearView: React.FC<CalendarYearViewProps> = ({ events, scho
 
 // Component hiển thị 1 tháng nhỏ
 const MiniMonthCalendar: React.FC<{ month: Date; events: SchoolYearEvent[] }> = ({ month, events }) => {
-  const getEventsForMonth = (month: Date) => {
-    const monthEvents = events.filter(ev =>
-      isSameMonth(new Date(ev.startDate), month) ||
-      isSameMonth(new Date(ev.endDate), month) ||
-      (new Date(ev.startDate) < month && new Date(ev.endDate) > month)
-    );
-    return monthEvents;
-  };
-
   const start = startOfMonth(month);
   const end = endOfMonth(month);
   const days = eachDayOfInterval({ start, end });
@@ -115,7 +106,7 @@ const MiniMonthCalendar: React.FC<{ month: Date; events: SchoolYearEvent[] }> = 
     <table className="w-full text-xs mb-1">
       <thead>
         <tr>
-          {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d, idx) => (
+          {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d) => (
             <th
               key={d}
               className={`font-normal ${d === 'T7' || d === 'CN' ? 'text-[#F05023]' : 'text-gray-500'}`}

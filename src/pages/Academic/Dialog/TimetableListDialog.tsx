@@ -11,7 +11,7 @@ import { Button } from "../../../components/ui/button";
 import { Label } from "../../../components/ui/label";
 import { Input } from "../../../components/ui/input";
 import { DatePicker } from "../../../components/ui/datepicker";
-import { Loader2, Upload, Calendar, FileText, Edit, Trash2, Plus, Eye } from "lucide-react";
+import { Loader2, Upload, Calendar, FileText, Edit, Trash2 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
 import { API_ENDPOINTS } from "../../../lib/config";
@@ -248,9 +248,11 @@ export const TimetableListDialog: React.FC<TimetableListDialogProps> = ({
       setEditingSchedule(null);
       fetchSchedules();
       onTimetableUpdated();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating timetable:', error);
-      const errorMessage = error.response?.data?.message || "Không thể cập nhật thời khoá biểu. Vui lòng thử lại.";
+      const errorMessage = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message 
+        : "Không thể cập nhật thời khoá biểu. Vui lòng thử lại.";
       toast({
         title: "Lỗi",
         description: errorMessage,
@@ -277,9 +279,11 @@ export const TimetableListDialog: React.FC<TimetableListDialogProps> = ({
       setScheduleToDelete(null);
       fetchSchedules();
       onTimetableUpdated();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting timetable:', error);
-      const errorMessage = error.response?.data?.message || "Không thể xóa thời khoá biểu. Vui lòng thử lại.";
+      const errorMessage = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message 
+        : "Không thể xóa thời khoá biểu. Vui lòng thử lại.";
       toast({
         title: "Lỗi",
         description: errorMessage,
