@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS } from "../../lib/config";
-import * as XLSX from 'xlsx';
+
 import { Loader2, Settings, Plus, Calendar, Clock, Users, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Dialog components
@@ -34,8 +34,6 @@ import { TimetableListDialog } from './Dialog/TimetableListDialog';
 // Import types
 import type { SchoolYear, School } from '../../types/school.types';
 import type { Class } from '../../types/class.types';
-import type { Subject } from '../../types/curriculum.types';
-import type { Teacher } from '../../types/user.types';
 import type { Room } from '../../types/room.types';
 import type {
   TimetableEntry,
@@ -74,8 +72,7 @@ const TimetablesPage = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+
   const [, setRooms] = useState<Room[]>([]);
   const { toast } = useToast();
 
@@ -187,8 +184,6 @@ const TimetablesPage = () => {
       setLoading(true);
       await Promise.all([
         fetchSchoolYears(),
-        fetchSubjects(),
-        fetchTeachers(),
         fetchRooms()
       ]);
     } catch (error) {
@@ -282,27 +277,7 @@ const TimetablesPage = () => {
     }
   };
 
-  const fetchSubjects = async () => {
-    try {
-      const response = await api.get<Subject[]>(API_ENDPOINTS.SUBJECTS);
-      const subjectsData = Array.isArray(response.data) ? response.data : (response.data as { data?: Subject[] })?.data || [];
-      setSubjects(subjectsData);
-    } catch (error) {
-      console.error("Error fetching subjects:", error);
-      setSubjects([]);
-    }
-  };
 
-  const fetchTeachers = async () => {
-    try {
-      const response = await api.get<Teacher[]>(API_ENDPOINTS.TEACHERS);
-      const teachersData = Array.isArray(response.data) ? response.data : (response.data as { data?: Teacher[] })?.data || [];
-      setTeachers(teachersData);
-    } catch (error) {
-      console.error("Error fetching teachers:", error);
-      setTeachers([]);
-    }
-  };
 
   const fetchRooms = async () => {
     try {
@@ -423,230 +398,7 @@ const TimetablesPage = () => {
     setIsPeriodDialogOpen(true);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
-    // Kiểm tra đã chọn năm học và trường
-    if (!selectedSchoolYear || !selectedSchool) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn năm học và trường trước khi upload",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Kiểm tra dữ liệu cần thiết đã được tải
-    if (!Array.isArray(subjects) || subjects.length === 0) {
-      toast({
-        title: "Lỗi",
-        description: "Danh sách môn học chưa được tải. Vui lòng thử lại sau.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!Array.isArray(teachers) || teachers.length === 0) {
-      toast({
-        title: "Lỗi", 
-        description: "Danh sách giáo viên chưa được tải. Vui lòng thử lại sau.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Utility functions
-      const normalize = (str: string) =>
-        str
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-      const findSubject = (nameVi: string) =>
-        subjects.find((s) => normalize(s.name) === normalize(nameVi));
-
-      // Create teacher mapping
-      const teacherMap = new Map<string, string>();
-
-      const buildAliases = (fullname: string): string[] => {
-        const norm = normalize(fullname);
-        const parts = norm.split(" ");
-        const aliases: string[] = [norm];
-        if (parts.length >= 2) {
-          aliases.push(`${parts[0]} ${parts[parts.length - 1]}`);
-          aliases.push(`${parts[parts.length - 1]} ${parts[0]}`);
-        }
-        if (parts.length >= 3) {
-          aliases.push(`${parts.slice(1).join(" ")}`);
-        }
-        return aliases;
-      };
-
-      teachers.forEach((t) => {
-        buildAliases(t.fullname).forEach((alias) => {
-          if (!teacherMap.has(alias)) teacherMap.set(alias, t._id);
-        });
-      });
-
-      const findTeacherId = (fullname: string): string | undefined => {
-        if (!fullname) return undefined;
-        const key = normalize(fullname);
-        if (teacherMap.has(key)) return teacherMap.get(key);
-
-        const parts = key.split(" ");
-        if (parts.length >= 2) {
-          const k1 = `${parts[0]} ${parts[parts.length - 1]}`;
-          if (teacherMap.has(k1)) return teacherMap.get(k1);
-          const k2 = `${parts[parts.length - 1]} ${parts[0]}`;
-          if (teacherMap.has(k2)) return teacherMap.get(k2);
-        }
-        return undefined;
-      };
-
-      // Create subject-room mapping
-      const subjectDefaultRoom: Record<string, string | "Homeroom"> = {};
-      if (Array.isArray(subjects)) {
-        subjects.forEach((s: Subject) => {
-          if (s.needFunctionRoom && s.rooms?.length)
-            subjectDefaultRoom[s._id] = typeof s.rooms[0] === 'string' ? s.rooms[0] : s.rooms[0]._id;
-          else subjectDefaultRoom[s._id] = "Homeroom";
-        });
-      }
-
-      // Process Excel file
-      const arrayBuffer = await file.arrayBuffer();
-      const wb = XLSX.read(arrayBuffer, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const sheet: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-      let currentDay = "";
-      const vi2en: Record<string, string> = {
-        "Thứ Hai": "Monday",
-        "Thứ Ba": "Tuesday",
-        "Thứ Tư": "Wednesday",
-        "Thứ Năm": "Thursday", 
-        "Thứ Sáu": "Friday",
-        "Thứ Bảy": "Saturday",
-        "Chủ Nhật": "Sunday"
-      };
-
-      const isPeriodRow = (row: unknown[]) => Number.isInteger(row[1]);
-      const dayRegex = /^Thứ\s+(Hai|Ba|Tư|Năm|Sáu|Bảy)$/i;
-      
-      const detectDay = (value: string): string | null => {
-        const trimmed = value.trim();
-        if (trimmed.includes("/")) {
-          const vi = trimmed.split("/")[0].trim();
-          return vi2en[vi] ?? null;
-        }
-        if (dayRegex.test(trimmed)) {
-          const vi = trimmed;
-          return vi2en[vi] ?? null;
-        }
-        return null;
-      };
-
-      const cleanData: unknown[] = [];
-
-      for (let r = 0; r < sheet.length; r++) {
-        const row = sheet[r];
-
-        if (typeof row[0] === "string") {
-          const detected = detectDay(row[0]);
-          if (detected) {
-            currentDay = detected;
-            continue;
-          }
-        }
-
-        if (!currentDay) continue;
-        if (!isPeriodRow(row)) continue;
-
-        const periodNumber = row[1];
-        const teacherRows: unknown[][] = [];
-        let t = r + 1;
-        
-        while (
-          t < sheet.length &&
-          !isPeriodRow(sheet[t]) &&
-          !(typeof sheet[t][0] === "string" && detectDay(sheet[t][0] as string) !== null)
-        ) {
-          teacherRows.push(sheet[t]);
-          t++;
-        }
-
-        for (let c = 2; c < row.length; c++) {
-          const rawSubject = row[c];
-          if (!rawSubject) continue;
-
-          const subjectDoc = findSubject(String(rawSubject));
-          if (!subjectDoc) continue;
-
-          const teacherNames = teacherRows
-            .map((tr) => {
-              const teacherCell = String(tr[c] || "").trim();
-              // Split by common separators to support multiple teachers in one cell
-              return teacherCell.split(/[,/\n]/).map(name => name.trim()).filter(Boolean);
-            })
-            .flat()
-            .filter(Boolean)
-            .slice(0, 2); // Limit to max 2 teachers
-          const teacherIds = teacherNames
-            .map((n) => findTeacherId(n))
-            .filter(Boolean);
-
-          cleanData.push({
-            dayOfWeek: currentDay,
-            periodNumber,
-            classCode: sheet[0][c],
-            subject: subjectDoc._id,
-            teachers: teacherIds,
-            room: subjectDefaultRoom[subjectDoc._id] ?? "Homeroom",
-          });
-        }
-      }
-
-      if (cleanData.length === 0) {
-        toast({
-          title: "Không có dữ liệu",
-          description: "File không chứa bản ghi hợp lệ.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await api.post(`${API_ENDPOINTS.TIMETABLES}/import`, {
-        schoolYear: selectedSchoolYear,
-        records: cleanData,
-      });
-
-      if (selectedSchoolYear && selectedClass) {
-        await fetchTimetableGrid(selectedSchoolYear, selectedClass);
-      }
-      
-      toast({ 
-        title: "Thành công", 
-        description: "Upload thời khóa biểu thành công" 
-      });
-    } catch (error: unknown) {
-      console.error(error);
-      toast({
-        title: "Lỗi",
-        description: error instanceof Error ? error.message : "Upload thất bại",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      event.target.value = "";
-    }
-  };
 
   // Helper functions
   const getPeriodMeta = (): { number: number; label: string; time?: string; type: string; start: string }[] => {

@@ -54,8 +54,8 @@ const SchoolYearCalendar: React.FC = () => {
   const [events, setEvents] = useState<SchoolYearEvent[]>([]);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
-  const [, setCurrentDate] = useState(new Date());
-  const [, setSelectedDate] = useState<Date | undefined>();
+  // const [, setCurrentDate] = useState(new Date());
+  // const [, setSelectedDate] = useState<Date | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<SchoolYearEvent | null>(null);
   const { toast } = useToast();
@@ -193,19 +193,7 @@ const SchoolYearCalendar: React.FC = () => {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
-    setSelectedEvent(null);
-    setIsDialogOpen(true);
-    setValue("startDate", formatDate(date));
-    setValue("endDate", formatDate(date));
-  };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleMonthChange = (date: Date) => {
-    setCurrentDate(date);
-  };
 
   const getSchoolYearDateRange = () => {
     if (!selectedSchoolYear || !Array.isArray(schoolYears)) return null;
