@@ -37,16 +37,15 @@ import {
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
 import EditRecordModal from './EditRecordModal';
+import AddStudentsModal from './AddStudentsModal';
+import AddClassesModal from './AddClassesModal';
 import type { 
   AwardCategory, 
   SubAward, 
   StudentData, 
   AwardRecord,
-  Photo,
-  ClassData,
   SchoolYearExtended
 } from '../../../types';
-import type { Student, Class } from '../../../types';
 
 interface RecordsPanelProps {
   selectedCategory: AwardCategory | null;
@@ -68,6 +67,12 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
   const [recordToEdit, setRecordToEdit] = useState<AwardRecord | null>(null);
   const [studentToEdit, setStudentToEdit] = useState<StudentData | null>(null);
+
+  // Add Students modal states
+  const [addStudentsModalOpen, setAddStudentsModalOpen] = useState<boolean>(false);
+
+  // Add Classes modal states
+  const [addClassesModalOpen, setAddClassesModalOpen] = useState<boolean>(false);
 
   // Fetch school years from backend
   useEffect(() => {
@@ -219,13 +224,11 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   };
 
   const handleAddStudents = () => {
-    // TODO: Implement add students functionality
-    console.log('Add students');
+    setAddStudentsModalOpen(true);
   };
 
   const handleAddClasses = () => {
-    // TODO: Implement add classes functionality
-    console.log('Add classes');
+    setAddClassesModalOpen(true);
   };
 
   const handleDownloadExcel = () => {
@@ -509,6 +512,54 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
         record={recordToEdit}
         studentData={studentToEdit}
         onSuccess={handleEditSuccess}
+      />
+
+      {/* Add Students Modal */}
+      <AddStudentsModal
+        isOpen={addStudentsModalOpen}
+        onClose={() => setAddStudentsModalOpen(false)}
+        selectedCategory={selectedCategory}
+        selectedSchoolYear={selectedSchoolYear}
+        selectedSubAward={availableSubAwards.find(sa => {
+          const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+          return subAwardId === selectedSubAward;
+        }) || null}
+        onSuccess={() => {
+          setAddStudentsModalOpen(false);
+          if (selectedCategory && selectedSchoolYear) {
+            const subAward = availableSubAwards.find(sa => {
+              const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+              return subAwardId === selectedSubAward;
+            });
+            if (subAward) {
+              fetchRecords(selectedCategory._id, selectedSchoolYear, subAward);
+            }
+          }
+        }}
+      />
+
+      {/* Add Classes Modal */}
+      <AddClassesModal
+        isOpen={addClassesModalOpen}
+        onClose={() => setAddClassesModalOpen(false)}
+        selectedCategory={selectedCategory}
+        selectedSchoolYear={selectedSchoolYear}
+        selectedSubAward={availableSubAwards.find(sa => {
+          const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+          return subAwardId === selectedSubAward;
+        }) || null}
+        onSuccess={() => {
+          setAddClassesModalOpen(false);
+          if (selectedCategory && selectedSchoolYear) {
+            const subAward = availableSubAwards.find(sa => {
+              const subAwardId = `${sa.type}-${sa.label}-${sa.semester || ''}-${sa.month || ''}`;
+              return subAwardId === selectedSubAward;
+            });
+            if (subAward) {
+              fetchRecords(selectedCategory._id, selectedSchoolYear, subAward);
+            }
+          }
+        }}
       />
     </Card>
   );

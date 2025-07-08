@@ -1,5 +1,4 @@
 import type { BaseEntity } from './common.types';
-import type { Student } from './user.types';
 import type { Class } from './class.types';
 import type { SchoolYear } from './school.types';
 
@@ -46,6 +45,7 @@ export interface StudentData {
   photo?: Photo;
   currentClass?: Class;
   activity?: string[];
+  activityEng?: string[];
   note?: string;
   noteEng?: string;
 }
