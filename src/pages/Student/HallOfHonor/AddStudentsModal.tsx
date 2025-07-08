@@ -265,7 +265,7 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="min-w-2xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Thêm học sinh vào "{selectedSubAward.label}"</DialogTitle>
           <DialogDescription>
@@ -288,7 +288,7 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
               </Button>
             </div>
 
-            <ScrollArea className="h-[420px]">
+            <ScrollArea className="h-[400px]">
               <div className="space-y-4 p-1">
                 {students.map((student, index) => (
                   <div key={index} className="space-y-3 border rounded-lg p-4">
@@ -402,9 +402,9 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
           </TabsContent>
 
           <TabsContent value="excel" className="flex-1 overflow-hidden">
-            <div className="space-y-6 h-[420px] flex flex-col">
+            <div className="space-y-6 flex flex-col">
               <div className="space-y-6">
-                <div className="flex items-center mb-4">
+                <div className="flex items-center mb-4 mt-4">
                   <div className="w-32 font-medium">File Excel</div>
                   <Input
                     type="file"

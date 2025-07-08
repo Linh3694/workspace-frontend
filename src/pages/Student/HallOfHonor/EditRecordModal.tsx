@@ -30,6 +30,7 @@ interface EditRecordModalProps {
   record: AwardRecord | null;
   onSuccess: () => void;
   studentData?: StudentData | null;
+  classData?: any | null;
 }
 
 const EditRecordModal: React.FC<EditRecordModalProps> = ({
@@ -37,7 +38,8 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
   onClose,
   record,
   onSuccess,
-  studentData
+  studentData,
+  classData
 }) => {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<StudentData[]>([]);
@@ -74,13 +76,28 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
             score: studentData.score || ''
           }]);
         }
-      } else {
-        // Khi sửa toàn bộ record, load tất cả học sinh
+        setClasses(record.awardClasses || []);
+      } else if (classData) {
+        // Khi sửa một lớp cụ thể, chỉ load thông tin của lớp đó
+        const originalClass = record.awardClasses?.find(c => c.class === classData.class);
+        if (originalClass) {
+          setClasses([{
+            class: originalClass.class,
+            classInfo: originalClass.classInfo,
+            note: originalClass.note || '',
+            noteEng: originalClass.noteEng || ''
+          }]);
+        } else {
+          setClasses([{ ...classData }]);
+        }
         setStudents(record.students || []);
+      } else {
+        // Khi sửa toàn bộ record, load tất cả học sinh và lớp
+        setStudents(record.students || []);
+        setClasses(record.awardClasses || []);
       }
-      setClasses(record.awardClasses || []);
     }
-  }, [record, studentData]);
+  }, [record, studentData, classData]);
 
   // Fetch available students and classes
   useEffect(() => {
@@ -235,6 +252,66 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
         await axios.put(`${API_ENDPOINTS.AWARD_RECORDS}/${record._id}`, updateData, {
           headers: { Authorization: `Bearer ${token}` }
         });
+      } else if (classData) {
+        // Nếu có classData được truyền vào (chỉnh sửa một lớp cụ thể)
+        // Đảm bảo record.awardClasses tồn tại và không rỗng
+        if (!record.awardClasses || !Array.isArray(record.awardClasses)) {
+          throw new Error('Không tìm thấy danh sách lớp trong bản ghi');
+        }
+
+        console.log('🔍 DEBUG: Editing specific class');
+        console.log('🔍 Original record.awardClasses:', record.awardClasses);
+        console.log('🔍 ClassData to edit:', classData);
+        console.log('🔍 Form classes data:', classes);
+
+        // Tạo bản sao của danh sách lớp hiện tại
+        const currentClasses = [...record.awardClasses];
+        
+        // Tìm vị trí của lớp cần cập nhật
+        const classIndex = currentClasses.findIndex(
+          c => c.class === classData.class
+        );
+
+        if (classIndex === -1) {
+          throw new Error('Không tìm thấy lớp cần cập nhật');
+        }
+
+        console.log('🔍 Class index found:', classIndex);
+        console.log('🔍 Original class at index:', currentClasses[classIndex]);
+
+        // Cập nhật thông tin của lớp tại vị trí đó
+        currentClasses[classIndex] = {
+          ...currentClasses[classIndex],
+          note: classes[0].note,
+          noteEng: classes[0].noteEng,
+          // Giữ nguyên thông tin class và các field khác
+          class: currentClasses[classIndex].class,
+          classInfo: currentClasses[classIndex].classInfo
+        };
+
+        console.log('🔍 Updated class at index:', currentClasses[classIndex]);
+        console.log('🔍 Final currentClasses array:', currentClasses);
+
+        const updateData = {
+          students: record.students || [], // Giữ nguyên thông tin học sinh
+          awardClasses: currentClasses,
+          awardCategory: record.awardCategory?._id || record.awardCategory,
+          subAward: {
+            type: record.subAward.type,
+            label: record.subAward.label,
+            labelEng: record.subAward.labelEng,
+            schoolYear: record.subAward.schoolYear,
+            semester: record.subAward.semester,
+            month: record.subAward.month,
+            priority: record.subAward.priority
+          }
+        };
+
+        console.log('🔍 Final updateData to send:', updateData);
+
+        await axios.put(`${API_ENDPOINTS.AWARD_RECORDS}/${record._id}`, updateData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
       } else {
         // Chỉnh sửa toàn bộ record (thêm/xóa học sinh/lớp)
         const updateData = {
@@ -351,8 +428,8 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
                 </div>
               )}
 
-              {/* Classes Section - Only show if recipientType is 'class' and not editing a specific student */}
-              {recipientType === 'class' && !studentData && (
+              {/* Classes Section - Only show if recipientType is 'class' and not editing a specific student or class */}
+              {recipientType === 'class' && !studentData && !classData && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Lớp</h3>
@@ -362,61 +439,105 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
                     </Button>
                   </div>
 
-                <div className="space-y-4">
-                  {classes.map((classData, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Lớp {index + 1}</h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveClass(index)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    {classes.map((classData, index) => (
+                      <div key={index} className="space-y-3 border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">Lớp {index + 1}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRemoveClass(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <div>
                           <Label>Lớp</Label>
                           <select
                             value={classData.class}
                             onChange={(e) => handleClassChange(index, 'class', e.target.value)}
-                            className="w-full p-2 border rounded-md"
+                            className="w-full p-2 border rounded-md mt-2"
                           >
                             <option value="">Chọn lớp</option>
-                                                          {availableClasses.map((c) => (
-                                <option key={c._id} value={c._id}>
-                                  {c.className}
-                                </option>
-                              ))}
+                            {availableClasses.map((c) => (
+                              <option key={c._id} value={c._id}>
+                                {c.className}
+                              </option>
+                            ))}
                           </select>
                         </div>
-
                         <div>
                           <Label>Ghi chú</Label>
-                          <Input
+                          <Textarea
                             value={classData.note || ''}
                             onChange={(e) => handleClassChange(index, 'note', e.target.value)}
                             placeholder="Ghi chú"
+                            rows={2}
+                            className="mt-2"
+                          />
+                        </div>
+                        <div>
+                          <Label>Ghi chú (Tiếng Anh)</Label>
+                          <Textarea
+                            value={classData.noteEng || ''}
+                            onChange={(e) => handleClassChange(index, 'noteEng', e.target.value)}
+                            placeholder="Ghi chú bằng tiếng Anh"
+                            rows={2}
+                            className="mt-2"
                           />
                         </div>
                       </div>
-
-                      <div>
-                        <Label>Ghi chú (Tiếng Anh)</Label>
-                        <Textarea
-                          value={classData.noteEng || ''}
-                          onChange={(e) => handleClassChange(index, 'noteEng', e.target.value)}
-                          placeholder="Ghi chú bằng tiếng Anh"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Sửa chi tiết từng lớp - giống sửa chi tiết từng học sinh */}
+              {recipientType === 'class' && classData && classes.length === 1 && (
+                <div>
+                  <div className="space-y-3 border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Lớp</span>
+                    </div>
+                    <div>
+                      <Label>Lớp</Label>
+                      <select
+                        value={classes[0].class}
+                        onChange={(e) => handleClassChange(0, 'class', e.target.value)}
+                        className="w-full p-2 border rounded-md mt-2"
+                      >
+                        <option value="">Chọn lớp</option>
+                        {availableClasses.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.className}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Ghi chú</Label>
+                      <Textarea
+                        value={classes[0].note || ''}
+                        onChange={(e) => handleClassChange(0, 'note', e.target.value)}
+                        placeholder="Ghi chú"
+                        rows={2}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label>Ghi chú (Tiếng Anh)</Label>
+                      <Textarea
+                        value={classes[0].noteEng || ''}
+                        onChange={(e) => handleClassChange(0, 'noteEng', e.target.value)}
+                        placeholder="Ghi chú bằng tiếng Anh"
+                        rows={2}
+                        className="mt-2"
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </ScrollArea>

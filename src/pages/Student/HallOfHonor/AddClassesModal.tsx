@@ -52,6 +52,7 @@ const AddClassesModal: React.FC<AddClassesModalProps> = ({
   const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
   const [excelClasses, setExcelClasses] = useState<ClassData[]>([]);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -110,6 +111,7 @@ const AddClassesModal: React.FC<AddClassesModalProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setSelectedFileName(file.name);
     setUploadLoading(true);
 
     try {
@@ -297,24 +299,32 @@ const AddClassesModal: React.FC<AddClassesModalProps> = ({
 
           <TabsContent value="excel" className="flex-1 overflow-hidden">
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-4">
                 <Button
                   variant="outline"
                   onClick={downloadTemplate}
                   className="flex items-center gap-2"
+                  disabled={uploadLoading}
                 >
                   <Download className="h-4 w-4" />
                   Tải template Excel
                 </Button>
-                
-                <div className="flex-1">
+                <label className="flex-1 cursor-pointer">
                   <Input
                     type="file"
                     accept=".xlsx,.xls,.csv"
                     onChange={handleFileUpload}
                     disabled={uploadLoading}
+                    className="hidden"
                   />
-                </div>
+                  <div className={`w-full border rounded px-3 py-2 bg-white flex items-center justify-between ${uploadLoading ? 'opacity-60' : ''}`}
+                       style={{ minHeight: 40 }}>
+                    <span className="truncate text-sm">
+                      {selectedFileName ? `Đã chọn: ${selectedFileName}` : 'Chọn tệp Excel'}
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">{uploadLoading ? 'Đang tải...' : ''}</span>
+                  </div>
+                </label>
               </div>
 
               {uploadLoading && (

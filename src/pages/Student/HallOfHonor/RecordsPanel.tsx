@@ -9,6 +9,7 @@ import {
 } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { ScrollArea } from '../../../components/ui/scroll-area';
+import { Input } from '../../../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ import {
   Users, 
   GraduationCap, 
   Download,
+  Search,
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
@@ -58,6 +60,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [availableSchoolYears, setAvailableSchoolYears] = useState<SchoolYearExtended[]>([]);
   const [selectedSubAward, setSelectedSubAward] = useState<string>('');
   const [availableSubAwards, setAvailableSubAwards] = useState<SubAward[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   
   // Delete confirmation states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
@@ -67,6 +70,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
   const [recordToEdit, setRecordToEdit] = useState<AwardRecord | null>(null);
   const [studentToEdit, setStudentToEdit] = useState<StudentData | null>(null);
+  const [classToEdit, setClassToEdit] = useState<any | null>(null);
 
   // Add Students modal states
   const [addStudentsModalOpen, setAddStudentsModalOpen] = useState<boolean>(false);
@@ -181,9 +185,10 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     }
   };
 
-  const handleEditRecord = (record: AwardRecord, studentData?: StudentData) => {
+  const handleEditRecord = (record: AwardRecord, studentData?: StudentData, classData?: any) => {
     setRecordToEdit(record);
     setStudentToEdit(studentData || null);
+    setClassToEdit(classData || null);
     setEditModalOpen(true);
   };
 
@@ -250,10 +255,37 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     }
   };
 
+  // Filter records based on search term
+  const filteredRecords = records.filter(record => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search in students
+    if (record.students) {
+      return record.students.some(studentData => {
+        const studentName = studentData.student?.name?.toLowerCase() || '';
+        const studentCode = studentData.student?.studentCode?.toLowerCase() || '';
+        return studentName.includes(searchLower) || studentCode.includes(searchLower);
+      });
+    }
+    
+    // Search in classes
+    if (record.awardClasses) {
+      return record.awardClasses.some(classData => {
+        const className = classData.classInfo?.className?.toLowerCase() || classData.class?.toLowerCase() || '';
+        return className.includes(searchLower);
+      });
+    }
+    
+    return false;
+  });
+
   return (
     <Card className="h-full">
       <CardHeader>
-        <div className="flex justify-between items-start">
+        {/* Dòng trên: Title + Search */}
+        <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <CardTitle>
               {selectedCategory ? selectedCategory.name : 'Chọn loại vinh danh'}
@@ -265,9 +297,24 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
               }
             </CardDescription>
           </div>
-          
-          {/* School Year and SubAward Selectors */}
-          <div className="flex items-center gap-4">
+          {/* Search Bar */}
+          {selectedCategory && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Tìm kiếm học sinh..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Dòng dưới: Selector + Nút */}
+        {selectedCategory && (
+          <div className="flex flex-wrap items-center justify-end gap-4 mt-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Năm học:</span>
               <Select value={selectedSchoolYear} onValueChange={setSelectedSchoolYear}>
@@ -283,7 +330,6 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                 </SelectContent>
               </Select>
             </div>
-
             {/* SubAward Selector */}
             {availableSubAwards.length > 0 && (
               <div className="flex items-center gap-2">
@@ -305,26 +351,23 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                 </Select>
               </div>
             )}
-            
             {/* Action Buttons */}
-            {selectedCategory && (
-              <div className="flex gap-2">
+            <div className="flex gap-2">
+              {selectedCategory?.recipientType === 'student' && (
                 <Button size="sm" onClick={handleAddStudents}>
                   <Users className="h-4 w-4 mr-1" />
                   Thêm học sinh
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleAddClasses}>
+              )}
+              {selectedCategory?.recipientType === 'class' && (
+                <Button size="sm" onClick={handleAddClasses}>
                   <GraduationCap className="h-4 w-4 mr-1" />
                   Thêm lớp
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleDownloadExcel}>
-                  <Download className="h-4 w-4 mr-1" />
-                  Tải Excel
-                </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </CardHeader>
       
       <CardContent className="p-0">
@@ -342,17 +385,22 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
               <div className="text-center py-8 text-muted-foreground">
                 Đang tải bản ghi...
               </div>
-            ) : records.length === 0 ? (
+            ) : filteredRecords.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Trophy className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                <p className="text-lg mb-2">Chưa có bản ghi nào</p>
+                <p className="text-lg mb-2">
+                  {searchTerm ? 'Không tìm thấy kết quả' : 'Chưa có bản ghi nào'}
+                </p>
                 <p className="text-sm">
-                  Hãy thêm bản ghi vinh danh đầu tiên cho năm học {selectedSchoolYear}
+                  {searchTerm 
+                    ? 'Hãy thử tìm kiếm với từ khóa khác'
+                    : `Hãy thêm bản ghi vinh danh đầu tiên cho năm học ${selectedSchoolYear}`
+                  }
                 </p>
               </div>
             ) : (
               <div className="gap-2">
-                {records.map((record) => (
+                {filteredRecords.map((record) => (
                   <div key={record._id}>
                     {/* Hiển thị từng học sinh trong record */}
                     {record.students?.map((studentData, idx) => {
@@ -430,32 +478,30 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
 
                     {/* Hiển thị từng lớp trong record */}
                     {record.awardClasses?.map((classData, idx) => (
-                      <div 
-                        key={idx} 
-                        className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors mb-2"
                       >
                         <div className="flex-1">
-                          <span className="font-medium text-green-800">
+                          <span className="font-medium text-[#002855]">
                             {classData.classInfo?.className || classData.class}
                           </span>
                           {classData.note && (
-                            <div className="text-xs text-green-600 mt-1">
+                            <div className="text-xs text-[#002855] mt-1">
                               Ghi chú: {classData.note}
                             </div>
                           )}
                         </div>
-                        
                         {/* Action buttons */}
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEditRecord(record)}
+                            onClick={() => handleEditRecord(record, undefined, classData)}
                             title="Chỉnh sửa bản ghi"
                             className="h-8 px-3 text-xs"
                           >
                             <Edit className="h-3 w-3 mr-1" />
-                            
                           </Button>
                           <Button
                             size="sm"
@@ -465,7 +511,6 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
                             className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                           >
                             <Trash2 className="h-3 w-3 mr-1" />
-                            
                           </Button>
                         </div>
                       </div>
@@ -508,9 +553,11 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
           setEditModalOpen(false);
           setRecordToEdit(null);
           setStudentToEdit(null);
+          setClassToEdit(null);
         }}
         record={recordToEdit}
         studentData={studentToEdit}
+        classData={classToEdit}
         onSuccess={handleEditSuccess}
       />
 
