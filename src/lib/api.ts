@@ -29,6 +29,12 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Create separate axios instance for file uploads with longer timeout
+const fileUploadApi = axios.create({
+  baseURL: API_URL_VITE,
+  timeout: 300000, // 5 minutes for file uploads
+});
+
 // Token refresh logic
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -48,132 +54,141 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to add token
-api.interceptors.request.use(
-  async (config) => {
-    const token = localStorage.getItem('token');
-    if (token && token !== 'authenticated') {
-      // Check if token is expired
-      try {
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const isExpired = tokenPayload.exp && tokenPayload.exp < Date.now() / 1000;
-        
-        if (isExpired) {
-          console.log('⚠️ API: Token expired, removing from storage');
+
+
+// Function to apply interceptors to an axios instance
+const applyInterceptors = (axiosInstance: typeof api) => {
+  // Request interceptor to add token
+  axiosInstance.interceptors.request.use(
+    async (config) => {
+      const token = localStorage.getItem('token');
+      if (token && token !== 'authenticated') {
+        // Check if token is expired
+        try {
+          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+          const isExpired = tokenPayload.exp && tokenPayload.exp < Date.now() / 1000;
+          
+          if (isExpired) {
+            console.log('⚠️ API: Token expired, removing from storage');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return Promise.reject(new Error('Token expired'));
+          }
+          
+          config.headers.Authorization = `Bearer ${token}`;
+        } catch (error) {
+          console.error('❌ API: Error parsing token:', error);
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          window.location.href = '/login';
-          return Promise.reject(new Error('Token expired'));
         }
-        
-        config.headers.Authorization = `Bearer ${token}`;
-      } catch (error) {
-        console.error('❌ API: Error parsing token:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
       }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor to handle token expiration
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config;
-    
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // If already refreshing, queue the request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        // Try to get a fresh token from MSAL
-        const { PublicClientApplication } = await import('@azure/msal-browser');
-        
-        const msalConfig = {
-          auth: {
-            clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '38b5b315-9e8e-4ca8-9b2e-3c0a3b7e9c29',
-            authority: `https://login.microsoftonline.com/${import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common'}`,
-            redirectUri: window.location.origin,
-          },
-          cache: {
-            cacheLocation: 'localStorage' as const,
-            storeAuthStateInCookie: false,
-          }
-        };
-
-        const pca = new PublicClientApplication(msalConfig);
-        await pca.initialize();
-        
-        const account = pca.getAllAccounts()[0];
-        
-        if (account) {
-          const silentRequest = {
-            scopes: ['openid', 'profile', 'email', 'User.Read'],
-            account: account,
-          };
-
-          const response = await pca.acquireTokenSilent(silentRequest);
-          
-          if (response.accessToken) {
-            // Get new system token from backend
-            const backendResponse = await fetch(`${API_URL_VITE}/auth/microsoft/login`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${response.accessToken}`,
-                'Content-Type': 'application/json',
-              },
-            });
-
-            const backendData = await backendResponse.json();
-            
-            if (backendResponse.ok && backendData.success) {
-              localStorage.setItem('token', backendData.token);
-              localStorage.setItem('user', JSON.stringify(backendData.user));
-              
-              processQueue(null, backendData.token);
-              
-              // Retry the original request
-              originalRequest.headers.Authorization = `Bearer ${backendData.token}`;
-              return api(originalRequest);
-            }
-          }
-        }
-      } catch (refreshError) {
-        console.error('❌ API: Token refresh failed:', refreshError);
-        processQueue(refreshError, null);
-      } finally {
-        isRefreshing = false;
-      }
-
-      // If refresh failed, redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      return config;
+    },
+    (error) => {
       return Promise.reject(error);
     }
+  );
 
-    return Promise.reject(error);
-  }
-);
+  // Response interceptor to handle token expiration
+  axiosInstance.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    async (error) => {
+      const originalRequest = error.config;
+      
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        if (isRefreshing) {
+          // If already refreshing, queue the request
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return axiosInstance(originalRequest);
+          }).catch(err => {
+            return Promise.reject(err);
+          });
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          // Try to get a fresh token from MSAL
+          const { PublicClientApplication } = await import('@azure/msal-browser');
+          
+          const msalConfig = {
+            auth: {
+              clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '38b5b315-9e8e-4ca8-9b2e-3c0a3b7e9c29',
+              authority: `https://login.microsoftonline.com/${import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common'}`,
+              redirectUri: window.location.origin,
+            },
+            cache: {
+              cacheLocation: 'localStorage' as const,
+              storeAuthStateInCookie: false,
+            }
+          };
+
+          const pca = new PublicClientApplication(msalConfig);
+          await pca.initialize();
+          
+          const account = pca.getAllAccounts()[0];
+          
+          if (account) {
+            const silentRequest = {
+              scopes: ['openid', 'profile', 'email', 'User.Read'],
+              account: account,
+            };
+
+            const response = await pca.acquireTokenSilent(silentRequest);
+            
+            if (response.accessToken) {
+              // Get new system token from backend
+              const backendResponse = await fetch(`${API_URL_VITE}/auth/microsoft/login`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${response.accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              const backendData = await backendResponse.json();
+              
+              if (backendResponse.ok && backendData.success) {
+                localStorage.setItem('token', backendData.token);
+                localStorage.setItem('user', JSON.stringify(backendData.user));
+                
+                processQueue(null, backendData.token);
+                
+                // Retry the original request
+                originalRequest.headers.Authorization = `Bearer ${backendData.token}`;
+                return axiosInstance(originalRequest);
+              }
+            }
+          }
+        } catch (refreshError) {
+          console.error('❌ API: Token refresh failed:', refreshError);
+          processQueue(refreshError, null);
+        } finally {
+          isRefreshing = false;
+        }
+
+        // If refresh failed, redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      return Promise.reject(error);
+    }
+  );
+};
+
+// Apply interceptors to both instances
+applyInterceptors(api);
+applyInterceptors(fileUploadApi);
 
 // API methods
 const apiClient = {
@@ -325,4 +340,4 @@ const apiClient = {
   },
 };
 
-export { api, apiClient };
+export { api, apiClient, fileUploadApi };

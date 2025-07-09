@@ -1,11 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
-
-import * as XLSX from 'xlsx';
+import React, { useEffect, useState } from 'react';
 import type { Class } from '../../types/class.types';
 import type { SchoolYear, EducationalSystem, GradeLevel } from '../../types/school.types';
 import type { Teacher, Student } from '../../types/user.types';
 import type { ComboboxOption } from '../../types/common.types';
-import type { ExcelRow } from '../../types/import.types';
 import { Button } from '../../components/ui/button';
 import {
   Table,
@@ -17,15 +14,9 @@ import {
 } from "../../components/ui/table";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
 import {
   Select,
   SelectContent,
@@ -33,33 +24,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { Combobox } from "../../components/ui/combobox";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import {
+  Pagination,
+  PaginationContent, 
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../../components/ui/pagination";
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
 import { API_ENDPOINTS, BASE_URL } from "../../lib/config";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../components/ui/alert-dialog";
 
-const schema = z.object({
-  className: z.string().min(1, "Tên lớp là bắt buộc"),
-  schoolYear: z.string().min(1, "Năm học là bắt buộc"),
-  educationalSystem: z.string().min(1, "Hệ học là bắt buộc"),
-  gradeLevel: z.string().min(1, "Khối lớp là bắt buộc"),
-  homeroomTeachers: z.array(z.string()).optional(),
-});
-
-type ClassFormData = z.infer<typeof schema>;
+// Import dialog components
+import ClassFormDialog from './Dialog/ClassFormDialog';
+import ImageUploadDialog from './Dialog/ImageUploadDialog';
+import ImageTypeSelectDialog from './Dialog/ImageTypeSelectDialog'; 
+import EnrollStudentsDialog from './Dialog/EnrollStudentsDialog';
+import DeleteClassDialog from './Dialog/DeleteClassDialog';
 
 const ClassComponent: React.FC = () => {
   const [classes, setClasses] = useState<Class[]>([]);
@@ -67,281 +50,25 @@ const ClassComponent: React.FC = () => {
   const [systems, setSystems] = useState<EducationalSystem[]>([]);
   const [teachers, setTeachers] = useState<ComboboxOption[]>([]);
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>("");
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
-  const [isUpdateImageDialogOpen, setIsUpdateImageDialogOpen] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
+  // Dialog states
+  const [isClassFormDialogOpen, setIsClassFormDialogOpen] = useState(false);
+  const [isImageUploadDialogOpen, setIsImageUploadDialogOpen] = useState(false);
   const [isSelectImageTypeDialogOpen, setIsSelectImageTypeDialogOpen] = useState(false);
+  const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [imageUploadType, setImageUploadType] = useState<'class' | 'student' | ''>('');
-
-  // Enrollment form state
-  const [enrollSchoolYear, setEnrollSchoolYear] = useState<string>("");
-  const [enrollClassId, setEnrollClassId] = useState<string>("");
-  // Filter classes for manual enroll based on selected school year
-  const enrollClassesOptions = classes.filter(c => c.schoolYear._id === enrollSchoolYear);
 
   // For enrollment dialog: list of all students
   const [studentsOptions, setStudentsOptions] = useState<ComboboxOption[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-
-  // For update image dialog
-  const [updateImageClassId, setUpdateImageClassId] = useState<string>("");
-  const [updateImageStudentId, setUpdateImageStudentId] = useState<string>("");
-  const imageFileInputRef = useRef<HTMLInputElement>(null);
-  const zipFileInputRef = useRef<HTMLInputElement>(null);
-  // Thêm state cho image preview
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
-
-  // Thêm state cho ZIP upload bulk
-  const [selectedZipFile, setSelectedZipFile] = useState<File | null>(null);
-  const [uploadingZip, setUploadingZip] = useState<boolean>(false);
-
-  // Thêm state cho enroll Excel
-  const [enrollExcelFile, setEnrollExcelFile] = useState<File | null>(null);
-  const [uploadingEnrollExcel, setUploadingEnrollExcel] = useState<boolean>(false);
-  const enrollExcelFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Cleanup image preview URL when component unmounts hoặc file thay đổi
-  useEffect(() => {
-    return () => {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-    };
-  }, [imagePreviewUrl]);
-
-  // Handle image file selection
-  const handleImageFileSelect = (file: File) => {
-    setSelectedImageFile(file);
-    
-    // Cleanup previous URL
-    if (imagePreviewUrl) {
-      URL.revokeObjectURL(imagePreviewUrl);
-    }
-    
-    // Create new preview URL
-    const newPreviewUrl = URL.createObjectURL(file);
-    setImagePreviewUrl(newPreviewUrl);
-  };
-
-  // Clear selected image
-  const clearSelectedImage = () => {
-    if (imagePreviewUrl) {
-      URL.revokeObjectURL(imagePreviewUrl);
-    }
-    setSelectedImageFile(null);
-    setImagePreviewUrl(null);
-    if (imageFileInputRef.current) {
-      imageFileInputRef.current.value = '';
-    }
-  };
-
-  // Handle ZIP file selection
-  const handleZipFileSelect = (file: File) => {
-    setSelectedZipFile(file);
-  };
-
-  // Clear selected ZIP
-  const clearSelectedZip = () => {
-    setSelectedZipFile(null);
-    if (zipFileInputRef.current) {
-      zipFileInputRef.current.value = '';
-    }
-  };
-
-  // Handle bulk upload ZIP
-  const handleUploadZip = async () => {
-    if (!selectedZipFile) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file ZIP",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setUploadingZip(true);
-      
-      const formData = new FormData();
-      formData.append('zipFile', selectedZipFile);
-      
-      // Gọi API upload ZIP
-      await api.post(`${API_ENDPOINTS.CLASSES}/bulk-upload-images`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      toast({
-        title: "Thành công",
-        description: "Upload ZIP ảnh thành công",
-      });
-
-      // Clear form
-      clearSelectedZip();
-      
-    } catch (error: unknown) {
-      console.error('ZIP Upload error:', error);
-      const axiosError = error as { response?: { data: unknown } };
-      let message = "Không thể upload ZIP. Vui lòng thử lại.";
-      
-      if (axiosError.response && axiosError.response.data) {
-        const respData = axiosError.response.data;
-        if (typeof respData === 'string') {
-          message = respData;
-        } else if (typeof respData === 'object' && respData !== null) {
-          const obj = respData as { message?: string; error?: string };
-          message = obj.message || obj.error || message;
-        }
-      }
-      
-      toast({
-        title: "Lỗi",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setUploadingZip(false);
-    }
-  };
-
-  // Handle upload image
-  const handleUploadImage = async () => {
-    if (!selectedImageFile) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file ảnh",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate required fields based on image type
-    if (imageUploadType === 'class' && !updateImageClassId) {
-      toast({
-        title: "Lỗi", 
-        description: "Vui lòng chọn lớp",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (imageUploadType === 'student' && !updateImageStudentId) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn học sinh", 
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setUploadingImage(true);
-      
-      if (imageUploadType === 'student') {
-        // Upload ảnh học sinh - sử dụng POST endpoint riêng cho photo
-        const formData = new FormData();
-        formData.append('avatar', selectedImageFile);
-        
-        // Thêm schoolYear hiện tại để lưu ảnh vào Photo model
-        if (selectedSchoolYear) {
-          formData.append('schoolYear', selectedSchoolYear);
-        }
-
-        // Sử dụng endpoint upload photo riêng biệt
-        try {
-          await api.post(`${API_ENDPOINTS.STUDENTS}/${updateImageStudentId}/photo`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        } catch (error) {
-          console.error('Lỗi upload ảnh với POST /photo, thử PUT thay thế:', error);
-          
-          // Fallback: sử dụng cách cũ nếu route mới không có
-          const fallbackFormData = new FormData();
-          fallbackFormData.append('avatar', selectedImageFile);
-          fallbackFormData.append('data', JSON.stringify({}));
-          
-          await api.put(API_ENDPOINTS.STUDENT(updateImageStudentId), fallbackFormData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        }
-
-        toast({
-          title: "Thành công",
-          description: "Upload ảnh học sinh thành công",
-        });
-
-        // Clear form and close dialog
-        clearSelectedImage();
-        setIsUpdateImageDialogOpen(false);
-        setImageUploadType('');
-        setUpdateImageClassId('');
-        setUpdateImageStudentId('');
-
-        // Refresh students data để hiển thị ảnh mới
-        fetchStudentsOptions();
-      } else {
-        // Upload ảnh lớp - sử dụng PUT /classes/:id/upload-image với field 'classImage'
-        const formData = new FormData();
-        formData.append('classImage', selectedImageFile);
-
-        await api.post(`${API_ENDPOINTS.CLASSES}/${updateImageClassId}/upload-image`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        toast({
-          title: "Thành công",
-          description: "Upload ảnh lớp thành công",
-        });
-
-        // Clear form and close dialog
-        clearSelectedImage();
-        setIsUpdateImageDialogOpen(false);
-        setImageUploadType('');
-        setUpdateImageClassId('');
-        setUpdateImageStudentId('');
-
-        // Refresh classes data để hiển thị ảnh mới
-        fetchClasses();
-      }
-
-    } catch (error: unknown) {
-      console.error('Upload error:', error);
-      const axiosError = error as { response?: { data: unknown } };
-      let message = "Không thể upload ảnh. Vui lòng thử lại.";
-      
-      if (axiosError.response && axiosError.response.data) {
-        const respData = axiosError.response.data;
-        if (typeof respData === 'string') {
-          message = respData;
-        } else if (typeof respData === 'object' && respData !== null) {
-          const obj = respData as { message?: string; error?: string };
-          message = obj.message || obj.error || message;
-        }
-      }
-      
-      toast({
-        title: "Lỗi",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
   // Fetch students for the enroll combobox
   const fetchStudentsOptions = async () => {
@@ -378,96 +105,6 @@ const ClassComponent: React.FC = () => {
     fetchStudentsOptions();
   }, []);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleCreateOrImport = async () => {
-    // Kiểm tra xem có file được chọn không
-    const file = fileInputRef.current?.files?.[0];
-    
-    if (file) {
-      // Nếu có file, thực hiện import Excel
-      await handleImportClasses();
-    } else {
-      // Nếu không có file, thực hiện tạo/cập nhật lớp thông thường
-      handleSubmit(handleCreateOrUpdateClass)();
-    }
-  };
-
-  const handleImportClasses = async () => {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: 'array' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: '' });
-
-    const valid: ExcelRow[] = [];
-    const errors: string[] = [];
-
-    for (const [idx, r] of raw.entries()) {
-      const rowNum = idx + 2; // header ở dòng 1
-      const missing: string[] = [];
-      if (!r.ClassName) missing.push('ClassName');
-      if (!r.SchoolYearCode) missing.push('SchoolYearCode');
-      if (!r.EducationalSystemName) missing.push('EducationalSystemName');
-      if (!r.GradeLevelCode) missing.push('GradeLevelCode');
-
-      if (missing.length) {
-        errors.push(`Dòng ${rowNum}: thiếu ${missing.join(', ')}`);
-      } else {
-        valid.push(r);
-      }
-    }
-
-    if (errors.length) {
-      toast({
-        title: 'Lỗi dữ liệu Excel',
-        description: errors.join('; '),
-        variant: 'destructive'
-      });
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    try {
-      toast({ title: 'Đang nhập lớp từ Excel...', variant: 'default' });
-      await api.post(`${API_ENDPOINTS.CLASSES}/bulk-upload`, valid);
-      toast({ title: 'Thành công', description: 'Nhập lớp thành công' });
-      fetchClasses();
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data: unknown } };
-      let message: string = 'Đã xảy ra lỗi';
-      if (axiosError.response && axiosError.response.data) {
-        const respData = axiosError.response.data;
-        if (typeof respData === 'string') {
-          try {
-            const parsed = JSON.parse(respData);
-            message = parsed.message || parsed.error || respData;
-          } catch {
-            message = respData;
-          }
-        } else if (typeof respData === 'object' && respData !== null) {
-          const obj = respData as { message?: string; error?: string };
-          message = obj.message || obj.error || (error instanceof Error ? error.message : message);
-        }
-      }
-      toast({ title: "Lỗi", description: message, variant: "destructive" });
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      className: "",
-      schoolYear: "",
-      educationalSystem: "",
-      gradeLevel: "",
-      homeroomTeachers: [],
-    },
-  });
-
   useEffect(() => {
     fetchSchoolYears();
     fetchSystems();
@@ -478,28 +115,9 @@ const ClassComponent: React.FC = () => {
   useEffect(() => {
     if (selectedSchoolYear) {
       fetchClasses();
+      setCurrentPage(1); // Reset to first page when school year changes
     }
   }, [selectedSchoolYear]);
-
-  useEffect(() => {
-    if (selectedClass) {
-      setValue("className", selectedClass.className || "");
-      setValue("schoolYear", selectedClass.schoolYear?._id || "");
-      setValue("educationalSystem", selectedClass.educationalSystem?._id || "");
-      setValue("gradeLevel", selectedClass.gradeLevel?._id || "");
-      const teacherIds = selectedClass.homeroomTeachers?.filter(t => t && t._id).map(t => t._id) || [];
-      setValue("homeroomTeachers", teacherIds);
-    } else {
-      reset({
-        className: "",
-        schoolYear: selectedSchoolYear || "",
-        educationalSystem: "",
-        gradeLevel: "",
-        homeroomTeachers: []
-      });
-    }
-  }, [selectedClass, setValue, reset, selectedSchoolYear]);
-
 
   const fetchSchoolYears = async () => {
     try {
@@ -628,7 +246,6 @@ const ClassComponent: React.FC = () => {
     }
   };
 
-
   const fetchClasses = async () => {
     try {
       setLoading(true);
@@ -680,228 +297,61 @@ const ClassComponent: React.FC = () => {
     }
   };
 
-  const handleCreateOrUpdateClass = async (formData: ClassFormData) => {
-    try {
-      if (selectedClass) {
-        await api.put<Class>(API_ENDPOINTS.CLASS(selectedClass._id), formData);
-        toast({
-          title: "Thành công",
-          description: "Cập nhật lớp học thành công"
-        });
-      } else {
-        await api.post<Class>(API_ENDPOINTS.CLASSES, formData);
-        toast({
-          title: "Thành công",
-          description: "Thêm lớp học thành công"
-        });
-      }
+  // Handler functions for dialogs
+  const handleClassFormSuccess = async () => {
+    await fetchClasses();
+    setSelectedClass(null);
+  };
 
-      await fetchClasses();
-      setIsDialogOpen(false);
-      setSelectedClass(null);
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data: unknown } };
-      let message: string = 'Đã xảy ra lỗi';
-      if (axiosError.response && axiosError.response.data) {
-        const respData = axiosError.response.data;
-        if (typeof respData === 'string') {
-          try {
-            const parsed = JSON.parse(respData);
-            message = parsed.message || parsed.error || respData;
-          } catch {
-            message = respData;
-          }
-        } else if (typeof respData === 'object' && respData !== null) {
-          const obj = respData as { message?: string; error?: string };
-          message = obj.message || obj.error || (error instanceof Error ? error.message : message);
-        }
-      }
-      toast({ title: "Lỗi", description: message, variant: "destructive" });
+  const handleImageUploadSuccess = async () => {
+    await fetchClasses();
+    await fetchStudentsOptions();
+  };
+
+  const handleEnrollSuccess = async () => {
+    await fetchClasses();
+  };
+
+  const handleDeleteSuccess = async () => {
+    await fetchClasses();
+    setSelectedClass(null);
+  };
+
+  const handleSelectImageType = (type: 'class' | 'student') => {
+    setImageUploadType(type);
+    setIsImageUploadDialogOpen(true);
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Get classes options for combobox
+  const classesOptions = classes.map((cls) => ({
+    value: cls._id,
+    label: cls.className
+  }));
+
+  // Pagination calculations
+  const totalPages = Math.ceil(classes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClasses = classes.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
     }
   };
 
-  const handleDeleteClass = async () => {
-    try {
-      if (!selectedClass) return;
-      await api.delete(API_ENDPOINTS.CLASS(selectedClass._id));
-      toast({
-        title: "Thành công",
-        description: "Xóa lớp học thành công"
-      });
-      await fetchClasses();
-      setIsDialogOpen(false);
-      setSelectedClass(null);
-      setIsDeleteDialogOpen(false);
-    } catch (error: unknown) {
-      toast({
-        title: "Lỗi",
-        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi',
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleEnrollManual = async () => {
-    if (!enrollSchoolYear || !enrollClassId || selectedStudentIds.length === 0) {
-      toast({
-        title: "Thiếu thông tin",
-        description: "Vui lòng chọn năm học, lớp và ít nhất một học sinh",
-        variant: "destructive",
-      });
-      return;
-    }
-    try {
-      // Gửi đồng thời nhiều request sử dụng upsert endpoint để tránh duplicate key error
-      const results = await Promise.allSettled(
-        selectedStudentIds.map((stuId) =>
-          api.post(`${API_ENDPOINTS.ENROLLMENTS}/upsert`, {
-            student: stuId,
-            class: enrollClassId,
-            schoolYear: enrollSchoolYear,
-          })
-        )
-      );
-
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-
-      if (successful > 0) {
-        toast({
-          title: "Thành công",
-          description: `Đã thêm ${successful} học sinh vào lớp${failed > 0 ? `, ${failed} học sinh thất bại` : ''}`,
-        });
-      }
-
-      if (failed > 0 && successful === 0) {
-        const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
-        const errorData = firstError?.reason?.response?.data;
-        let errorMessage = "Không thể thêm học sinh";
-        
-        // Xử lý chi tiết lỗi từ backend
-        if (errorData) {
-          if (typeof errorData === 'string') {
-            errorMessage = errorData;
-          } else if (typeof errorData === 'object' && errorData !== null) {
-            const obj = errorData as { message?: string; error?: string; errors?: string[] };
-            if (obj.errors && Array.isArray(obj.errors)) {
-              errorMessage = obj.errors.join('; ');
-            } else {
-              errorMessage = obj.message || obj.error || errorMessage;
-            }
-          }
-        } else if (firstError?.reason?.message) {
-          errorMessage = firstError.reason.message;
-        }
-        
-        toast({
-          title: "Lỗi",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else if (failed > 0 && successful > 0) {
-        // Show detailed results when there are mixed results
-        toast({
-          title: "Hoàn thành với một số lỗi",
-          description: `${successful} học sinh đã được thêm thành công, ${failed} học sinh thất bại`,
-          variant: "default",
-        });
-      }
-
-      // Refresh class data để cập nhật số lượng học sinh
-      await fetchClasses();
-      // Xóa lựa chọn cũ
-      setSelectedStudentIds([]);
-      // Đóng dialog sau khi thành công
-      if (successful > 0) {
-        setIsEnrollDialogOpen(false);
-        setEnrollSchoolYear("");
-        setEnrollClassId("");
-      }
-    } catch (err: unknown) {
-      console.error('Enroll error:', err);
-      toast({
-        title: "Lỗi",
-        description: err instanceof Error ? err.message : "Không thể thêm học sinh",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle enroll Excel file
-  const handleEnrollExcel = async () => {
-    if (!enrollExcelFile) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file Excel",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!enrollSchoolYear) {
-      toast({
-        title: "Lỗi", 
-        description: "Vui lòng chọn năm học trước khi import",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setUploadingEnrollExcel(true);
-      
-      const data = await enrollExcelFile.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const enrollments = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-      // Validate và gửi API
-      await api.post(`${API_ENDPOINTS.ENROLLMENTS}/bulk-import`, {
-        enrollments,
-        schoolYear: enrollSchoolYear
-      });
-
-      toast({
-        title: "Thành công",
-        description: "Import enrollment từ Excel thành công",
-      });
-
-      // Clear file và đóng dialog
-      setEnrollExcelFile(null);
-      if (enrollExcelFileInputRef.current) {
-        enrollExcelFileInputRef.current.value = '';
-      }
-      
-      // Refresh classes data để cập nhật số lượng học sinh
-      await fetchClasses();
-      
-      // Đóng dialog sau khi thành công
-      setIsEnrollDialogOpen(false);
-      setEnrollSchoolYear("");
-      setEnrollClassId("");
-      
-    } catch (error: unknown) {
-      console.error('Enroll Excel error:', error);
-      const axiosError = error as { response?: { data: unknown } };
-      let message = "Không thể import enrollment. Vui lòng thử lại.";
-      
-      if (axiosError.response && axiosError.response.data) {
-        const respData = axiosError.response.data;
-        if (typeof respData === 'string') {
-          message = respData;
-        } else if (typeof respData === 'object' && respData !== null) {
-          const obj = respData as { message?: string; error?: string };
-          message = obj.message || obj.error || message;
-        }
-      }
-      
-      toast({
-        title: "Lỗi",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setUploadingEnrollExcel(false);
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
     }
   };
 
@@ -948,658 +398,72 @@ const ClassComponent: React.FC = () => {
               />
             </svg>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isClassFormDialogOpen} onOpenChange={setIsClassFormDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => setSelectedClass(null)}>Tạo lớp</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{selectedClass ? "Cập nhật lớp học" : "Tạo lớp học mới"}</DialogTitle>
-                <DialogDescription>Nhập thông tin lớp học hoặc import từ file Excel</DialogDescription>
-              </DialogHeader>
-              
-              {/* Phần thêm lớp mới */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">1. Tạo lớp thủ công</h3>
-                <form onSubmit={handleSubmit(handleCreateOrUpdateClass)} className="space-y-4">
-                  {/* Hàng 1: Tên lớp và Khối lớp */}
-                  <div className="flex gap-4">
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="className">Tên lớp</Label>
-                      <Input id="className" {...register("className")} />
-                      {errors.className && <p className="text-red-500 text-sm">{errors.className.message}</p>}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="gradeLevel">Khối lớp</Label>
-                      <Select
-                        value={watch("gradeLevel")}
-                        onValueChange={(value) => setValue("gradeLevel", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn khối lớp" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {gradeLevels.map((level) => (
-                            <SelectItem key={level._id} value={level._id}>
-                              {level.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.gradeLevel && <p className="text-red-500 text-sm">{errors.gradeLevel.message}</p>}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="schoolYear">Năm học</Label>
-                      <Select
-                        value={watch("schoolYear")}
-                        onValueChange={(value) => setValue("schoolYear", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn năm học" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schoolYears.map((year) => (
-                            <SelectItem key={year._id} value={year._id}>
-                              {year.code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.schoolYear && <p className="text-red-500 text-sm">{errors.schoolYear.message}</p>}
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="educationalSystem">Hệ học</Label>
-                      <Select
-                        value={watch("educationalSystem")}
-                        onValueChange={(value) => {
-                          setValue("educationalSystem", value);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn hệ học" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {systems.map((system) => (
-                            <SelectItem key={system._id} value={system._id}>
-                              {system.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.educationalSystem && <p className="text-red-500 text-sm">{errors.educationalSystem.message}</p>}
-                    </div>
-                  </div>
-
-                  {/* Hàng 3: Giáo viên chủ nhiệm */}
-                  <div className="space-y-4">
-                    <Label>Giáo viên chủ nhiệm</Label>
-                    <div className="space-y-2">
-                      <Combobox
-                        multiple
-                        selectedValues={watch("homeroomTeachers")}
-                        onChange={(values) => setValue("homeroomTeachers", values)}
-                        options={teachers}
-                        placeholder="Chọn giáo viên chủ nhiệm"
-                        emptyText="Không có giáo viên"
-                        className="w-full"
-                      />
-                    </div>
-
-                    {(watch("homeroomTeachers") || []).length > 0 && (
-                      <div className="space-y-2">
-                        {(watch("homeroomTeachers") || []).map((teacherId: string) => {
-                          const teacher = teachers.find(t => t.value === teacherId);
-                          if (!teacher) return null;
-
-                          return (
-                            <div
-                              key={teacherId}
-                              className="flex items-center justify-between p-2 rounded-md border bg-gray-50"
-                            >
-                              <span className="text-sm font-medium">{teacher.label}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                                onClick={() => {
-                                  const currentTeachers = watch("homeroomTeachers") || [];
-                                  setValue(
-                                    "homeroomTeachers",
-                                    currentTeachers.filter(id => id !== teacherId)
-                                  );
-                                }}
-                              >
-                                ×
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                </form>
-              </div>
-              {/* Đường kẻ phân cách */}
-              <hr className="my-6" />
-              {/* Phần Import Excel */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">2. Import từ file Excel</h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="class-file" className="text-right">File Excel</Label>
-                    <Input
-                      id="class-file"
-                      type="file"
-                      accept=".xlsx,.xls"
-                      ref={fileInputRef}
-                      onChange={() => {
-                        // Không tự động import, chỉ lưu file được chọn
-                      }}
-                      className="col-span-3"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">File Mẫu</Label>
-                    <Button variant="outline" asChild>
-                      <a href="/Template/class-example.xlsx" download>
-                        Tải file mẫu
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter className="mt-6">
-                <div className="flex justify-end space-x-2">
-                  {selectedClass && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => setIsDeleteDialogOpen(true)}
-                    >
-                      Xóa
-                    </Button>
-                  )}
-                  <Button 
-                    type="button" 
-                    onClick={handleCreateOrImport}
-                    disabled={loading}
-                  >
-                    {selectedClass ? "Cập nhật" : "Thêm mới"}
-                  </Button>
-                </div>
-              </DialogFooter>
-            </DialogContent>
           </Dialog>
           <Dialog open={isSelectImageTypeDialogOpen} onOpenChange={setIsSelectImageTypeDialogOpen}>
             <DialogTrigger asChild>
               <Button>Cập nhật ảnh</Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Chọn loại cập nhật ảnh</DialogTitle>
-                <DialogDescription>
-                  Chọn bạn muốn cập nhật ảnh cho lớp hay học sinh
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Button 
-                    variant="outline" 
-                    className="h-20 flex flex-col items-center space-y-2"
-                    onClick={() => {
-                      setImageUploadType('class');
-                      setIsSelectImageTypeDialogOpen(false);
-                      setIsUpdateImageDialogOpen(true);
-                    }}
-                  >
-                    <span className="text-lg">🏫</span>
-                    <span>Ảnh lớp</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="h-20 flex flex-col items-center space-y-2"
-                    onClick={() => {
-                      setImageUploadType('student');
-                      setIsSelectImageTypeDialogOpen(false);
-                      setIsUpdateImageDialogOpen(true);
-                    }}
-                  >
-                    <span className="text-lg">👨‍🎓</span>
-                    <span>Ảnh học sinh</span>
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isUpdateImageDialogOpen} onOpenChange={setIsUpdateImageDialogOpen}>
-            <DialogContent className="min-w-4xl max-w-6xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {imageUploadType === 'class' ? 'Upload Ảnh Lớp' : 'Upload Ảnh Học Sinh'}
-                </DialogTitle>
-                <DialogDescription>
-                  {imageUploadType === 'class' 
-                    ? 'Tải ảnh lên cho lớp học' 
-                    : 'Tải ảnh lên cho học sinh'
-                  }
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid grid-cols-2 gap-6">
-                {/* Phần Upload ảnh đơn lẻ */}
-                <div className="space-y-4">
-                 
-                    <div className="space-y-4">
-                     {imageUploadType === 'class' && (
-                       <div className="flex flex-row gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="updateImageClass">Lớp</Label>
-                          <Select value={updateImageClassId} onValueChange={setUpdateImageClassId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Chọn lớp" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {classes.map((cls) => (
-                                <SelectItem key={cls._id} value={cls._id}>
-                                  {cls.className}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="updateImageSchoolYear">Năm học</Label>
-                          <Select value={selectedSchoolYear} disabled>
-                            <SelectTrigger>
-                              <SelectValue placeholder="--Chọn năm học--" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {schoolYears.map((year) => (
-                                <SelectItem key={year._id} value={year._id}>
-                                  {year.code}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                       </div>
-                     )}
-                    
-                      {imageUploadType === 'student' && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="updateImageStudent">Học sinh</Label>
-                            <Combobox
-                              multiple={false}
-                              value={updateImageStudentId}
-                              onSelect={(value) => setUpdateImageStudentId(value)}
-                              options={studentsOptions}
-                              placeholder="Chọn học sinh"
-                              searchPlaceholder="Tìm kiếm học sinh..."
-                              emptyText="Không có học sinh"
-                              className="w-full"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="updateImageStudentSchoolYear">Năm học</Label>
-                            <Select value={selectedSchoolYear} disabled>
-                              <SelectTrigger>
-                                <SelectValue placeholder="--Chọn năm học--" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {schoolYears.map((year) => (
-                                  <SelectItem key={year._id} value={year._id}>
-                                    {year.code}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      )}
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="imageFile">File ảnh *</Label>
-                      {!imagePreviewUrl ? (
-                        <div 
-                          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                          onClick={() => imageFileInputRef.current?.click()}
-                        >
-                          <div className="space-y-2">
-                            <p className="text-gray-500">Kéo thả hoặc chọn tệp từ máy tính</p>
-                            <p className="text-sm text-gray-400">Định dạng hỗ trợ: image/* • Dung lượng tối đa: 5MB</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {/* Image Preview */}
-                          <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                            <div className="space-y-3">
-                              <img 
-                                src={imagePreviewUrl} 
-                                alt="Preview" 
-                                className="max-w-full max-h-64 mx-auto rounded-lg shadow-md"
-                              />
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium ">
-                                  {selectedImageFile?.name}
-                                </p>
-                                <p className="text-xs">
-                                  {selectedImageFile && `${(selectedImageFile.size / 1024 / 1024).toFixed(2)} MB`}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          {/* Buttons to change or remove */}
-                          <div className="flex gap-2 justify-center">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => imageFileInputRef.current?.click()}
-                            >
-                              Thay đổi ảnh
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={clearSelectedImage}
-                            >
-                              Xóa ảnh
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        ref={imageFileInputRef}
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleImageFileSelect(file);
-                          }
-                        }}
-                      />
-                    </div>
-                    
-                    <div className="flex justify-end space-x-2">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          clearSelectedImage();
-                          clearSelectedZip();
-                          setIsUpdateImageDialogOpen(false);
-                          setImageUploadType('');
-                          setUpdateImageClassId('');
-                          setUpdateImageStudentId('');
-                        }}
-                      >
-                        Hủy
-                      </Button>
-                      <Button 
-                        onClick={handleUploadImage} 
-                        disabled={!selectedImageFile || uploadingImage}
-                      >
-                        {uploadingImage ? "Đang upload..." : "Upload ảnh"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Phần Upload ZIP ảnh cho nhiều lớp */}
-                 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                      <div className="text-sm text-gray-600">
-                        <p><strong>Cấu trúc file ZIP cho lớp học:</strong></p>
-                        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
-                          <li>Tên file ảnh: tênLớp_mãNămHọc.ext</li>
-                          <li>Định dạng ảnh: .jpg, .jpeg, .png, .gif, .webp</li>
-                          <li>Ví dụ: 12A1_2023-2024.jpg, 10B2_2023-2024.png</li>
-                        </ul>
-                      </div>
-                    </div>
-                  <div className="space-y-4">
-                    {!selectedZipFile ? (
-                      <div 
-                        className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                        onClick={() => zipFileInputRef.current?.click()}
-                      >
-                        <div className="space-y-2">
-                          <p className="text-gray-500">Kéo thả hoặc chọn tệp ZIP từ máy tính</p>
-                          <p className="text-sm text-gray-400">Định dạng hỗ trợ: .zip • Dung lượng tối đa: 1024MB</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* ZIP File Info */}
-                        <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 text-center">
-                          <div className="space-y-2">
-                            <div className="text-4xl">📦</div>
-                            <p className="text-sm font-medium text-blue-800">
-                              {selectedZipFile.name}
-                            </p>
-                            <p className="text-xs text-blue-600">
-                              {`${(selectedZipFile.size / 1024 / 1024).toFixed(2)} MB`}
-                            </p>
-                          </div>
-                        </div>
-                        {/* Buttons to change or remove */}
-                        <div className="flex gap-2 justify-center">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => zipFileInputRef.current?.click()}
-                          >
-                            Thay đổi file
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={clearSelectedZip}
-                          >
-                            Xóa file
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <Input
-                      type="file"
-                      accept=".zip"
-                      ref={zipFileInputRef}
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleZipFileSelect(file);
-                        }
-                      }}
-                    />
-                    
-                   
-                    
-                    <div className="flex justify-end">
-                      <Button 
-                        onClick={handleUploadZip}
-                        disabled={!selectedZipFile || uploadingZip}
-                      >
-                        {uploadingZip ? "Đang upload..." : "Upload ZIP"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
           </Dialog>
           <Dialog open={isEnrollDialogOpen} onOpenChange={setIsEnrollDialogOpen}>
             <DialogTrigger asChild>
               <Button>Ghép lớp</Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Enroll Students</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6">
-                {/* Manual enroll section */}
-                <div>
-                  <h3 className="text-lg font-medium">1. Enroll thủ công</h3>
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="enrollSchoolYear">Năm học</Label>
-                      <Select value={enrollSchoolYear} onValueChange={setEnrollSchoolYear}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn năm học" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schoolYears.map((year) => (
-                            <SelectItem key={year._id} value={year._id}>
-                              {year.code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="enrollClass">Lớp</Label>
-                      <Select value={enrollClassId} onValueChange={setEnrollClassId} disabled={!enrollSchoolYear}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn lớp" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {enrollClassesOptions.map((cls) => (
-                            <SelectItem key={cls._id} value={cls._id}>
-                              {cls.className}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                  </div>
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="enrollStudent">Học sinh *</Label>
-                    <Combobox
-                      multiple
-                      selectedValues={selectedStudentIds}
-                      onChange={setSelectedStudentIds}
-                      options={studentsOptions}
-                      placeholder="Chọn học sinh"
-                      searchPlaceholder="Tìm kiếm học sinh..."
-                      emptyText="Không có học sinh"
-                      className="w-full"
-                    />
-                    {selectedStudentIds.length > 0 && (
-                      <p className="text-sm text-blue-600">
-                        ✓ Đã chọn {selectedStudentIds.length} học sinh
-                      </p>
-                    )}
-                  </div>
-                  <Button 
-                    className="mt-4" 
-                    onClick={handleEnrollManual}
-                    disabled={!enrollSchoolYear || !enrollClassId || selectedStudentIds.length === 0}
-                  >
-                    Enroll
-                  </Button>
-                </div>
-                <hr className="my-6" />
-                {/* Excel enroll section */}
-                <div>
-                  <h3 className="text-lg font-medium">2. Enroll bằng file Excel</h3>
-                  <div className="mt-4 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="enrollExcelSchoolYear">Năm học *</Label>
-                      <Select value={enrollSchoolYear} onValueChange={setEnrollSchoolYear}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn năm học" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schoolYears.map((year) => (
-                            <SelectItem key={year._id} value={year._id}>
-                              {year.code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="enrollExcelFile">File Excel *</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="file" 
-                          accept=".xlsx,.xls" 
-                          ref={enrollExcelFileInputRef}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setEnrollExcelFile(file);
-                            }
-                          }}
-                        />
-                        <Button variant="outline" asChild>
-                          <a href="/Template/enrollment-example.xlsx" download>
-                            File mẫu
-                          </a>
-                        </Button>
-                      </div>
-                      {enrollExcelFile && (
-                        <p className="text-sm text-green-600">
-                          ✓ Đã chọn: {enrollExcelFile.name}
-                        </p>
-                      )}
-                    </div>
-                    <Button 
-                      onClick={handleEnrollExcel}
-                      disabled={!enrollExcelFile || !enrollSchoolYear || uploadingEnrollExcel}
-                    >
-                      {uploadingEnrollExcel ? "Đang import..." : "Import Enrollments"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => {
-                  setIsEnrollDialogOpen(false);
-                  setEnrollSchoolYear("");
-                  setEnrollClassId("");
-                  setSelectedStudentIds([]);
-                  setEnrollExcelFile(null);
-                  if (enrollExcelFileInputRef.current) {
-                    enrollExcelFileInputRef.current.value = '';
-                  }
-                }}>Đóng</Button>
-              </DialogFooter>
-            </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa lớp học</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa lớp học "{selectedClass?.className}" không?
-              Hành động này không thể hoàn tác.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteClass}>Xóa</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Dialog components */}
+      <ClassFormDialog
+        isOpen={isClassFormDialogOpen}
+        onClose={() => setIsClassFormDialogOpen(false)}
+        selectedClass={selectedClass}
+        selectedSchoolYear={selectedSchoolYear}
+        schoolYears={schoolYears}
+        systems={systems}
+        gradeLevels={gradeLevels}
+        teachers={teachers}
+        onSuccess={handleClassFormSuccess}
+        onDelete={handleDeleteClick}
+        loading={loading}
+      />
+
+      <ImageTypeSelectDialog
+        isOpen={isSelectImageTypeDialogOpen}
+        onClose={() => setIsSelectImageTypeDialogOpen(false)}
+        onSelectType={handleSelectImageType}
+      />
+
+      <ImageUploadDialog
+        isOpen={isImageUploadDialogOpen}
+        onClose={() => setIsImageUploadDialogOpen(false)}
+        imageUploadType={imageUploadType}
+        schoolYears={schoolYears}
+        classesOptions={classesOptions}
+        studentsOptions={studentsOptions}
+        selectedSchoolYear={selectedSchoolYear}
+        onSchoolYearChange={setSelectedSchoolYear}
+        onSuccess={handleImageUploadSuccess}
+      />
+
+      <EnrollStudentsDialog
+        isOpen={isEnrollDialogOpen}
+        onClose={() => setIsEnrollDialogOpen(false)}
+        schoolYears={schoolYears}
+        classes={classes}
+        studentsOptions={studentsOptions}
+        onSuccess={handleEnrollSuccess}
+      />
+
+      <DeleteClassDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        selectedClass={selectedClass}
+        onSuccess={handleDeleteSuccess}
+      />
 
       {selectedSchoolYear ? (
         <div className="rounded-lg">
@@ -1621,8 +485,8 @@ const ClassComponent: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                  {classes && classes.length > 0 ? (
-                    classes.map((cls) => (
+                  {paginatedClasses && paginatedClasses.length > 0 ? (
+                    paginatedClasses.map((cls) => (
                       <TableRow key={cls._id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
@@ -1683,7 +547,7 @@ const ClassComponent: React.FC = () => {
                             onClick={() => {
                               if (cls) {
                                 setSelectedClass(cls);
-                                setIsDialogOpen(true);
+                                setIsClassFormDialogOpen(true);
                               } else {
                                 console.error('No class data available');
                                 toast({
@@ -1708,6 +572,61 @@ const ClassComponent: React.FC = () => {
                   )}
               </TableBody>
             </Table>
+          )}
+          
+          {/* Pagination */}
+          {!loading && classes.length > 0 && (
+            <div className="flex flex-col items-center mt-6 space-y-4">
+              {totalPages > 1 && (
+                <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={handlePreviousPage}
+                      className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => handlePageChange(page)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    } else if (
+                      page === currentPage - 2 ||
+                      page === currentPage + 2
+                    ) {
+                      return (
+                        <PaginationItem key={page}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+                    return null;
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={handleNextPage}
+                      className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+              )}
+            </div>
           )}
         </div>
       ) : (

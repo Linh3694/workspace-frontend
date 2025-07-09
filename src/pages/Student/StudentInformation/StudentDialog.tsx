@@ -60,7 +60,6 @@ interface StudentFormData {
     email: string;
     parents: Parent[];
     status: 'active' | 'transferred' | 'dropped';
-    avatar?: File | string;
     family?: string;
 }
 
@@ -113,8 +112,7 @@ const StudentDialog = ({ open, onOpenChange, onSubmit, onDelete, mode, studentDa
             createAccount: false,
             password: '',
         }],
-        status: 'active',
-        avatar: undefined
+        status: 'active'
     };
 
     const [formData, setFormData] = useState<StudentFormData>(defaultFormData);
@@ -431,35 +429,7 @@ const StudentDialog = ({ open, onOpenChange, onSubmit, onDelete, mode, studentDa
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="avatar" className="text-right">
-                                        Ảnh học sinh
-                                    </Label>
-                                    <div className="col-span-3 space-y-2">
-                                        <Input
-                                            id="avatar"
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={(e) =>
-                                                setFormData(prev => ({ ...prev, avatar: e.target.files?.[0] }))
-                                            }
-                                        />
-                                        {formData.avatar && typeof formData.avatar !== 'string' && (
-                                            <img
-                                                src={URL.createObjectURL(formData.avatar)}
-                                                alt="preview"
-                                                className="h-24 w-24 object-cover rounded"
-                                            />
-                                        )}
-                                        {typeof formData.avatar === 'string' && formData.avatar && (
-                                            <img
-                                                src={formData.avatar}
-                                                alt="preview"
-                                                className="h-24 w-24 object-cover rounded"
-                                            />
-                                        )}
-                                    </div>
-                                </div>
+                                
                             </TabsContent>
 
                             <TabsContent value="parents" className="space-y-6">

@@ -313,9 +313,10 @@ const StudentList: React.FC = () => {
             });
             setIsCreateDialogOpen(false);
             
-            // Thêm delay ngắn để đảm bảo ảnh đã được lưu
+            // Clear cache ảnh và reload
             setTimeout(async () => {
                 await fetchStudents();
+                forceReloadPhotos();
             }, 1000);
         } catch (error) {
             console.error('Lỗi khi thêm học sinh:', error);
@@ -396,9 +397,10 @@ const StudentList: React.FC = () => {
             setIsEditDialogOpen(false);
             setSelectedStudent(null);
             
-            // Thêm delay ngắn để đảm bảo ảnh đã được lưu
+            // Clear cache ảnh và reload
             setTimeout(async () => {
                 await fetchStudents();
+                forceReloadPhotos();
             }, 1000);
         } catch (error) {
             console.error('Lỗi khi cập nhật học sinh:', error);
@@ -518,6 +520,14 @@ const StudentList: React.FC = () => {
             loadPhotosForCurrentPage(currentPageStudents);
         }
     }, [currentPage, students.length, loading]); // Dependency array
+    
+    // Function để force reload ảnh sau khi upload
+    const forceReloadPhotos = () => {
+        setLoadedPhotos(new Set()); // Clear cache
+        if (currentPageStudents.length > 0) {
+            loadPhotosForCurrentPage(currentPageStudents);
+        }
+    };
 
     // Pagination display logic
     const getPaginationNumbers = () => {
