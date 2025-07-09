@@ -127,6 +127,7 @@ export const API_ENDPOINTS = {
   // Hall of Honor endpoints
   AWARD_CATEGORIES: `${API_URL}/award-categories`,
   AWARD_CATEGORY: (id: string) => `${API_URL}/award-categories/${id}`,
+  AWARD_CATEGORY_UPLOAD: `${API_URL}/award-categories/upload`,
   AWARD_RECORDS: `${API_URL}/award-records`,
   AWARD_RECORD: (id: string) => `${API_URL}/award-records/${id}`,
 

@@ -9,7 +9,7 @@ import {
 } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { ScrollArea } from '../../../components/ui/scroll-area';
-import { Plus, Trophy, Edit } from 'lucide-react';
+import { Plus, Trophy, Edit, Info } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import CreateCategoryDialog from './CreateCategoryDialog';
 import EditCategoryDialog from './EditCategoryDialog';
@@ -97,6 +97,11 @@ const HallOfHonor: React.FC = () => {
     setEditingCategoryForSubAwards(null);
   };
 
+  const handleShowId = (category: AwardCategory, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    alert(`ID: ${category._id}`);
+  };
+
 
 
   return (
@@ -148,9 +153,19 @@ const HallOfHonor: React.FC = () => {
                         <CardContent className="py-0">
                           <div className="space-y-2">
                             <div className="flex justify-between items-start">
-                              <h3 className="font-semibold text-sm leading-tight flex-1">
-                                {category.name}
-                              </h3>
+                              <div className="flex items-center gap-2 flex-1">
+                                <h3 className="font-semibold text-sm leading-tight">
+                                  {category.name}
+                                </h3>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 rounded-full"
+                                  onClick={(e) => handleShowId(category, e)}
+                                >
+                                  <Info className="h-3 w-3" />
+                                </Button>
+                              </div>
                               <Button
                                 variant="ghost"
                                 size="sm"

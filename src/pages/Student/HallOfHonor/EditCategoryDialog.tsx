@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
-import { API_ENDPOINTS, UPLOAD_URL, BASE_URL } from '../../../lib/config';
+import { API_ENDPOINTS, BASE_URL } from '../../../lib/config';
 import { toast } from 'sonner';
 import type { AwardCategory, RecipientType } from '../../../types';
 
@@ -99,19 +99,32 @@ const EditCategoryDialog: React.FC<EditCategoryDialogProps> = ({
     const formData = new FormData();
     formData.append('coverImage', file);
 
-    const response = await axios.post(`${UPLOAD_URL}/HallOfFame`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    try {
+      const response = await axios.post(`${API_ENDPOINTS.AWARD_CATEGORY_UPLOAD}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    console.log('Upload response:', response.data);
-    
-    // Return the full path or construct it properly
-    return response.data.filePath || 
-           (response.data.filename ? `/uploads/HallOfFame/${response.data.filename}` : '') ||
-           response.data.url || 
-           '';
+      console.log('Upload response:', response.data);
+      
+      // Return the full path or construct it properly
+      if (response.data.filePath) {
+        return response.data.filePath;
+      } else if (response.data.filename) {
+        return `/uploads/HallOfFame/${response.data.filename}`;
+      } else if (response.data.url) {
+        return response.data.url;
+      } else {
+        throw new Error('Không nhận được đường dẫn file từ server');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.error || 'Lỗi khi upload ảnh');
+      }
+      throw error;
+    }
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
