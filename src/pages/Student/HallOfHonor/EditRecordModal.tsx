@@ -30,7 +30,7 @@ interface EditRecordModalProps {
   record: AwardRecord | null;
   onSuccess: () => void;
   studentData?: StudentData | null;
-  classData?: any | null;
+  classData?: ClassData | null;
 }
 
 const EditRecordModal: React.FC<EditRecordModalProps> = ({
@@ -49,6 +49,25 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
 
   // Determine recipient type from the record's category
   const recipientType: RecipientType = record?.awardCategory?.recipientType || 'student';
+  
+  // Determine subAward type from the record's subAward
+  const subAwardType = record?.subAward?.type || 'year';
+
+  const createEmptyStudent = (): StudentData => {
+    const base = {
+      student: { _id: '', name: '', studentCode: '' },
+      note: '',
+      noteEng: ''
+    };
+
+    if (subAwardType === 'custom') {
+      return { ...base, activity: [], activityEng: [] };
+    } else if (subAwardType === 'custom_with_description') {
+      return { student: { _id: '', name: '', studentCode: '' }, exam: '', score: '' };
+    }
+
+    return base;
+  };
 
   useEffect(() => {
     if (record) {
@@ -56,25 +75,30 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
         // Khi sửa một học sinh cụ thể, chỉ load thông tin của học sinh đó
         // Tìm học sinh trong record để lấy đầy đủ thông tin
         const originalStudent = record.students?.find(s => s.student._id === studentData.student._id);
+        
         if (originalStudent) {
-          setStudents([{
+          const studentToEdit = {
             student: originalStudent.student,
             note: originalStudent.note || '',
             noteEng: originalStudent.noteEng || '',
             activity: originalStudent.activity || [],
+            activityEng: originalStudent.activityEng || [],
             exam: originalStudent.exam || '',
             score: originalStudent.score || ''
-          }]);
+          };
+          setStudents([studentToEdit]);
         } else {
           // Fallback nếu không tìm thấy
-          setStudents([{
+          const fallbackStudent = {
             student: studentData.student,
             note: studentData.note || '',
             noteEng: studentData.noteEng || '',
             activity: studentData.activity || [],
+            activityEng: studentData.activityEng || [],
             exam: studentData.exam || '',
             score: studentData.score || ''
-          }]);
+          };
+          setStudents([fallbackStudent]);
         }
         setClasses(record.awardClasses || []);
       } else if (classData) {
@@ -142,7 +166,12 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
     } else if (field === 'activity') {
       updatedStudents[index] = {
         ...updatedStudents[index],
-        activity: Array.isArray(value) ? value : [],
+        activity: Array.isArray(value) ? value : [value as string],
+      };
+    } else if (field === 'activityEng') {
+      updatedStudents[index] = {
+        ...updatedStudents[index],
+        activityEng: Array.isArray(value) ? value : [value as string],
       };
     } else {
       updatedStudents[index] = {
@@ -197,11 +226,6 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
           throw new Error('Không tìm thấy danh sách học sinh trong bản ghi');
         }
 
-        console.log('🔍 DEBUG: Editing specific student');
-        console.log('🔍 Original record.students:', record.students);
-        console.log('🔍 StudentData to edit:', studentData);
-        console.log('🔍 Form students data:', students);
-
         // Tạo bản sao của danh sách học sinh hiện tại
         const currentStudents = [...record.students];
         
@@ -214,23 +238,18 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
           throw new Error('Không tìm thấy học sinh cần cập nhật');
         }
 
-        console.log('🔍 Student index found:', studentIndex);
-        console.log('🔍 Original student at index:', currentStudents[studentIndex]);
-
         // Cập nhật thông tin của học sinh tại vị trí đó
         currentStudents[studentIndex] = {
           ...currentStudents[studentIndex],
           note: students[0].note,
           noteEng: students[0].noteEng,
           activity: students[0].activity,
+          activityEng: students[0].activityEng,
           exam: students[0].exam,
           score: students[0].score,
           // Giữ nguyên thông tin student và các field khác
           student: currentStudents[studentIndex].student
         };
-
-        console.log('🔍 Updated student at index:', currentStudents[studentIndex]);
-        console.log('🔍 Final currentStudents array:', currentStudents);
 
         const updateData = {
           students: currentStudents,
@@ -247,8 +266,6 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
           }
         };
 
-        console.log('🔍 Final updateData to send:', updateData);
-
         await axios.put(`${API_ENDPOINTS.AWARD_RECORDS}/${record._id}`, updateData, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -258,11 +275,6 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
         if (!record.awardClasses || !Array.isArray(record.awardClasses)) {
           throw new Error('Không tìm thấy danh sách lớp trong bản ghi');
         }
-
-        console.log('🔍 DEBUG: Editing specific class');
-        console.log('🔍 Original record.awardClasses:', record.awardClasses);
-        console.log('🔍 ClassData to edit:', classData);
-        console.log('🔍 Form classes data:', classes);
 
         // Tạo bản sao của danh sách lớp hiện tại
         const currentClasses = [...record.awardClasses];
@@ -276,9 +288,6 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
           throw new Error('Không tìm thấy lớp cần cập nhật');
         }
 
-        console.log('🔍 Class index found:', classIndex);
-        console.log('🔍 Original class at index:', currentClasses[classIndex]);
-
         // Cập nhật thông tin của lớp tại vị trí đó
         currentClasses[classIndex] = {
           ...currentClasses[classIndex],
@@ -288,9 +297,6 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
           class: currentClasses[classIndex].class,
           classInfo: currentClasses[classIndex].classInfo
         };
-
-        console.log('🔍 Updated class at index:', currentClasses[classIndex]);
-        console.log('🔍 Final currentClasses array:', currentClasses);
 
         const updateData = {
           students: record.students || [], // Giữ nguyên thông tin học sinh
@@ -306,8 +312,6 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
             priority: record.subAward.priority
           }
         };
-
-        console.log('🔍 Final updateData to send:', updateData);
 
         await axios.put(`${API_ENDPOINTS.AWARD_RECORDS}/${record._id}`, updateData, {
           headers: { Authorization: `Bearer ${token}` }
@@ -369,7 +373,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
                     <h3 className="text-lg font-semibold">Học sinh</h3>
                     {/* Chỉ hiển thị nút "Thêm học sinh" khi không chỉnh sửa một học sinh cụ thể */}
                     {!studentData && (
-                      <Button size="sm" onClick={() => setStudents([...students, { student: { _id: '', name: '', studentCode: '' }, note: '', noteEng: '' }])}>
+                      <Button size="sm" onClick={() => setStudents([...students, createEmptyStudent()])}>
                         <Plus className="h-4 w-4 mr-1" />
                         Thêm học sinh
                       </Button>
@@ -402,26 +406,80 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
                             ))}
                           </select>
                         </div>
-                        <div>
-                          <Label>Ghi chú</Label>
-                          <Textarea
-                            value={student.note || ''}
-                            onChange={(e) => handleStudentChange(index, 'note', e.target.value)}
-                            placeholder="Ghi chú"
-                            rows={2}
-                            className="mt-2"
-                          />
-                        </div>
-                        <div>
-                          <Label>Ghi chú (Tiếng Anh)</Label>
-                          <Textarea
-                            value={student.noteEng || ''}
-                            onChange={(e) => handleStudentChange(index, 'noteEng', e.target.value)}
-                            placeholder="Ghi chú bằng tiếng Anh"
-                            rows={2}
-                            className="mt-2"
-                          />
-                        </div>
+
+                        {/* Custom fields for different award types */}
+                        {subAwardType === 'custom' && (
+                          <>
+                            <div>
+                              <Label>Hoạt động</Label>
+                              <Input
+                                value={Array.isArray(student.activity) ? student.activity.join(', ') : ''}
+                                onChange={(e) => handleStudentChange(index, 'activity', e.target.value.split(', ').filter(s => s.trim()))}
+                                placeholder="Nhập các hoạt động, cách nhau bằng dấu phẩy"
+                                className="mt-2"
+                              />
+                            </div>
+                            <div>
+                              <Label>Hoạt động (Tiếng Anh)</Label>
+                              <Input
+                                value={Array.isArray(student.activityEng) ? student.activityEng.join(', ') : ''}
+                                onChange={(e) => handleStudentChange(index, 'activityEng', e.target.value.split(', ').filter(s => s.trim()))}
+                                placeholder="Nhập các hoạt động bằng tiếng Anh, cách nhau bằng dấu phẩy"
+                                className="mt-2"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {subAwardType === 'custom_with_description' && (
+                          <>
+                            <div>
+                              <Label>Bài thi</Label>
+                              <Input
+                                value={student.exam || ''}
+                                onChange={(e) => handleStudentChange(index, 'exam', e.target.value)}
+                                placeholder="Tên bài thi"
+                                className="mt-2"
+                              />
+                            </div>
+                            <div>
+                              <Label>Điểm</Label>
+                              <Input
+                                value={student.score || ''}
+                                onChange={(e) => handleStudentChange(index, 'score', e.target.value)}
+                                placeholder="Điểm số"
+                                className="mt-2"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* Ghi chú chỉ cho các loại khác */}
+                        {subAwardType !== 'custom_with_description' && (
+                          <div>
+                            <Label>Ghi chú</Label>
+                            <Textarea
+                              value={student.note || ''}
+                              onChange={(e) => handleStudentChange(index, 'note', e.target.value)}
+                              placeholder="Ghi chú"
+                              rows={2}
+                              className="mt-2"
+                            />
+                          </div>
+                        )}
+
+                        {subAwardType !== 'custom_with_description' && (
+                          <div>
+                            <Label>Ghi chú (Tiếng Anh)</Label>
+                            <Textarea
+                              value={student.noteEng || ''}
+                              onChange={(e) => handleStudentChange(index, 'noteEng', e.target.value)}
+                              placeholder="Ghi chú bằng tiếng Anh"
+                              rows={2}
+                              className="mt-2"
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

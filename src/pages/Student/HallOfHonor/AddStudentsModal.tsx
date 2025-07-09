@@ -325,24 +325,24 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
                     {/* Custom fields for different award types */}
                     {subAwardType === 'custom' && (
                       <>
-                        <div>
-                          <Label>Hoạt động</Label>
-                          <Input
-                            value={Array.isArray(student.activity) ? student.activity.join(', ') : ''}
-                            onChange={(e) => handleStudentChange(index, 'activity', e.target.value.split(', '))}
-                            placeholder="Nhập các hoạt động, cách nhau bằng dấu phẩy"
-                            className="mt-2"
-                          />
-                        </div>
-                        <div>
-                          <Label>Hoạt động (Tiếng Anh)</Label>
-                          <Input
-                            value={Array.isArray(student.activityEng) ? student.activityEng.join(', ') : ''}
-                            onChange={(e) => handleStudentChange(index, 'activityEng', e.target.value.split(', '))}
-                            placeholder="Nhập các hoạt động bằng tiếng Anh, cách nhau bằng dấu phẩy"
-                            className="mt-2"
-                          />
-                        </div>
+                                                    <div>
+                              <Label>Hoạt động</Label>
+                              <Input
+                                value={Array.isArray(student.activity) ? student.activity.join(', ') : ''}
+                                onChange={(e) => handleStudentChange(index, 'activity', e.target.value.split(', ').filter(s => s.trim()))}
+                                placeholder="Nhập các hoạt động, cách nhau bằng dấu phẩy"
+                                className="mt-2"
+                              />
+                            </div>
+                            <div>
+                              <Label>Hoạt động (Tiếng Anh)</Label>
+                              <Input
+                                value={Array.isArray(student.activityEng) ? student.activityEng.join(', ') : ''}
+                                onChange={(e) => handleStudentChange(index, 'activityEng', e.target.value.split(', ').filter(s => s.trim()))}
+                                placeholder="Nhập các hoạt động bằng tiếng Anh, cách nhau bằng dấu phẩy"
+                                className="mt-2"
+                              />
+                            </div>
                       </>
                     )}
 
