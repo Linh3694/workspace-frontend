@@ -33,7 +33,6 @@ import {
   Trash2, 
   Users, 
   GraduationCap, 
-  Download,
   Search,
 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
@@ -46,7 +45,8 @@ import type {
   SubAward, 
   StudentData, 
   AwardRecord,
-  SchoolYearExtended
+  SchoolYearExtended,
+  ClassData
 } from '../../../types';
 
 interface RecordsPanelProps {
@@ -70,7 +70,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
   const [recordToEdit, setRecordToEdit] = useState<AwardRecord | null>(null);
   const [studentToEdit, setStudentToEdit] = useState<StudentData | null>(null);
-  const [classToEdit, setClassToEdit] = useState<any | null>(null);
+  const [classToEdit, setClassToEdit] = useState<ClassData | null>(null);
 
   // Add Students modal states
   const [addStudentsModalOpen, setAddStudentsModalOpen] = useState<boolean>(false);
@@ -185,7 +185,7 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
     }
   };
 
-  const handleEditRecord = (record: AwardRecord, studentData?: StudentData, classData?: any) => {
+  const handleEditRecord = (record: AwardRecord, studentData?: StudentData, classData?: ClassData) => {
     setRecordToEdit(record);
     setStudentToEdit(studentData || null);
     setClassToEdit(classData || null);
@@ -234,11 +234,6 @@ const RecordsPanel: React.FC<RecordsPanelProps> = ({ selectedCategory }) => {
 
   const handleAddClasses = () => {
     setAddClassesModalOpen(true);
-  };
-
-  const handleDownloadExcel = () => {
-    // TODO: Implement download Excel functionality
-    console.log('Download Excel');
   };
 
   const handleEditSuccess = () => {
