@@ -32,7 +32,7 @@ const api = axios.create({
 // Create separate axios instance for file uploads with longer timeout
 const fileUploadApi = axios.create({
   baseURL: API_URL_VITE,
-  timeout: 300000, // 5 minutes for file uploads
+  timeout: 600000, // 10 minutes for file uploads
 });
 
 // Token refresh logic

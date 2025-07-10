@@ -14,6 +14,7 @@ import { Label } from '../../../components/ui/label';
 import { Textarea } from '../../../components/ui/textarea';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { Combobox } from '../../../components/ui/combobox';
 import { Plus, Trash2, Download } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../lib/config';
 import { toast } from 'sonner';
@@ -24,11 +25,7 @@ import type {
 } from '../../../types';
 import type { Student } from '../../../types';
 
-interface ExcelStudentData {
-  student: string;
-  exam?: string;
-  score?: string;
-}
+
 
 interface AddStudentsModalProps {
   isOpen: boolean;
@@ -50,7 +47,6 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<StudentData[]>([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
-  const [excelStudents, setExcelStudents] = useState<StudentData[]>([]);
   const [uploadLoading, setUploadLoading] = useState(false);
 
   // Determine fields based on subAward type
@@ -61,7 +57,6 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
       fetchAvailableStudents();
       // Initialize with one empty student
       setStudents([createEmptyStudent()]);
-      setExcelStudents([]);
     }
   }, [isOpen]);
 
@@ -132,11 +127,26 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!selectedCategory || !selectedSubAward) {
+      toast.error('Vui lòng chọn loại vinh danh và thời kỳ trước khi upload file');
+      return;
+    }
+
     setUploadLoading(true);
 
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('awardCategory', selectedCategory._id);
+      formData.append('subAward', JSON.stringify({
+        type: selectedSubAward.type,
+        label: selectedSubAward.label,
+        labelEng: selectedSubAward.labelEng,
+        schoolYear: selectedSchoolYear,
+        semester: selectedSubAward.semester,
+        month: selectedSubAward.month,
+        priority: selectedSubAward.priority
+      }));
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
@@ -150,40 +160,101 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
         }
       );
 
-      if (response.data.students) {
-        // Convert uploaded data to StudentData format
-        const convertedStudents = response.data.students.map((s: ExcelStudentData) => {
-          const student = availableStudents.find(st => st.studentCode === s.student);
-          if (subAwardType === 'custom_with_description') {
-            return {
-              student: student || { _id: '', name: s.student, studentCode: s.student },
-              exam: s.exam || '',
-              score: s.score || ''
-            };
-          } else if (subAwardType === 'custom') {
-            return {
-              student: student || { _id: '', name: s.student, studentCode: s.student },
-              activity: [],
-              activityEng: [],
-              note: '',
-              noteEng: ''
-            };
-          } else {
-            // Định kỳ
-            return {
-              student: student || { _id: '', name: s.student, studentCode: s.student },
-              note: '',
-              noteEng: ''
-            };
-          }
+      if (response.data.success) {
+        const { summary, details } = response.data;
+        
+        // Hiển thị thông báo thành công
+        toast.success(response.data.message);
+        
+        // Hiển thị thông tin chi tiết
+        if (summary.duplicates > 0) {
+          toast.warning(`Có ${summary.duplicates} học sinh đã tồn tại trong hệ thống`);
+        }
+        
+        // Log thông tin chi tiết cho debug
+        console.log('Excel Upload Success:', {
+          totalProcessed: summary.totalProcessed,
+          successful: summary.successful,
+          duplicates: summary.duplicates,
+          duplicateStudents: details.duplicateStudents
         });
-        setExcelStudents(convertedStudents);
-        toast.success(`Đã đọc thành công ${response.data.totalStudents} học sinh từ Excel`);
+        
+        // Đóng modal và refresh data
+        onSuccess();
+        onClose();
+      } else {
+        throw new Error(response.data.message || 'Upload không thành công');
       }
     } catch (error: unknown) {
       console.error('Lỗi khi upload Excel:', error);
-      const errorResponse = error as { response?: { data?: { message?: string } } };
-      toast.error(errorResponse.response?.data?.message || 'Có lỗi xảy ra khi đọc file Excel');
+      
+      // Improved error handling for Excel upload
+      let errorMessage = 'Có lỗi xảy ra khi đọc file Excel';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          const { status, data } = error.response;
+          
+          if (data?.message) {
+            errorMessage = data.message;
+          } else if (data?.error) {
+            errorMessage = data.error;
+          } else if (data?.errors && Array.isArray(data.errors)) {
+            errorMessage = data.errors.join(', ');
+          } else if (typeof data === 'string') {
+            errorMessage = data;
+          } else {
+            errorMessage = `Lỗi upload HTTP ${status}`;
+          }
+          
+          // Hiển thị thông tin missing students nếu có
+          if (data?.missingStudents && Array.isArray(data.missingStudents)) {
+            const missingList = data.missingStudents.slice(0, 5).join(', ');
+            const totalMissing = data.totalMissing || data.missingStudents.length;
+            errorMessage += `\n\nHọc sinh không tồn tại: ${missingList}`;
+            if (totalMissing > 5) {
+              errorMessage += ` và ${totalMissing - 5} học sinh khác`;
+            }
+          }
+          
+          // Log detailed error for debugging
+          console.error('Excel Upload API Error:', {
+            status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+            url: error.config?.url,
+            method: error.config?.method,
+            fileName: file?.name
+          });
+        } else if (error.request) {
+          errorMessage = 'Lỗi kết nối mạng khi upload file';
+          console.error('Excel Upload Network Error:', {
+            message: error.message,
+            code: error.code,
+            fileName: file?.name
+          });
+        } else {
+          errorMessage = `Lỗi cấu hình upload: ${error.message}`;
+          console.error('Excel Upload Request Error:', {
+            message: error.message,
+            fileName: file?.name
+          });
+        }
+      } else if (error instanceof Error) {
+        errorMessage = `Lỗi xử lý file: ${error.message}`;
+        console.error('Excel Upload General Error:', {
+          message: error.message,
+          stack: error.stack,
+          fileName: file?.name
+        });
+      } else {
+        console.error('Excel Upload Unknown Error:', {
+          error,
+          fileName: file?.name
+        });
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setUploadLoading(false);
     }
@@ -202,14 +273,32 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
     a.click();
   };
 
+  // Add validation function to check student data
+  const validateStudentData = (studentData: StudentData): string | null => {
+    if (!studentData.student || !studentData.student._id) {
+      return 'Thông tin học sinh không hợp lệ';
+    }
+
+    if (subAwardType === 'custom_with_description') {
+      if (!studentData.exam || !studentData.score) {
+        return 'Thiếu thông tin bài thi hoặc điểm số';
+      }
+    }
+
+    if (subAwardType === 'custom') {
+      if (!studentData.activity || !Array.isArray(studentData.activity) || studentData.activity.length === 0) {
+        return 'Thiếu thông tin hoạt động';
+      }
+    }
+
+    return null; // No validation errors
+  };
+
   const handleSubmit = async () => {
     if (!selectedCategory || !selectedSubAward) return;
 
     const finalStudents = students
-      .filter(s => s.student && s.student._id && s.student._id !== '')
-      .concat(
-        excelStudents.filter(s => s.student && s.student._id && s.student._id !== '')
-      );
+      .filter(s => s.student && s.student._id && s.student._id !== '');
 
     if (finalStudents.length === 0) {
       toast.error('Vui lòng thêm ít nhất một học sinh');
@@ -237,15 +326,90 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
           priority: selectedSubAward.priority
         }
       };
+      
       try {
+        // Validate student data before submission
+        const validationError = validateStudentData(stu);
+        if (validationError) {
+          failCount++;
+          failList.push(`${stu.student.name || stu.student.studentCode}: ${validationError}`);
+          continue;
+        }
+
         await axios.post(API_ENDPOINTS.AWARD_RECORDS, recordData, {
           headers: { Authorization: `Bearer ${token}` }
         });
         successCount++;
+        console.log('Successfully added student:', stu.student.name || stu.student.studentCode, {
+          studentId: stu.student._id,
+          awardType: selectedSubAward.type,
+          subAwardLabel: selectedSubAward.label
+        });
       } catch (error: unknown) {
         failCount++;
-        const errorResponse = error as { response?: { data?: { message?: string } } };
-        const errorMessage = errorResponse.response?.data?.message || 'Lỗi không xác định';
+        
+        // Improved error handling for better debugging
+        let errorMessage = 'Lỗi không xác định';
+        
+        if (axios.isAxiosError(error)) {
+          // Check for different error scenarios
+          if (error.response) {
+            // Server responded with error status
+            const { status, data } = error.response;
+            
+            if (data?.message) {
+              errorMessage = data.message;
+            } else if (data?.error) {
+              errorMessage = data.error;
+            } else if (data?.errors && Array.isArray(data.errors)) {
+              errorMessage = data.errors.join(', ');
+            } else if (typeof data === 'string') {
+              errorMessage = data;
+            } else {
+              errorMessage = `Lỗi HTTP ${status}`;
+            }
+            
+            // Log detailed error for debugging
+            console.error('API Error for student:', stu.student.name || stu.student.studentCode, {
+              status,
+              statusText: error.response.statusText,
+              data: error.response.data,
+              url: error.config?.url,
+              method: error.config?.method,
+              requestData: recordData
+            });
+          } else if (error.request) {
+            // Network error
+            errorMessage = 'Lỗi kết nối mạng';
+            console.error('Network Error for student:', stu.student.name || stu.student.studentCode, {
+              message: error.message,
+              code: error.code,
+              requestData: recordData
+            });
+          } else {
+            // Request setup error
+            errorMessage = `Lỗi cấu hình: ${error.message}`;
+            console.error('Request Error for student:', stu.student.name || stu.student.studentCode, {
+              message: error.message,
+              requestData: recordData
+            });
+          }
+        } else if (error instanceof Error) {
+          errorMessage = `Lỗi: ${error.message}`;
+          console.error('General Error for student:', stu.student.name || stu.student.studentCode, {
+            message: error.message,
+            stack: error.stack,
+            requestData: recordData
+          });
+        } else {
+          // Unknown error type
+          errorMessage = 'Lỗi không xác định';
+          console.error('Unknown Error for student:', stu.student.name || stu.student.studentCode, {
+            error,
+            requestData: recordData
+          });
+        }
+        
         failList.push(`${stu.student.name || stu.student.studentCode}: ${errorMessage}`);
       }
     }
@@ -308,18 +472,20 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
 
                     <div>
                       <Label>Học sinh</Label>
-                      <select
+                      <Combobox
+                        onSelect={(selected) => {
+                          handleStudentChange(index, 'student', selected);
+                        }}
+                        options={availableStudents.map(s => ({
+                          value: s._id,
+                          label: `${s.name} (${s.studentCode})`
+                        }))}
+                        placeholder="Chọn học sinh..."
+                        searchPlaceholder="Tìm kiếm học sinh..."
+                        emptyText="Không tìm thấy học sinh."
                         value={student.student._id}
-                        onChange={(e) => handleStudentChange(index, 'student', e.target.value)}
-                        className="w-full p-2 border rounded-md mt-2"
-                      >
-                        <option value="">Chọn học sinh</option>
-                        {availableStudents.map((s) => (
-                          <option key={s._id} value={s._id}>
-                            {s.name} ({s.studentCode})
-                          </option>
-                        ))}
-                      </select>
+                        className="mt-2"
+                      />
                     </div>
 
                     {/* Custom fields for different award types */}
@@ -430,31 +596,14 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
                     <div className="text-sm text-muted-foreground">Đang xử lý file Excel...</div>
                   </div>
                 )}
-                {excelStudents.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">
-                      Danh sách học sinh từ Excel ({excelStudents.length} học sinh)
-                    </h4>
-                    <ScrollArea className="h-[200px] border rounded-md p-4">
-                      <div className="space-y-2">
-                        {excelStudents.map((student, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div>
-                              <span className="font-medium">
-                                {student.student.name || student.student.studentCode}
-                              </span>
-                              {student.exam && (
-                                <span className="text-sm text-gray-600 ml-2">
-                                  - {student.exam}: {student.score}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">📋 Hướng dẫn upload Excel</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Chọn loại vinh danh và thời kỳ trước khi upload</li>
+                    <li>• File Excel sẽ được xử lý và tạo records tự động</li>
+                    <li>• Hệ thống sẽ thông báo kết quả sau khi xử lý xong</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </TabsContent>

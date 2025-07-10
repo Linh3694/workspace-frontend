@@ -560,30 +560,6 @@ const ImageUploadDialog: React.FC<ImageUploadDialogProps> = ({
           </Select>
         </div>
         
-        <div className="space-y-2">
-          <div className="text-sm text-gray-600">
-            <p><strong>Cấu trúc file ZIP:</strong></p>
-            <ul className="list-disc list-inside text-xs mt-1 space-y-1">
-              {imageUploadType === 'class' ? (
-                <>
-                  <li><strong>Định dạng 1:</strong> tenLop_maNamHoc.ext (VD: 10A1_2024-2025.jpg)</li>
-                  <li><strong>Định dạng 2:</strong> namHoc/tenLop.ext (VD: 2024-2025/10A1.jpg)</li>
-                  <li><strong>Định dạng 3:</strong> tenLop.ext (VD: 10A1.jpg - sẽ dùng năm học đã chọn)</li>
-                  <li>Hệ thống sẽ tự động match với tên lớp và năm học tương ứng</li>
-                </>
-              ) : (
-                <>
-                  <li>Tên file ảnh: mãHọcSinh.ext (chỉ cần mã ID)</li>
-                  <li>Ví dụ: HS001.jpg, HS002.png</li>
-                  <li>Hệ thống sẽ tự động match với hồ sơ học sinh</li>
-                </>
-              )}
-              <li>Định dạng ảnh: .jpg, .jpeg, .png, .gif, .webp</li>
-              <li>File __MACOSX và hidden files sẽ được tự động bỏ qua</li>
-            </ul>
-          </div>
-        </div>
-        
         <div className="space-y-4">
           {!selectedZipFile ? (
             <div 
@@ -650,7 +626,7 @@ const ImageUploadDialog: React.FC<ImageUploadDialogProps> = ({
             <div className="space-y-2">
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-[#002855] h-2 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>

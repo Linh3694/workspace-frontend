@@ -214,41 +214,22 @@ const FamilyList: React.FC = () => {
           });
           
           let createdParentId: string;
-          // Nếu tick tạo user
+          // Tạo parent với hoặc không có tài khoản user
           if (parent.createUser) {
             if (!parent.password) {
               throw new Error(`Thiếu mật khẩu cho phụ huynh ${parent.fullname}`);
             }
-            console.log('🔑 Creating user for parent:', parent.fullname);
-            // Tạo user
-            const userRes = await axios.post(
-              API_ENDPOINTS.USERS,
-              {
-                username: parent.phone,
-                phone: parent.phone,
-                password: parent.password,
-                email: parent.email,
-                fullname: parent.fullname,
-                role: 'parent'
-              },
-              { 
-                headers: { 
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                } 
-              }
-            );
-            console.log('✅ User created with ID:', userRes.data._id);
+            console.log('🔑 Creating parent with user account:', parent.fullname);
             
-            console.log('👤 Creating parent with user connection');
-            // Tạo parent với user
+            // Sử dụng endpoint mới để tạo parent kèm tài khoản
             const parentRes = await axios.post(
-              API_ENDPOINTS.PARENTS,
+              `${API_ENDPOINTS.PARENTS}/with-account`,
               {
-                user: userRes.data._id,
                 fullname: parent.fullname,
                 phone: parent.phone,
-                email: parent.email
+                email: parent.email,
+                username: parent.phone, // Sử dụng phone làm username
+                password: parent.password
               },
               { 
                 headers: { 
@@ -257,11 +238,12 @@ const FamilyList: React.FC = () => {
                 } 
               }
             );
-            createdParentId = parentRes.data._id;
-            console.log('✅ Parent created with ID:', createdParentId);
+            createdParentId = parentRes.data.parent._id;
+            console.log('✅ Parent with account created with ID:', createdParentId);
           } else {
-            console.log('👤 Creating parent without user');
-            // Tạo parent không có user
+            console.log('👤 Creating parent without user account');
+            
+            // Tạo parent không có tài khoản user
             const parentRes = await axios.post(
               API_ENDPOINTS.PARENTS,
               {
@@ -276,7 +258,7 @@ const FamilyList: React.FC = () => {
                 } 
               }
             );
-            createdParentId = parentRes.data._id;
+            createdParentId = parentRes.data.parent ? parentRes.data.parent._id : parentRes.data._id;
             console.log('✅ Parent created with ID:', createdParentId);
           }
           
@@ -471,38 +453,40 @@ const FamilyList: React.FC = () => {
             );
             processedParents.push(parent.fullname);
           } else {
-            // Tạo user nếu tick
+            // Tạo parent mới với hoặc không có tài khoản user
+            let parentId: string;
             if (parent.createUser) {
               if (!parent.password) throw new Error(`Thiếu mật khẩu cho ${parent.fullname}`);
-              const userRes = await axios.post(
-                API_ENDPOINTS.USERS,
-                { username: parent.phone, phone: parent.phone, password: parent.password, email: parent.email, fullname: parent.fullname, role: 'parent' },
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
+              
+              // Sử dụng endpoint mới để tạo parent kèm tài khoản
               const pRes = await axios.post(
-                API_ENDPOINTS.PARENTS,
-                { user: userRes.data._id, fullname: parent.fullname, phone: parent.phone, email: parent.email },
+                `${API_ENDPOINTS.PARENTS}/with-account`,
+                { 
+                  fullname: parent.fullname, 
+                  phone: parent.phone, 
+                  email: parent.email,
+                  username: parent.phone,
+                  password: parent.password
+                },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
-              const parentId = pRes.data._id;
-              await axios.post(
-                `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
-                { parentId, relationship: parent.relationship },
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
+              parentId = pRes.data.parent._id;
             } else {
+              // Tạo parent không có tài khoản user
               const pRes = await axios.post(
                 API_ENDPOINTS.PARENTS,
                 { fullname: parent.fullname, phone: parent.phone, email: parent.email },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
-              const parentId = pRes.data._id;
-              await axios.post(
-                `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
-                { parentId, relationship: parent.relationship },
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
+              parentId = pRes.data.parent ? pRes.data.parent._id : pRes.data._id;
             }
+            
+            // Gắn parent vào family
+            await axios.post(
+              `${API_ENDPOINTS.FAMILIES}/${selectedFamily._id}/add-parent`,
+              { parentId, relationship: parent.relationship },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
             processedParents.push(parent.fullname);
           }
         } catch (err: unknown) {
