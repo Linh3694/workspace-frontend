@@ -41,7 +41,7 @@ export const ROLE_PERMISSIONS: RolePermissions = {
   user: [
     'application.tickets.user'
   ],
-  bod: [
+  bos: [
     'application.tickets.user',
     'students.info', 
     'students.hall-of-honor',
