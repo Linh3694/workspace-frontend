@@ -156,6 +156,7 @@ const TeacherComponent: React.FC = () => {
     if (!isTeachingDialogOpen) {
       setSelectedTeacher(null);
       setSelectedClasses([]);
+      setClassSubjects([]);
     }
   }, [isTeachingDialogOpen]);
 
@@ -191,6 +192,24 @@ const TeacherComponent: React.FC = () => {
       }
     }
   }, [isTeachingDialogOpen, selectedTeacher, schools, setValue]);
+
+  // Reset classSubjects khi selectedClasses thay đổi
+  useEffect(() => {
+    setClassSubjects([]);
+  }, [selectedClasses]);
+
+  // Cập nhật classSubjects khi selectedTeacher thay đổi và có teachingAssignments
+  useEffect(() => {
+    if (selectedTeacher?.teachingAssignments && selectedTeacher.teachingAssignments.length > 0) {
+      const assignments = selectedTeacher.teachingAssignments.map(ta => ({
+        classId: ta.class._id,
+        subjectIds: ta.subjects.map(s => s._id),
+      }));
+      setClassSubjects(assignments);
+    } else {
+      setClassSubjects([]);
+    }
+  }, [selectedTeacher]);
 
   const getGradeLevelDisplay = (order: number, schoolType: string) => {
     switch (schoolType) {
@@ -780,12 +799,6 @@ const TeacherComponent: React.FC = () => {
                                 });
                                 return;
                               }
-                              setClassSubjects(
-                                teacher.teachingAssignments?.map(ta => ({
-                                  classId: ta.class._id,
-                                  subjectIds: ta.subjects.map(s => s._id),
-                                })) || []
-                              );
                               setSelectedTeacher(teacher);
                               setIsSubjectDialogOpen(true);
                             }}

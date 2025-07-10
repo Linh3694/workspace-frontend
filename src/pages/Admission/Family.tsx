@@ -220,10 +220,18 @@ const FamilyList: React.FC = () => {
               throw new Error(`Thiếu mật khẩu cho phụ huynh ${parent.fullname}`);
             }
             console.log('🔑 Creating parent with user account:', parent.fullname);
+            console.log('📨 Request data:', {
+              fullname: parent.fullname,
+              phone: parent.phone,
+              email: parent.email,
+              username: parent.phone,
+              password: '***hidden***'
+            });
+            console.log('🔗 API Endpoint:', API_ENDPOINTS.PARENTS_WITH_ACCOUNT);
             
             // Sử dụng endpoint mới để tạo parent kèm tài khoản
             const parentRes = await axios.post(
-              `${API_ENDPOINTS.PARENTS}/with-account`,
+              API_ENDPOINTS.PARENTS_WITH_ACCOUNT,
               {
                 fullname: parent.fullname,
                 phone: parent.phone,
@@ -238,6 +246,10 @@ const FamilyList: React.FC = () => {
                 } 
               }
             );
+            console.log('📝 Full API Response:', parentRes.data);
+            console.log('👤 Parent data from response:', parentRes.data.parent);
+            console.log('🔐 User data from response:', parentRes.data.user);
+            
             createdParentId = parentRes.data.parent._id;
             console.log('✅ Parent with account created with ID:', createdParentId);
           } else {
@@ -458,9 +470,18 @@ const FamilyList: React.FC = () => {
             if (parent.createUser) {
               if (!parent.password) throw new Error(`Thiếu mật khẩu cho ${parent.fullname}`);
               
+              console.log('🔄 [Update] Creating parent with user account:', parent.fullname);
+              console.log('📨 [Update] Request data:', {
+                fullname: parent.fullname,
+                phone: parent.phone,
+                email: parent.email,
+                username: parent.phone,
+                password: '***hidden***'
+              });
+              
               // Sử dụng endpoint mới để tạo parent kèm tài khoản
               const pRes = await axios.post(
-                `${API_ENDPOINTS.PARENTS}/with-account`,
+                API_ENDPOINTS.PARENTS_WITH_ACCOUNT,
                 { 
                   fullname: parent.fullname, 
                   phone: parent.phone, 
@@ -470,6 +491,10 @@ const FamilyList: React.FC = () => {
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
+              console.log('📝 [Update] Full API Response:', pRes.data);
+              console.log('👤 [Update] Parent data from response:', pRes.data.parent);
+              console.log('🔐 [Update] User data from response:', pRes.data.user);
+              
               parentId = pRes.data.parent._id;
             } else {
               // Tạo parent không có tài khoản user

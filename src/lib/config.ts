@@ -41,6 +41,7 @@ export const API_ENDPOINTS = {
   // Parent endpoints
   PARENTS: `${API_URL}/parents`,
   PARENT: (id: string) => `${API_URL}/parents/${id}`,
+  PARENTS_WITH_ACCOUNT: `${API_URL}/parents/with-account`,
   // Subject endpoints
   SUBJECTS: `${API_URL}/subjects`,
   SUBJECT: (id: string) => `${API_URL}/subjects/${id}`,
