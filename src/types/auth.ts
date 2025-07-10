@@ -40,6 +40,12 @@ export const ROLE_PERMISSIONS: RolePermissions = {
   technical: ['*'],
   user: [
     'application.tickets.user'
+  ],
+  bod: [
+    'application.tickets.user',
+    'students.info', 
+    'students.hall-of-honor',
+    'teaching.classes',
   ]
 };
 
