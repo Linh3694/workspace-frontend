@@ -46,6 +46,11 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'students.info', 
     'students.hall-of-honor',
     'teaching.classes',
+  ],
+  teacher: [
+    'students.*', 
+    'teaching.*',
+    'application.tickets.user',
   ]
 };
 

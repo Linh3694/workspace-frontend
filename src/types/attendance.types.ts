@@ -33,6 +33,35 @@ export interface AttendanceClass extends BaseEntity {
     homeroomTeachers?: AttendanceTeacher[];
 }
 
+// ✅ THÊM: Interface cho tiết học
+export interface Period {
+    periodNumber: number;
+    startTime: string;
+    endTime: string;
+    label?: string;
+    type: 'regular' | 'morning' | 'lunch' | 'nap' | 'snack' | 'dismissal';
+}
+
+// ✅ THÊM: Interface cho timetable slot
+export interface TimetableSlot {
+    _id: string;
+    subject: { _id: string; name: string };
+    teachers: { _id: string; fullname: string }[];
+    room: { _id: string; name: string };
+    timeSlot: {
+        dayOfWeek: string;
+        startTime: string;
+        endTime: string;
+    };
+}
+
+// ✅ THÊM: Interface cho môn học
+export interface Subject {
+    _id: string;
+    name: string;
+    teachers: { _id: string; fullname: string }[];
+}
+
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 
 export interface Attendance extends BaseEntity {
@@ -44,6 +73,31 @@ export interface Attendance extends BaseEntity {
     teacher: AttendanceTeacher;
     date: string;
     note: string;
+    // ✅ THÊM: Thông tin tiết học
+    periodNumber: number;
+    periodStartTime: string;
+    periodEndTime: string;
+    subject?: { _id: string; name: string };
+    timetableSlot?: string;
+}
+
+// ✅ THÊM: Interface cho attendance theo period
+export interface PeriodAttendance {
+    periodNumber: number;
+    periodStartTime: string;
+    periodEndTime: string;
+    subject?: { _id: string; name: string };
+    attendances: Attendance[];
+    isCompleted: boolean;
+}
+
+// ✅ THÊM: Interface cho attendance data khi tạo mới
+export interface AttendanceData {
+    studentId: string;
+    status: AttendanceStatus;
+    note?: string;
+    checkIn?: string;
+    checkOut?: string;
 }
 
 export interface PendingAttendance {

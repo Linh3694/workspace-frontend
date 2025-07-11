@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginWithMicrosoft, isAuthenticated } = useAuth();
+  const { loginWithMicrosoft, isAuthenticated, login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -83,6 +83,9 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('role', data.user.role);
+
+      // Cập nhật AuthContext
+      login(data.user);
 
       // Chuyển hướng về trang dashboard
       navigate('/dashboard');

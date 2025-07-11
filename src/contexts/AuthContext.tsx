@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
       
-      if (token && userData && token !== 'authenticated') {
+      if (token && userData) {
         try {
           // Verify token is still valid by checking expiration
           const tokenPayload = JSON.parse(atob(token.split('.')[1]));
