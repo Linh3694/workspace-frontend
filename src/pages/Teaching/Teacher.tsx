@@ -44,6 +44,14 @@ import type {
   ClassSubjectAssignment
 } from "../../types/teaching.types";
 
+// Mở rộng interface Class để bao gồm schoolYear
+interface ClassWithSchoolYear extends Class {
+  schoolYear?: {
+    _id: string;
+    code: string;
+    isActive?: boolean;
+  };
+}
 
 
 const schema = z.object({
@@ -70,7 +78,7 @@ const TeacherComponent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [isSubjectDialogOpen, setIsSubjectDialogOpen] = useState(false);
-  const [classesList, setClassesList] = useState<Class[]>([]);
+  const [classesList, setClassesList] = useState<ClassWithSchoolYear[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [classSubjects, setClassSubjects] = useState<ClassSubjectAssignment[]>([]);
   const [availableSubjectsForClass, setAvailableSubjectsForClass] = useState<{ [key: string]: ComboboxOption[] }>({});
@@ -92,10 +100,47 @@ const TeacherComponent: React.FC = () => {
 
 
   useEffect(() => {
+    // Chỉ fetch data khi authentication đã sẵn sàng
     fetchTeachers();
     fetchSubjects();
     fetchSchools();
+    fetchActiveSchoolYear(); // Thêm hàm fetch năm học active
   }, []);
+
+  // Thêm state để lưu năm học active
+  const [activeSchoolYear, setActiveSchoolYear] = useState<string>('');
+
+  // Thêm hàm fetch năm học active
+  const fetchActiveSchoolYear = async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.SCHOOL_YEARS);
+      
+      let schoolYearsData: { _id: string; code: string; isActive: boolean }[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response as any;
+      
+      if (Array.isArray(responseData)) {
+        schoolYearsData = responseData;
+      } else if (responseData?.data) {
+        if (Array.isArray(responseData.data)) {
+          schoolYearsData = responseData.data;
+        } else if (responseData.data?.data && Array.isArray(responseData.data.data)) {
+          schoolYearsData = responseData.data.data;
+        }
+      }
+      
+      const activeYear = schoolYearsData.find((year) => year.isActive);
+      if (activeYear) {
+        setActiveSchoolYear(activeYear._id);
+        console.log('Active school year set:', activeYear._id);
+      } else if (schoolYearsData.length > 0) {
+        setActiveSchoolYear(schoolYearsData[0]._id);
+        console.log('No active school year found, using first one:', schoolYearsData[0]._id);
+      }
+    } catch (error) {
+      console.error('Error fetching active school year:', error);
+    }
+  };
 
   useEffect(() => {
     const schoolId = watch("school");
@@ -108,12 +153,12 @@ const TeacherComponent: React.FC = () => {
 
   useEffect(() => {
     const gradeLevels = watch("gradeLevels") || [];
-    if (gradeLevels.length > 0) {
+    if (gradeLevels.length > 0 && activeSchoolYear) {
       fetchClassesForGradeLevels(gradeLevels);
     } else {
       setClassesList([]);
     }
-  }, [watch("gradeLevels")]);
+  }, [watch("gradeLevels"), activeSchoolYear]);
 
 
 
@@ -195,8 +240,33 @@ const TeacherComponent: React.FC = () => {
 
   // Reset classSubjects khi selectedClasses thay đổi
   useEffect(() => {
-    setClassSubjects([]);
-  }, [selectedClasses]);
+    if (selectedTeacher?.teachingAssignments) {
+      // Giữ lại các môn học đã phân công cho các lớp được chọn
+      const existingAssignments = selectedTeacher.teachingAssignments
+        .filter(ta => selectedClasses.includes(ta.class._id))
+        .map(ta => ({
+          classId: ta.class._id,
+          subjectIds: ta.subjects.map(s => s._id),
+        }));
+
+      // Thêm các lớp mới được chọn với mảng môn học rỗng
+      const newClasses = selectedClasses
+        .filter(classId => !existingAssignments.some(ea => ea.classId === classId))
+        .map(classId => ({
+          classId,
+          subjectIds: [],
+        }));
+
+      setClassSubjects([...existingAssignments, ...newClasses]);
+    } else {
+      // Nếu không có teachingAssignments, tạo mới với mảng môn học rỗng
+      const newAssignments = selectedClasses.map(classId => ({
+        classId,
+        subjectIds: [],
+      }));
+      setClassSubjects(newAssignments);
+    }
+  }, [selectedClasses, selectedTeacher?.teachingAssignments]);
 
   // Cập nhật classSubjects khi selectedTeacher thay đổi và có teachingAssignments
   useEffect(() => {
@@ -426,17 +496,18 @@ const TeacherComponent: React.FC = () => {
 
   const fetchClassesForGradeLevels = async (gradeIds: string[]) => {
     try {
-      if (!gradeIds.length) {
+      if (!gradeIds.length || !activeSchoolYear) {
         setClassesList([]);
         return;
       }
       
+      // Thêm tham số schoolYear để chỉ lấy lớp của năm học active
       const response = await api.get(
-        `${API_ENDPOINTS.CLASSES}?gradeLevels=${gradeIds.join(",")}`
+        `${API_ENDPOINTS.CLASSES}?gradeLevels=${gradeIds.join(",")}&schoolYear=${activeSchoolYear}`
       );
       console.log('Classes response:', response);
       
-      let classesData: Class[] = [];
+      let classesData: ClassWithSchoolYear[] = [];
       
       // Handle multiple possible response formats
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -475,8 +546,10 @@ const TeacherComponent: React.FC = () => {
             name: cls.gradeLevel.name,
             code: cls.gradeLevel.code,
             order: cls.gradeLevel.order
-          }
-        }));
+          },
+          // Thêm thông tin năm học để hiển thị (nếu có)
+          ...(cls.schoolYear && { schoolYear: cls.schoolYear })
+        })) as ClassWithSchoolYear[];
         
         console.log('Valid processed classes:', processedClasses);
         setClassesList(processedClasses);
@@ -552,6 +625,9 @@ const TeacherComponent: React.FC = () => {
           description: "Cập nhật phân công môn học thành công"
         });
 
+        // Tự động đồng bộ với thời khóa biểu
+        await handleSyncTimetable(selectedTeacher._id);
+
         await fetchTeachers();
         setIsSubjectDialogOpen(false);
         setSelectedTeacher(null);
@@ -560,6 +636,24 @@ const TeacherComponent: React.FC = () => {
       toast({
         title: "Lỗi",
         description: error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật phân công môn học",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Hàm đồng bộ thời khóa biểu
+  const handleSyncTimetable = async (teacherId: string) => {
+    try {
+      await api.post(`${API_ENDPOINTS.TEACHERS}/${teacherId}/sync-timetable`);
+      toast({
+        title: "Thành công",
+        description: "Đồng bộ thời khóa biểu thành công"
+      });
+    } catch (error: unknown) {
+      console.error('Error syncing timetable:', error);
+      toast({
+        title: "Lỗi",
+        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi đồng bộ thời khóa biểu",
         variant: "destructive"
       });
     }
@@ -691,6 +785,12 @@ const TeacherComponent: React.FC = () => {
                     <div className="grid gap-2">
                       {classesList && classesList.length > 0 ? (
                         classesList.map(cls => {
+                          // Hiển thị năm học cùng với tên lớp
+                          const isActiveYear = cls.schoolYear?.isActive;
+                          const yearCode = cls.schoolYear?.code || '';
+                          const className = cls.className;
+                          const displayName = `${className}${yearCode ? ` (${yearCode}${isActiveYear ? ' - Hiện tại' : ''})` : ''}`;
+                          
                           return (
                             <div key={cls._id} className="flex items-center space-x-2">
                               <Checkbox
@@ -704,8 +804,8 @@ const TeacherComponent: React.FC = () => {
                                   }
                                 }}
                               />
-                              <Label htmlFor={`cls-${cls._id}`}>
-                                {`${cls.className}`}
+                              <Label htmlFor={`cls-${cls._id}`} className={isActiveYear ? 'font-medium' : 'text-gray-500'}>
+                                {displayName}
                               </Label>
                             </div>
                           );
@@ -804,6 +904,13 @@ const TeacherComponent: React.FC = () => {
                             }}
                           >
                             Phân công môn
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSyncTimetable(teacher._id)}
+                          >
+                            Đồng bộ TKB
                           </Button>
                         </TableCell>
                       </TableRow>

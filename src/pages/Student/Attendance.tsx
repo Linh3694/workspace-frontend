@@ -173,6 +173,7 @@ const AttendanceList: React.FC = () => {
                 setClasses(classesData);
                 setSelectedClass(classesData.length > 0 ? classesData[0]._id : '');
             } else if (role === 'teacher') {
+                // Lấy teacher object từ API (đảm bảo teachingAssignments đã populate đủ class & subjects)
                 const teachersRes = await axios.get(API_ENDPOINTS.TEACHERS, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -185,23 +186,10 @@ const AttendanceList: React.FC = () => {
                 }
                 setCurrentTeacher(teacher);
 
-                const response = await axios.get(API_ENDPOINTS.CLASSES, {
-                    params: {
-                        schoolYear: selectedSchoolYear,
-                        populate: 'homeroomTeachers'
-                    },
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const allClasses = Array.isArray(response.data)
-                    ? response.data
-                    : response.data.data || [];
-
-                const homeroomClasses = allClasses.filter((cls: Class & { homeroomTeachers?: Teacher[] }) =>
-                    cls.homeroomTeachers?.some((t: Teacher) => t._id === teacher._id)
-                );
-
-                setClasses(homeroomClasses);
-                setSelectedClass(homeroomClasses.length > 0 ? homeroomClasses[0]._id : '');
+                // Lấy danh sách lớp từ teachingAssignments
+                const assignedClasses = teacher.teachingAssignments?.map((a: { class: Class }) => a.class) || [];
+                setClasses(assignedClasses);
+                setSelectedClass(assignedClasses.length > 0 ? assignedClasses[0]._id : '');
             } else {
                 toast.error('Bạn không có quyền truy cập chức năng này!');
                 return;
@@ -213,17 +201,18 @@ const AttendanceList: React.FC = () => {
 
     // ✅ THÊM: Fetch subjects theo class và date
     const fetchSubjectsByClassAndDate = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const dateStr = format(selectedDate, 'yyyy-MM-dd');
-            const response = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/subjects/${selectedClass}/${dateStr}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setSubjects(response.data.subjects || []);
-        } catch (error) {
-            console.error('Lỗi khi tải danh sách môn học:', error);
+        if (!currentTeacher || !selectedClass) {
             setSubjects([]);
+            return;
         }
+        // Lấy danh sách môn từ teachingAssignments
+        const assignment = currentTeacher.teachingAssignments?.find(a => a.class._id === selectedClass);
+        const mappedSubjects = (assignment?.subjects || []).map(sub => ({
+            ...sub,
+            teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
+        }));
+        console.log('📚 Subjects from teaching assignments:', mappedSubjects);
+        setSubjects(mappedSubjects);
     };
 
     // ✅ THÊM: Fetch periods theo class
@@ -233,7 +222,9 @@ const AttendanceList: React.FC = () => {
             const response = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/periods/${selectedClass}/${selectedSchoolYear}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setPeriods(response.data.periods || []);
+            const periodsData = response.data.periods || [];
+            console.log('⏰ Periods found:', periodsData);
+            setPeriods(periodsData);
         } catch (error) {
             console.error('Lỗi khi tải danh sách tiết học:', error);
             setPeriods([]);
@@ -538,22 +529,36 @@ const AttendanceList: React.FC = () => {
 
             // Tìm period number từ timetable
             const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            console.log('🔍 Fetching timetable slots for:', { selectedClass, dateStr, selectedSubject });
+            
             const timetableResponse = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/timetable-slots/${selectedClass}/${dateStr}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             const timetableSlots = timetableResponse.data.timetableSlots || [];
+            console.log('📅 Timetable slots found:', timetableSlots.length);
+            console.log('📅 Available slots:', timetableSlots.map((slot: TimetableSlot) => ({
+                subject: slot.subject?.name,
+                subjectId: slot.subject?._id,
+                dayOfWeek: slot.timeSlot?.dayOfWeek,
+                startTime: slot.timeSlot?.startTime
+            })));
+            
             const subjectSlot = timetableSlots.find((slot: TimetableSlot) => slot.subject._id === selectedSubject);
             
             if (!subjectSlot) {
-                toast.error('Không tìm thấy thông tin tiết học cho môn học này!');
+                console.error('❌ Subject slot not found for:', selectedSubject);
+                console.error('❌ Available subject IDs:', timetableSlots.map((slot: TimetableSlot) => slot.subject?._id));
+                toast.error('Không tìm thấy thông tin tiết học cho môn học này! Vui lòng kiểm tra thời khóa biểu.');
                 return;
             }
 
             // Tìm period number từ startTime
             const period = periods.find(p => p.startTime === subjectSlot.timeSlot.startTime);
             if (!period) {
-                toast.error('Không tìm thấy thông tin tiết học!');
+                console.error('❌ Period not found for startTime:', subjectSlot.timeSlot.startTime);
+                console.error('❌ Available periods:', periods.map(p => ({ periodNumber: p.periodNumber, startTime: p.startTime })));
+                toast.error('Không tìm thấy thông tin tiết học! Vui lòng kiểm tra cấu hình tiết học.');
                 return;
             }
 
@@ -718,6 +723,13 @@ const AttendanceList: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* ✅ THÊM: Hiển thị thông báo khi không có dữ liệu timetable */}
+                            {selectedSubject && subjects.length === 0 && (
+                                <div className="flex justify-center items-center h-20 text-base text-orange-500 font-medium">
+                                    Không tìm thấy dữ liệu thời khóa biểu cho lớp này. Vui lòng liên hệ quản trị viên để thiết lập thời khóa biểu.
+                                </div>
+                            )}
+
                             <div className="rounded-lg">
                                 {loading ? (
                                     <div className="flex justify-center items-center h-32">
@@ -845,7 +857,7 @@ const AttendanceList: React.FC = () => {
                             <div className="flex mt-5 justify-end">
                                 <Button 
                                     onClick={handleConfirmAttendance}
-                                    disabled={!selectedSubject || !isCurrentTeacherOfSubject}
+                                    disabled={!selectedSubject || !isCurrentTeacherOfSubject || subjects.length === 0}
                                 >
                                     Xác nhận điểm danh
                                 </Button>
