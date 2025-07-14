@@ -107,6 +107,7 @@ const TimetablesPage = () => {
   
   // State cho school year events
   const [schoolYearEvents, setSchoolYearEvents] = useState<SchoolYearEvent[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
   // Thêm state cho schedules và selected schedule
   const [schedules, setSchedules] = useState<TimetableSchedule[]>([]);
@@ -452,7 +453,17 @@ const TimetablesPage = () => {
   };
 
   const fetchSchoolYearEvents = async () => {
-    if (!selectedSchoolYear) return;
+    // Kiểm tra tất cả các dependencies cần thiết
+    if (!selectedSchoolYear || !selectedSchool || !selectedClass) {
+      console.log("Missing required parameters for fetchSchoolYearEvents:", {
+        selectedSchoolYear: !!selectedSchoolYear,
+        selectedSchool: !!selectedSchool,
+        selectedClass: !!selectedClass
+      });
+      return;
+    }
+    
+    setIsLoadingEvents(true);
     
     try {
       // Tính toán khoảng thời gian cho tuần hiện tại
@@ -460,19 +471,58 @@ const TimetablesPage = () => {
       const startDate = weekDates[0];
       const endDate = weekDates[4];
       
+      // Validate dates
+      if (!startDate || !endDate) {
+        console.error("Invalid week dates:", { startDate, endDate });
+        setSchoolYearEvents([]);
+        return;
+      }
+      
+      const params = {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        schoolYear: selectedSchoolYear
+      };
+      
+      console.log("Fetching school year events with params:", params);
+      
       const response = await api.get(API_ENDPOINTS.SCHOOL_YEAR_EVENTS_BY_DATE_RANGE, {
-        params: {
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
-          schoolYear: selectedSchoolYear
-        }
+        params: params
       });
       
-      const eventsData = Array.isArray(response.data) ? response.data : response.data.data || [];
-      setSchoolYearEvents(eventsData);
+      console.log("School year events response:", response);
+      
+      // Backend trả về { data: events }
+      const eventsData = response.data?.data || [];
+      
+      if (Array.isArray(eventsData)) {
+        setSchoolYearEvents(eventsData);
+        console.log("School year events loaded:", eventsData.length, "events");
+      } else {
+        console.warn("Invalid events data format:", eventsData);
+        setSchoolYearEvents([]);
+      }
     } catch (error) {
       console.error("Error fetching school year events:", error);
-      // Không hiển thị toast lỗi vì events không quan trọng bằng timetable
+      
+      // Hiển thị thông báo lỗi chi tiết hơn
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+        console.error("Response error details:", axiosError.response?.data);
+        
+        if (axiosError.response?.status === 400) {
+          console.error("Bad request - missing or invalid parameters:", {
+            selectedSchoolYear,
+            startDate: getWeekDates(currentWeek)[0]?.toISOString().split('T')[0],
+            endDate: getWeekDates(currentWeek)[4]?.toISOString().split('T')[0]
+          });
+        }
+      }
+      
+      // Set empty array để tránh undefined
+      setSchoolYearEvents([]);
+    } finally {
+      setIsLoadingEvents(false);
     }
   };
 
@@ -767,6 +817,11 @@ const TimetablesPage = () => {
                                 <div className="text-xs text-gray-500 mt-2">
                                   {EVENT_TYPE_LABELS[event.type]}
                                 </div>
+                                {event.type === 'holiday' && (
+                                  <div className="text-xs text-gray-400 mt-1 italic">
+                                    Không có tiết học
+                                  </div>
+                                )}
                               </div>
                             ) : entry ? (
                               <div className="space-y-2">

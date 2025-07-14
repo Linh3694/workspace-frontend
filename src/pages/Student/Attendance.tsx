@@ -199,20 +199,425 @@ const AttendanceList: React.FC = () => {
         }
     };
 
-    // ✅ THÊM: Fetch subjects theo class và date
+    // ✅ CẬP NHẬT: Fetch subjects theo class, date và timetable
     const fetchSubjectsByClassAndDate = async () => {
-        if (!currentTeacher || !selectedClass) {
+        if (!currentTeacher || !selectedClass || !selectedDate) {
             setSubjects([]);
             return;
         }
-        // Lấy danh sách môn từ teachingAssignments
-        const assignment = currentTeacher.teachingAssignments?.find(a => a.class._id === selectedClass);
-        const mappedSubjects = (assignment?.subjects || []).map(sub => ({
-            ...sub,
-            teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
-        }));
-        console.log('📚 Subjects from teaching assignments:', mappedSubjects);
-        setSubjects(mappedSubjects);
+        
+        try {
+            const token = localStorage.getItem('token');
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            
+            // Lấy danh sách môn từ teachingAssignments
+            const assignment = currentTeacher.teachingAssignments?.find(a => a.class._id === selectedClass);
+            const teachingSubjects = assignment?.subjects || [];
+            
+            // Nếu không có môn học để dạy, return empty
+            if (teachingSubjects.length === 0) {
+                setSubjects([]);
+                return;
+            }
+            
+            // Lấy timetable slots cho ngày đó
+            console.log('🔍 Fetching timetable slots for subjects filter:', { selectedClass, dateStr });
+            const timetableResponse = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/timetable-slots/${selectedClass}/${dateStr}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            const timetableSlots = timetableResponse.data.timetableSlots || [];
+            console.log('📅 Timetable slots found:', timetableSlots.length);
+            
+            // Lọc ra những môn học mà giáo viên dạy VÀ có trong timetable ngày đó
+            const availableSubjects = teachingSubjects.filter(teachingSubject => {
+                const hasSlotToday = timetableSlots.some((slot: TimetableSlot) => 
+                    slot.subject._id === teachingSubject._id
+                );
+                return hasSlotToday;
+            });
+            
+            let finalSubjects = [];
+            
+            // Nếu có timetable slots, ưu tiên hiển thị theo timetable
+            if (availableSubjects.length > 0) {
+                finalSubjects = availableSubjects.map(sub => ({
+                    ...sub,
+                    teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
+                }));
+                console.log('📚 Available subjects from timetable:', finalSubjects);
+            } else {
+                // Fallback: Hiển thị tất cả môn mà giáo viên dạy nếu không có timetable slots
+                // Điều này hữu ích khi schedule chưa được setup hoặc có lỗi timetable
+                finalSubjects = teachingSubjects.map(sub => ({
+                    ...sub,
+                    teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
+                }));
+                console.log('📚 Fallback: showing all teaching subjects:', finalSubjects);
+            }
+            
+            setSubjects(finalSubjects);
+            
+            // Reset selected subject nếu không còn available
+            if (selectedSubject && !finalSubjects.some(s => s._id === selectedSubject)) {
+                setSelectedSubject('');
+            }
+            
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách môn học theo thời khóa biểu:', error);
+            
+            // Fallback: vẫn hiển thị tất cả môn mà giáo viên dạy
+            const assignment = currentTeacher.teachingAssignments?.find(a => a.class._id === selectedClass);
+            const mappedSubjects = (assignment?.subjects || []).map(sub => ({
+                ...sub,
+                teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
+            }));
+            setSubjects(mappedSubjects);
+            console.log('📚 Error fallback: showing all teaching subjects:', mappedSubjects);
+        }
+    };
+
+    // ✅ THÊM: Fetch periods theo class
+    const fetchPeriodsByClass = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/periods/${selectedClass}/${selectedSchoolYear}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const periodsData = response.data.periods || [];
+            console.log('⏰ Periods found:', periodsData);
+            setPeriods(periodsData);
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách tiết học:', error);
+            setPeriods([]);
+        }
+    };
+
+    const fetchStudentsByClass = async (classId: string) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(API_ENDPOINTS.STUDENTS_BY_CLASS, {
+                params: { classId },
+                headers: { Authorization: `Bearer ${token}` }
+            });            
+            let studentsArr = [];
+            if (Array.isArray(response.data)) {
+                studentsArr = response.data;
+            } else if (response.data && Array.isArray(response.data.data)) {
+                studentsArr = response.data.data;
+            } else {
+                studentsArr = [];
+            }
+            setStudents(studentsArr);
+
+            const familiesRes = await axios.get(API_ENDPOINTS.FAMILIES, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const families: Family[] = Array.isArray(familiesRes.data) ? familiesRes.data : familiesRes.data.data || [];
+            const map: { [studentId: string]: Parent[] } = {};
+            for (const family of families) {
+                if (family.students && Array.isArray(family.students) && family.parents && Array.isArray(family.parents)) {
+                    family.students.forEach((stu) => {
+                        map[stu._id] = family.parents.map((p) => ({
+                            fullname: (p.parent && typeof p.parent === 'object' ? p.parent.fullname : '') || '',
+                            phone: (p.parent && typeof p.parent === 'object' ? p.parent.phone : '') || '',
+                            relationship: p.relationship || ''
+                        }));
+                    });
+                }
+            }
+            setStudentParentsMap(map);
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách học sinh hoặc phụ huynh:', error);
+            setStudents([]);
+            setStudentParentsMap({});
+        }
+    };
+
+    // ✅ CẬP NHẬT: Fetch attendances theo class, date, subject
+    const fetchAttendancesByClassDateSubject = async () => {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/by-class-date-subject/${selectedClass}/${dateStr}/${selectedSubject}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = Array.isArray(response.data)
+                ? response.data
+                : Array.isArray(response.data.data)
+                    ? response.data.data
+                    : [];
+            setAttendances(data);
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách điểm danh:', error);
+            setAttendances([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchTimeAttendanceData = async () => {
+        if (!students.length || !selectedDate) return;
+        
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const studentCodes = students.map(student => student.studentCode).filter(Boolean);
+import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
+import { format } from 'date-fns';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow
+} from '../../components/ui/table';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader
+} from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '../../components/ui/select';
+import { API_ENDPOINTS, BASE_URL } from '../../lib/config';
+import { DatePicker } from '../../components/ui/datepicker';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
+import { AiOutlineInfoCircle } from "react-icons/ai";
+import { toast } from 'sonner';
+import type { SchoolYear } from '../../types/school.types';
+import type { 
+    Attendance, 
+    AttendanceStudent as Student, 
+    AttendanceTeacher as Teacher, 
+    AttendanceClass as Class,
+    Parent, 
+    Family,
+    Period,
+    Subject,
+    AttendanceData,
+    AttendanceStatus,
+    TimetableSlot
+} from '../../types/attendance.types';
+import type { LeaveRequest } from '../../types/leave-request.types';
+
+const ParentInfo: React.FC<{ parents: Parent[] }> = ({ parents }) => {
+    if (!parents || parents.length === 0) {
+        return <div>Không có thông tin phụ huynh</div>;
+    }
+    return (
+        <div>
+            {parents.map((parent, idx) => (
+                <div key={idx} className="mb-2">
+                    <div className="flex items-center gap-2">Thông tin liên lạc</div>
+                    <div> <b>{parent.relationship}</b> : {parent.fullname} </div>
+                    <div><b>SĐT:</b> {parent.phone}</div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const AttendanceList: React.FC = () => {
+    const [attendances, setAttendances] = useState<Attendance[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [selectedClass, setSelectedClass] = useState<string>('');
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedSubject, setSelectedSubject] = useState<string>('');
+    const [classes, setClasses] = useState<Class[]>([]);
+    const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
+    const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
+    const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
+    const [students, setStudents] = useState<Student[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [periods, setPeriods] = useState<Period[]>([]);
+    const [pendingAttendances, setPendingAttendances] = useState<{ [studentId: string]: { status: string, note: string } }>({});
+    const [studentParentsMap, setStudentParentsMap] = useState<{ [studentId: string]: Parent[] }>({});
+    const [timeAttendanceData, setTimeAttendanceData] = useState<{ [studentCode: string]: { checkIn: string | null, checkOut: string | null } }>({});
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+
+    useEffect(() => {
+        fetchSchoolYears();
+    }, []);
+
+    useEffect(() => {
+        if (selectedSchoolYear) {
+            fetchClassesAndStudents();
+        }
+    }, [selectedSchoolYear]);
+
+    // ✅ CẬP NHẬT: Khi đổi lớp, load danh sách học sinh và reset các selection
+    useEffect(() => {
+        if (selectedClass) {
+            fetchStudentsByClass(selectedClass);
+            setSelectedSubject(''); // Reset subject selection
+            setPendingAttendances({}); // Reset pending attendances
+        } else {
+            setStudents([]);
+            setStudentParentsMap({});
+            setPendingAttendances({});
+            setSelectedSubject('');
+        }
+    }, [selectedClass]);
+
+    // ✅ CẬP NHẬT: Khi đổi ngày hoặc lớp, load subjects và periods
+    useEffect(() => {
+        if (selectedClass && selectedDate) {
+            fetchSubjectsByClassAndDate();
+            fetchPeriodsByClass();
+        } else {
+            setSubjects([]);
+            setPeriods([]);
+        }
+    }, [selectedClass, selectedDate]);
+
+    // ✅ CẬP NHẬT: Khi đổi subject, load attendance data
+    useEffect(() => {
+        if (selectedClass && selectedDate && selectedSubject) {
+            fetchAttendancesByClassDateSubject();
+            fetchTimeAttendanceData();
+            fetchLeaveRequests();
+        } else {
+            setAttendances([]);
+            setTimeAttendanceData({});
+            setLeaveRequests([]);
+        }
+    }, [selectedClass, selectedDate, selectedSubject, students]);
+
+    const fetchSchoolYears = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(API_ENDPOINTS.SCHOOL_YEARS, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const years = Array.isArray(response.data) ? response.data : response.data.data || [];
+            setSchoolYears(years);
+            
+            const activeYear = years.find((year: SchoolYear) => year.isActive);
+            if (activeYear) {
+                setSelectedSchoolYear(activeYear._id);
+            } else if (years.length > 0) {
+                setSelectedSchoolYear(years[0]._id);
+            }
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách năm học:', error);
+        }
+    };
+
+    const fetchClassesAndStudents = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast.error('Bạn chưa đăng nhập!');
+                return;
+            }
+            const userResponse = await axios.get(API_ENDPOINTS.CURRENT_USER, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const role = userResponse.data.role;
+
+            let classesData: Class[] = [];
+            if (role === 'admin' || role === 'superadmin') {
+                const response = await axios.get(API_ENDPOINTS.CLASSES, {
+                    params: { 
+                        schoolYear: selectedSchoolYear,
+                        populate: 'homeroomTeachers'
+                    },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                classesData = Array.isArray(response.data) ? response.data : response.data.data || [];
+                setClasses(classesData);
+                setSelectedClass(classesData.length > 0 ? classesData[0]._id : '');
+            } else if (role === 'teacher') {
+                // Lấy teacher object từ API (đảm bảo teachingAssignments đã populate đủ class & subjects)
+                const teachersRes = await axios.get(API_ENDPOINTS.TEACHERS, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const teachers = Array.isArray(teachersRes.data) ? teachersRes.data : teachersRes.data.data || [];
+                const user = userResponse.data;
+                const teacher = teachers.find((t: Teacher & { user?: { _id: string } }) => t.user && t.user._id === user._id);
+                if (!teacher) {
+                    toast.error('Không tìm thấy giáo viên tương ứng với tài khoản này!');
+                    return;
+                }
+                setCurrentTeacher(teacher);
+
+                // Lấy danh sách lớp từ teachingAssignments
+                const assignedClasses = teacher.teachingAssignments?.map((a: { class: Class }) => a.class) || [];
+                setClasses(assignedClasses);
+                setSelectedClass(assignedClasses.length > 0 ? assignedClasses[0]._id : '');
+            } else {
+                toast.error('Bạn không có quyền truy cập chức năng này!');
+                return;
+            }
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách lớp học:', error);
+        }
+    };
+
+    // ✅ CẬP NHẬT: Fetch subjects theo class, date và timetable
+    const fetchSubjectsByClassAndDate = async () => {
+        if (!currentTeacher || !selectedClass || !selectedDate) {
+            setSubjects([]);
+            return;
+        }
+        
+        try {
+            const token = localStorage.getItem('token');
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            
+            // Lấy danh sách môn từ teachingAssignments
+            const assignment = currentTeacher.teachingAssignments?.find(a => a.class._id === selectedClass);
+            const teachingSubjects = assignment?.subjects || [];
+            
+            // Lấy timetable slots cho ngày đó
+            console.log('🔍 Fetching timetable slots for subjects filter:', { selectedClass, dateStr });
+            const timetableResponse = await axios.get(`${API_ENDPOINTS.ATTENDANCES}/timetable-slots/${selectedClass}/${dateStr}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            const timetableSlots = timetableResponse.data.timetableSlots || [];
+            console.log('📅 Timetable slots found:', timetableSlots.length);
+            
+            // Lọc ra những môn học mà giáo viên dạy VÀ có trong timetable ngày đó
+            const availableSubjects = teachingSubjects.filter(teachingSubject => {
+                const hasSlotToday = timetableSlots.some((slot: TimetableSlot) => 
+                    slot.subject._id === teachingSubject._id
+                );
+                return hasSlotToday;
+            });
+            
+            const mappedSubjects = availableSubjects.map(sub => ({
+                ...sub,
+                teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
+            }));
+            
+            console.log('📚 Available subjects after timetable filter:', mappedSubjects);
+            setSubjects(mappedSubjects);
+            
+            // Reset selected subject nếu không còn available
+            if (selectedSubject && !mappedSubjects.some(s => s._id === selectedSubject)) {
+                setSelectedSubject('');
+            }
+            
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách môn học theo thời khóa biểu:', error);
+            // Fallback: vẫn hiển thị tất cả môn mà giáo viên dạy
+            const assignment = currentTeacher.teachingAssignments?.find(a => a.class._id === selectedClass);
+            const mappedSubjects = (assignment?.subjects || []).map(sub => ({
+                ...sub,
+                teachers: [{ _id: currentTeacher._id, fullname: currentTeacher.fullname }]
+            }));
+            setSubjects(mappedSubjects);
+        }
     };
 
     // ✅ THÊM: Fetch periods theo class
@@ -679,14 +1084,26 @@ const AttendanceList: React.FC = () => {
                                 disabled={!selectedClass || !selectedDate || subjects.length === 0}
                             >
                                 <SelectTrigger className="h-10 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <SelectValue placeholder="Chọn môn học" />
+                                    <SelectValue placeholder={
+                                        !selectedClass || !selectedDate 
+                                            ? "Chọn lớp và ngày trước" 
+                                            : subjects.length === 0 
+                                                ? "Không có tiết học" 
+                                                : "Chọn môn học"
+                                    } />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {subjects.map(subject => (
-                                        <SelectItem key={subject._id} value={subject._id}>
-                                            {subject.name}
-                                        </SelectItem>
-                                    ))}
+                                    {subjects.length === 0 ? (
+                                        <div className="px-2 py-1 text-sm text-gray-500">
+                                            Không có tiết học nào cho ngày này
+                                        </div>
+                                    ) : (
+                                        subjects.map(subject => (
+                                            <SelectItem key={subject._id} value={subject._id}>
+                                                {subject.name}
+                                            </SelectItem>
+                                        ))
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -694,10 +1111,25 @@ const AttendanceList: React.FC = () => {
                     <CardDescription>Quản lý thông tin điểm danh học sinh theo từng tiết học</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {/* ✅ THÊM: Hiển thị thông báo khi chưa chọn môn học */}
+                    {/* ✅ CẬP NHẬT: Hiển thị thông báo khi chưa chọn môn học hoặc không có môn học */}
                     {!selectedSubject ? (
                         <div className="flex justify-center items-center h-40 text-lg text-[#757575]">
-                            Vui lòng chọn môn học để bắt đầu điểm danh
+                            {subjects.length === 0 ? (
+                                selectedClass && selectedDate ? (
+                                    <div className="text-center">
+                                        <div className="text-orange-600 font-medium">
+                                            Không có tiết học nào cho ngày {format(selectedDate, 'dd/MM/yyyy')}
+                                        </div>
+                                        <div className="text-sm text-gray-500 mt-2">
+                                            Vui lòng chọn ngày khác hoặc kiểm tra thời khóa biểu
+                                        </div>
+                                    </div>
+                                ) : (
+                                    "Vui lòng chọn lớp và ngày để xem danh sách môn học"
+                                )
+                            ) : (
+                                "Vui lòng chọn môn học để bắt đầu điểm danh"
+                            )}
                         </div>
                     ) : (
                         <>
@@ -723,12 +1155,7 @@ const AttendanceList: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ✅ THÊM: Hiển thị thông báo khi không có dữ liệu timetable */}
-                            {selectedSubject && subjects.length === 0 && (
-                                <div className="flex justify-center items-center h-20 text-base text-orange-500 font-medium">
-                                    Không tìm thấy dữ liệu thời khóa biểu cho lớp này. Vui lòng liên hệ quản trị viên để thiết lập thời khóa biểu.
-                                </div>
-                            )}
+
 
                             <div className="rounded-lg">
                                 {loading ? (
