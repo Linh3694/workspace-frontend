@@ -31,13 +31,9 @@ export const Avatar: React.FC<AvatarProps> = ({
   useEffect(() => {
     const loadAvatar = async () => {
       setHasError(false);
-      console.log('🖼️ Avatar loadAvatar:', { src, name, email, size });
-      
       if (src) {
         const avatarUrl = getOptimizedAvatarUrl(src, size, name, email);
-        console.log('🖼️ Avatar optimized URL:', avatarUrl);
         const isValid = await validateImageUrl(avatarUrl);
-        console.log('🖼️ Avatar validation result:', isValid);
         
         if (isValid) {
           setCurrentSrc(avatarUrl);
@@ -48,7 +44,6 @@ export const Avatar: React.FC<AvatarProps> = ({
       // Use fallback or default
       const fallbackUrl = fallback || getDefaultAvatar(name, email);
       const finalFallbackUrl = fallbackUrl.replace(/size=\d+/, `size=${size}`);
-      console.log('🖼️ Avatar using fallback:', finalFallbackUrl);
       setCurrentSrc(finalFallbackUrl);
     };
 
@@ -143,7 +138,6 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
   showTooltip = false
 }) => {
-  console.log('🖼️ UserAvatar render:', { user: user.fullname, avatarUrl: user.avatarUrl });
   
   const avatarElement = (
     <Avatar

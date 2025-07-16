@@ -346,12 +346,6 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
       return;
     }
 
-    // Kiểm tra xem currentUser có _id hợp lệ hay không
-    if (!currentUser._id || currentUser._id.trim() === '') {
-      setError('Không thể xác định ID người sử dụng. Vui lòng kiểm tra lại thông tin bàn giao.');
-      return;
-    }
-
     setIsUploading(true);
     try {
       // Gọi service chuẩn
@@ -392,12 +386,6 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
       if (!currentUser) {
         setError('Không thể xác định người sử dụng thiết bị. Vui lòng kiểm tra lại thông tin bàn giao.');
       }
-      return;
-    }
-
-    // Kiểm tra xem currentUser có _id hợp lệ hay không
-    if (!currentUser._id || currentUser._id.trim() === '') {
-      setError('Không thể xác định ID người sử dụng. Vui lòng kiểm tra lại thông tin bàn giao.');
       return;
     }
 
@@ -510,8 +498,15 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
     if (device.assignmentHistory && device.assignmentHistory.length > 0) {
       const openRecord = device.assignmentHistory.find(assignment => !assignment.endDate);
       if (openRecord && openRecord.user) {
-        // Nếu không có _id hợp lệ, trả về null để tránh lỗi BSONError
-        return null;
+        // assignmentHistory.user không có _id, nhưng vẫn có thể sử dụng
+        // Chuyển đổi sang format tương thích với assigned
+        return {
+          _id: openRecord._id, // Sử dụng _id của assignment record
+          fullname: openRecord.user.fullname,
+          jobTitle: openRecord.user.jobTitle,
+          avatarUrl: openRecord.user.avatarUrl,
+          department: undefined // assignmentHistory.user không có department
+        };
       }
     }
     
@@ -1533,7 +1528,7 @@ const handleLiquidateConfirm = async () => {
         deviceType={deviceType}
         deviceId={deviceId}
         deviceName={device?.name || ''}
-        currentUser={getCurrentUser() || undefined}
+        currentUser={getCurrentUser() as {_id: string; fullname: string; jobTitle: string; department?: string; avatarUrl?: string} | undefined}
         onRevokeSuccess={handleRevokeDeviceSuccess}
       />
 
