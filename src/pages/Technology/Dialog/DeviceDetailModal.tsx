@@ -339,7 +339,18 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     const currentUser = getCurrentUser();
-    if (!file || !currentUser || !deviceId) return;
+    if (!file || !currentUser || !deviceId) {
+      if (!currentUser) {
+        setError('Không thể xác định người sử dụng thiết bị. Vui lòng kiểm tra lại thông tin bàn giao.');
+      }
+      return;
+    }
+
+    // Kiểm tra xem currentUser có _id hợp lệ hay không
+    if (!currentUser._id || currentUser._id.trim() === '') {
+      setError('Không thể xác định ID người sử dụng. Vui lòng kiểm tra lại thông tin bàn giao.');
+      return;
+    }
 
     setIsUploading(true);
     try {
@@ -377,7 +388,18 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
   const handleGenerateHandoverDocument = async () => {
     const currentUser = getCurrentUser();
-    if (!currentUser || !deviceId) return;
+    if (!currentUser || !deviceId) {
+      if (!currentUser) {
+        setError('Không thể xác định người sử dụng thiết bị. Vui lòng kiểm tra lại thông tin bàn giao.');
+      }
+      return;
+    }
+
+    // Kiểm tra xem currentUser có _id hợp lệ hay không
+    if (!currentUser._id || currentUser._id.trim() === '') {
+      setError('Không thể xác định ID người sử dụng. Vui lòng kiểm tra lại thông tin bàn giao.');
+      return;
+    }
 
     try {
       await inventoryService.generateHandoverDocument(
@@ -488,13 +510,8 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
     if (device.assignmentHistory && device.assignmentHistory.length > 0) {
       const openRecord = device.assignmentHistory.find(assignment => !assignment.endDate);
       if (openRecord && openRecord.user) {
-        return {
-          _id: '', // assignmentHistory không có _id trong user
-          fullname: openRecord.userName || openRecord.user.fullname || 'Không xác định',
-          jobTitle: openRecord.user.jobTitle || 'Không xác định',
-          department: 'Không xác định', // assignmentHistory không có department
-          avatarUrl: openRecord.user.avatarUrl
-        };
+        // Nếu không có _id hợp lệ, trả về null để tránh lỗi BSONError
+        return null;
       }
     }
     
@@ -827,23 +844,39 @@ const handleLiquidateConfirm = async () => {
                   {isDeviceAssigned() ? (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage 
-                            src={getCurrentUser()?.avatarUrl ? getAvatarUrl(getCurrentUser()!.avatarUrl) : undefined} 
-                            alt={getCurrentUser()?.fullname}
-                            className="object-cover object-top" 
-                          />
-                          <AvatarFallback>
-                            {getInitials(getCurrentUser()?.fullname || '')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{getCurrentUser()?.fullname}</p>
-                          <p className="text-sm text-gray-500">{getCurrentUser()?.jobTitle}</p>
-                          {getCurrentUser()?.department && (
-                            <p className="text-xs text-gray-400">{getCurrentUser()?.department}</p>
-                          )}
-                        </div>
+                        {getCurrentUser() ? (
+                          <>
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage 
+                                src={getCurrentUser()?.avatarUrl ? getAvatarUrl(getCurrentUser()!.avatarUrl) : undefined} 
+                                alt={getCurrentUser()?.fullname}
+                                className="object-cover object-top" 
+                              />
+                              <AvatarFallback>
+                                {getInitials(getCurrentUser()?.fullname || '')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{getCurrentUser()?.fullname}</p>
+                              <p className="text-sm text-gray-500">{getCurrentUser()?.jobTitle}</p>
+                              {getCurrentUser()?.department && (
+                                <p className="text-xs text-gray-400">{getCurrentUser()?.department}</p>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center space-x-4">
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback>
+                                <User className="h-6 w-6" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-gray-500">Thông tin người dùng không hợp lệ</p>
+                              <p className="text-sm text-gray-400">Vui lòng kiểm tra lại dữ liệu bàn giao</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="flex flex-row space-x-2">
                         {getCurrentAssignmentDocument() && (
