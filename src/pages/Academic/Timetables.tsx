@@ -107,7 +107,7 @@ const TimetablesPage = () => {
   
   // State cho school year events
   const [schoolYearEvents, setSchoolYearEvents] = useState<SchoolYearEvent[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [, setIsLoadingEvents] = useState(false);
 
   // Thêm state cho schedules và selected schedule
   const [schedules, setSchedules] = useState<TimetableSchedule[]>([]);
