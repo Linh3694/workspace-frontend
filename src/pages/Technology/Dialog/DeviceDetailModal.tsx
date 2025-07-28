@@ -38,6 +38,10 @@ interface DeviceDetail {
   status: string;
   releaseYear?: number;
   specs?: Record<string, string>;
+  // Phone specific fields
+  imei1?: string;
+  imei2?: string;
+  phoneNumber?: string;
   room?: {
     name: string;
     location: string[] | Array<{building: string; floor: string}>;
@@ -138,6 +142,12 @@ const formatSpecs = (specs: Record<string, string> | undefined, deviceType: Devi
     case 'projector':
       if (specs.processor) specsArray.push({ icon: Cpu, label: 'Bộ xử lý', value: specs.processor });
       if (specs.display) specsArray.push({ icon: Monitor, label: 'Độ phân giải', value: specs.display });
+      break;
+    case 'phone':
+      if (specs.processor) specsArray.push({ icon: Cpu, label: 'Bộ xử lý', value: specs.processor });
+      if (specs.ram) specsArray.push({ icon: MemoryStick, label: 'RAM', value: specs.ram });
+      if (specs.storage) specsArray.push({ icon: HardDrive, label: 'Bộ nhớ', value: specs.storage });
+      if (specs.display) specsArray.push({ icon: Monitor, label: 'Màn hình', value: specs.display });
       break;
     case 'tool':
       if (specs.processor) specsArray.push({ icon: Cpu, label: 'Bộ xử lý', value: specs.processor });
@@ -679,12 +689,20 @@ const handleLiquidateConfirm = async () => {
                         <p className="text-sm font-medium text-gray-500">Serial</p>
                         <p className="text-sm font-semibold">{device.serial}</p>
                       </div>
-                      {device.manufacturer && (
+                      {deviceType === 'phone' && (
                         <div>
-                          <p className="text-sm font-medium text-gray-500">Hãng sản xuất</p>
-                          <p className="text-sm font-semibold">{device.manufacturer}</p>
+                          <p className="text-sm font-medium text-gray-500">IMEI 1</p>
+                          <p className="text-sm font-semibold font-mono">{device.imei1 || 'Chưa cập nhật'}</p>
                         </div>
                       )}
+                     
+                      {deviceType === 'phone' && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Số điện thoại</p>
+                          <p className="text-sm font-semibold font-mono">{device.phoneNumber || 'Chưa cập nhật'}</p>
+                        </div>
+                      )}
+                     
                     </div>
                     <div className="space-y-3">
                       {device.type && (
@@ -697,6 +715,18 @@ const handleLiquidateConfirm = async () => {
                         <div>
                           <p className="text-sm font-medium text-gray-500">Năm sản xuất</p>
                           <p className="text-sm font-semibold">{device.releaseYear}</p>
+                        </div>
+                      )}
+                       {deviceType === 'phone' && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">IMEI 2</p>
+                          <p className="text-sm font-semibold font-mono">{device.imei2 || 'Chưa cập nhật'}</p>
+                        </div>
+                      )}
+                       {device.manufacturer && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Hãng sản xuất</p>
+                          <p className="text-sm font-semibold">{device.manufacturer}</p>
                         </div>
                       )}
                       <div>
@@ -803,7 +833,13 @@ const handleLiquidateConfirm = async () => {
                       })}
                     </div>
                   ) : (
-                    <p className="text-gray-500">Chưa có thông số kỹ thuật</p>
+                    <div className="text-center py-6">
+                      <div className="flex flex-col items-center space-y-2">
+                        <Cpu className="h-8 w-8 text-gray-400" />
+                        <p className="text-gray-500">Chưa có thông số kỹ thuật</p>
+                        <p className="text-xs text-gray-400">Nhấn nút chỉnh sửa để thêm thông số</p>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -1738,7 +1774,11 @@ const handleLiquidateConfirm = async () => {
           manufacturer: device?.manufacturer,
           serial: device?.serial,
           type: device?.type,
-          releaseYear: device?.releaseYear
+          releaseYear: device?.releaseYear,
+          // Phone specific fields
+          imei1: device?.imei1,
+          imei2: device?.imei2,
+          phoneNumber: device?.phoneNumber
         }}
         onInfoUpdated={() => {
           fetchDeviceDetail();

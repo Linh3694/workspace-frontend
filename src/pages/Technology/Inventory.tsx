@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Laptop, Monitor, Printer, Server, HardDrive, Search, Filter, X, RefreshCw } from 'lucide-react';
+import { Laptop, Monitor, Printer, Server, HardDrive, Smartphone, Search, Filter, X, RefreshCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -37,7 +37,7 @@ import {
 } from '../../components/ui/popover';
 import { getAvatarUrl, getInitials } from '../../lib/utils';
 import { inventoryService } from '../../services/inventoryService';
-import type { DeviceType, Device } from '../../types/inventory';
+import type { DeviceType, Device, Phone } from '../../types/inventory';
 import AddDeviceModal from './Dialog/AddDeviceModal';
 import DeviceDetailModal from './Dialog/DeviceDetailModal';
 
@@ -68,6 +68,13 @@ const deviceCategories = [
     id: 'projector' as DeviceType,
     name: 'Máy chiếu',
     icon: Server,
+     color: 'text-white',
+    bgColor: 'bg-[#002855]',
+  },
+  {
+    id: 'phone' as DeviceType,
+    name: 'Điện thoại',
+    icon: Smartphone,
      color: 'text-white',
     bgColor: 'bg-[#002855]',
   },
@@ -103,9 +110,10 @@ const DeviceTable: React.FC<{
   isLoading: boolean;
   currentPage: number;
   totalPages: number;
+  deviceType: DeviceType;
   onPageChange: (page: number) => void;
   onDeviceClick: (deviceId: string) => void;
-}> = ({ devices, isLoading, currentPage, totalPages, onPageChange, onDeviceClick }) => {
+}> = ({ devices, isLoading, currentPage, totalPages, deviceType, onPageChange, onDeviceClick }) => {
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -176,6 +184,13 @@ const DeviceTable: React.FC<{
               <TableHead>Thiết bị</TableHead>
               <TableHead>Loại thiết bị</TableHead>
               <TableHead>Serial</TableHead>
+              {deviceType === 'phone' && (
+                <>
+                  <TableHead>IMEI 1</TableHead>
+                  <TableHead>IMEI 2</TableHead>
+                  <TableHead>Số điện thoại</TableHead>
+                </>
+              )}
               <TableHead>Trạng thái</TableHead>
               <TableHead>Người sử dụng</TableHead>
               <TableHead>Phòng</TableHead>
@@ -199,6 +214,19 @@ const DeviceTable: React.FC<{
                   <span className="text-sm">{device.type || 'N/A'}</span>
                 </TableCell>
                 <TableCell className="font-mono text-sm">{device.serial}</TableCell>
+                {deviceType === 'phone' && (
+                  <>
+                    <TableCell className="font-mono text-sm">
+                      {(device as Phone).imei1 || 'N/A'}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {(device as Phone).imei2 || 'N/A'}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {(device as Phone).phoneNumber || 'N/A'}
+                    </TableCell>
+                  </>
+                )}
                 <TableCell>{getStatusBadge(device.status)}</TableCell>
                 <TableCell>
                   {device.assigned && device.assigned.length > 0 ? (
@@ -420,6 +448,9 @@ const Inventory: React.FC = () => {
         } else if ('populatedProjectors' in response) {
           deviceList = response.populatedProjectors;
           paginationData = response.pagination;
+        } else if ('populatedPhones' in response) {
+          deviceList = response.populatedPhones;
+          paginationData = response.pagination;
         }
         
         // Set pagination data for paginated responses
@@ -442,7 +473,7 @@ const Inventory: React.FC = () => {
     }, searchTerm ? 300 : 0);
 
     return () => clearTimeout(timeoutId);
-  }, [selectedCategory, currentPage, searchTerm, filters]);
+  }, [selectedCategory, currentPage, searchTerm, filters.status, filters.manufacturer, filters.type, filters.releaseYear]);
 
   // Auto refresh when component mounts or when there are important changes
   useEffect(() => {
@@ -466,9 +497,6 @@ const Inventory: React.FC = () => {
     
     // Force refresh by clearing cache and refetching
     setDevices([]);
-    setCurrentPage(1);
-    setSearchTerm('');
-    setFilters({});
     setIsLoading(true);
     
     // Force a new fetch with current timestamp
@@ -482,7 +510,7 @@ const Inventory: React.FC = () => {
           releaseYear: filters.releaseYear || undefined,
         };
 
-        const response = await inventoryService.getDevicesByType(selectedCategory, 1, 20, searchFilters);
+        const response = await inventoryService.getDevicesByType(selectedCategory, currentPage, 20, searchFilters);
         
         // Handle different response structures
         let deviceList: Device[] = [];
@@ -502,6 +530,9 @@ const Inventory: React.FC = () => {
           setTotalPages(1);
         } else if ('populatedProjectors' in response) {
           deviceList = response.populatedProjectors;
+          paginationData = response.pagination;
+        } else if ('populatedPhones' in response) {
+          deviceList = response.populatedPhones;
           paginationData = response.pagination;
         }
         
@@ -580,10 +611,11 @@ const Inventory: React.FC = () => {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Tìm kiếm thiết bị, tên người sử dụng..."
+                    placeholder={`Tìm kiếm ${selectedCategoryInfo?.name.toLowerCase()}, tên giáo viên, serial...`}
                     value={searchTerm}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-80"
+                    title="Có thể tìm kiếm theo: tên thiết bị, tên giáo viên/người sử dụng, serial number, hãng sản xuất"
                   />
                   {searchTerm && (
                     <Button
@@ -744,6 +776,7 @@ const Inventory: React.FC = () => {
                   isLoading={isLoading}
                   currentPage={currentPage}
                   totalPages={totalPages}
+                  deviceType={selectedCategory}
                   onPageChange={handlePageChange}
                   onDeviceClick={handleDeviceClick}
                 />

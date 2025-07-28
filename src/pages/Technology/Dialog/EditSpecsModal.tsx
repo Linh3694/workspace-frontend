@@ -61,6 +61,13 @@ const EditSpecsModal: React.FC<EditSpecsModalProps> = ({
           { key: 'processor', label: 'Bộ xử lý', icon: Cpu, placeholder: 'Ví dụ: ARM Cortex-A7' },
           { key: 'display', label: 'Độ phân giải', icon: Monitor, placeholder: 'Ví dụ: 1920x1080' }
         ];
+      case 'phone':
+        return [
+          { key: 'processor', label: 'Bộ xử lý', icon: Cpu, placeholder: 'Ví dụ: Snapdragon 855' },
+          { key: 'ram', label: 'RAM', icon: MemoryStick, placeholder: 'Ví dụ: 8GB' },
+          { key: 'storage', label: 'Bộ nhớ', icon: HardDrive, placeholder: 'Ví dụ: 128GB' },
+          { key: 'display', label: 'Màn hình', icon: Monitor, placeholder: 'Ví dụ: 6.1" OLED' }
+        ];
       case 'tool':
         return [
           { key: 'processor', label: 'Bộ xử lý', icon: Cpu, placeholder: 'Ví dụ: Intel Core i5' },
@@ -76,10 +83,11 @@ const EditSpecsModal: React.FC<EditSpecsModalProps> = ({
   // Cập nhật specs khi modal mở
   useEffect(() => {
     if (open) {
-      setSpecs(currentSpecs);
+      const safeCurrentSpecs = currentSpecs || {};
+      setSpecs(safeCurrentSpecs);
       setError(null);
     }
-  }, [open, currentSpecs]);
+  }, [open, JSON.stringify(currentSpecs)]);
 
   // Xử lý thay đổi giá trị
   const handleSpecChange = (key: string, value: string) => {

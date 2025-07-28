@@ -132,6 +132,26 @@ export const API_ENDPOINTS = {
   AWARD_RECORDS: `${API_URL}/award-records`,
   AWARD_RECORD: (id: string) => `${API_URL}/award-records/${id}`,
 
+  // Inventory endpoints
+  LAPTOPS: `${API_URL}/laptops`,
+  LAPTOP: (id: string) => `${API_URL}/laptops/${id}`,
+  LAPTOPS_FILTER_OPTIONS: `${API_URL}/laptops/filter-options`,
+  MONITORS: `${API_URL}/monitors`,
+  MONITOR: (id: string) => `${API_URL}/monitors/${id}`,
+  MONITORS_FILTER_OPTIONS: `${API_URL}/monitors/filter-options`,
+  PRINTERS: `${API_URL}/printers`,
+  PRINTER: (id: string) => `${API_URL}/printers/${id}`,
+  PRINTERS_FILTER_OPTIONS: `${API_URL}/printers/filter-options`,
+  PROJECTORS: `${API_URL}/projectors`,
+  PROJECTOR: (id: string) => `${API_URL}/projectors/${id}`,
+  PROJECTORS_FILTER_OPTIONS: `${API_URL}/projectors/filter-options`,
+  PHONES: `${API_URL}/phones`,
+  PHONE: (id: string) => `${API_URL}/phones/${id}`,
+  PHONES_FILTER_OPTIONS: `${API_URL}/phones/filter-options`,
+  TOOLS: `${API_URL}/tools`,
+  TOOL: (id: string) => `${API_URL}/tools/${id}`,
+  TOOLS_FILTER_OPTIONS: `${API_URL}/tools/filter-options`,
+
   // Leave Request endpoints
   LEAVE_REQUESTS: `${API_URL}/leave-requests`,
   LEAVE_REQUEST: (id: string) => `${API_URL}/leave-requests/${id}`,

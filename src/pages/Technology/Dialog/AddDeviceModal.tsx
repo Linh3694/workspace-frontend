@@ -40,6 +40,10 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ deviceType, onDeviceAdd
     status: 'Standby',
     specs: {} as Record<string, string>,
     reason: '',
+    // Phone specific fields
+    imei1: '',
+    imei2: '',
+    phoneNumber: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -77,6 +81,15 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ deviceType, onDeviceAdd
         display: 'Độ phân giải',
       },
     },
+    phone: {
+      title: 'Thêm Điện Thoại Mới',
+      specs: ['processor', 'ram', 'storage'],
+      specLabels: {
+        processor: 'CPU',
+        ram: 'RAM',
+        storage: 'Ổ cứng',
+      },
+    },
     tool: {
       title: 'Thêm Công Cụ Mới',
       specs: ['processor', 'ram', 'storage', 'display'],
@@ -103,6 +116,10 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ deviceType, onDeviceAdd
         status: 'Standby',
         specs: {},
         reason: '',
+        // Phone specific fields
+        imei1: '',
+        imei2: '',
+        phoneNumber: '',
       });
       setErrors({});
     }
@@ -135,6 +152,13 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ deviceType, onDeviceAdd
 
     if (!formData.serial.trim()) {
       newErrors.serial = 'Số serial là bắt buộc';
+    }
+
+    // Phone specific validation
+    if (deviceType === 'phone') {
+      if (!formData.imei1.trim()) {
+        newErrors.imei1 = 'IMEI 1 là bắt buộc';
+      }
     }
 
     if (!formData.type.trim()) {
@@ -236,6 +260,47 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ deviceType, onDeviceAdd
               />
               {errors.serial && <p className="text-sm text-red-500">{errors.serial}</p>}
             </div>
+
+            {/* Phone specific fields */}
+            {deviceType === 'phone' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="imei1">IMEI 1 *</Label>
+                  <Input
+                    id="imei1"
+                    value={formData.imei1}
+                    onChange={(e) => handleInputChange('imei1', e.target.value)}
+                    placeholder="Nhập IMEI 1"
+                    className={errors.imei1 ? 'border-red-500' : ''}
+                  />
+                  {errors.imei1 && <p className="text-sm text-red-500">{errors.imei1}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="imei2">IMEI 2</Label>
+                  <Input
+                    id="imei2"
+                    value={formData.imei2}
+                    onChange={(e) => handleInputChange('imei2', e.target.value)}
+                    placeholder="Nhập IMEI 2 (tùy chọn)"
+                    className={errors.imei2 ? 'border-red-500' : ''}
+                  />
+                  {errors.imei2 && <p className="text-sm text-red-500">{errors.imei2}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Số điện thoại</Label>
+                  <Input
+                    id="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                    placeholder="Nhập số điện thoại (tùy chọn)"
+                    className={errors.phoneNumber ? 'border-red-500' : ''}
+                  />
+                  {errors.phoneNumber && <p className="text-sm text-red-500">{errors.phoneNumber}</p>}
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="releaseYear">Năm sản xuất</Label>

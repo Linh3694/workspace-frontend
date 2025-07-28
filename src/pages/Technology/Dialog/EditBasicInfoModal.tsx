@@ -20,6 +20,10 @@ interface EditBasicInfoModalProps {
     serial?: string;
     type?: string;
     releaseYear?: number;
+    // Phone specific fields
+    imei1?: string;
+    imei2?: string;
+    phoneNumber?: string;
   };
   onInfoUpdated?: () => void;
 }
@@ -37,7 +41,11 @@ const EditBasicInfoModal: React.FC<EditBasicInfoModalProps> = ({
     manufacturer: '',
     serial: '',
     type: '',
-    releaseYear: ''
+    releaseYear: '',
+    // Phone specific fields
+    imei1: '',
+    imei2: '',
+    phoneNumber: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +58,11 @@ const EditBasicInfoModal: React.FC<EditBasicInfoModalProps> = ({
         manufacturer: currentInfo.manufacturer || '',
         serial: currentInfo.serial || '',
         type: currentInfo.type || '',
-        releaseYear: currentInfo.releaseYear ? currentInfo.releaseYear.toString() : ''
+        releaseYear: currentInfo.releaseYear ? currentInfo.releaseYear.toString() : '',
+        // Phone specific fields
+        imei1: currentInfo.imei1 || '',
+        imei2: currentInfo.imei2 || '',
+        phoneNumber: currentInfo.phoneNumber || ''
       });
       setError(null);
     }
@@ -85,6 +97,13 @@ const EditBasicInfoModal: React.FC<EditBasicInfoModalProps> = ({
           setIsLoading(false);
           return;
         }
+      }
+
+      // Phone specific fields
+      if (deviceType === 'phone') {
+        if (info.imei1.trim()) updateData.imei1 = info.imei1.trim();
+        if (info.imei2.trim()) updateData.imei2 = info.imei2.trim();
+        if (info.phoneNumber.trim()) updateData.phoneNumber = info.phoneNumber.trim();
       }
 
       await inventoryService.updateDevice(deviceType, deviceId, updateData);
@@ -191,6 +210,40 @@ const EditBasicInfoModal: React.FC<EditBasicInfoModalProps> = ({
                       className="mt-1"
                     />
                   </div>
+                  {deviceType === 'phone' && (
+                    <>
+                      <div>
+                        <Label htmlFor="imei1">IMEI 1</Label>
+                        <Input
+                          id="imei1"
+                          value={info.imei1}
+                          onChange={(e) => handleInfoChange('imei1', e.target.value)}
+                          placeholder="Nhập IMEI 1"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="imei2">IMEI 2</Label>
+                        <Input
+                          id="imei2"
+                          value={info.imei2}
+                          onChange={(e) => handleInfoChange('imei2', e.target.value)}
+                          placeholder="Nhập IMEI 2"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="phoneNumber">Số điện thoại</Label>
+                        <Input
+                          id="phoneNumber"
+                          value={info.phoneNumber}
+                          onChange={(e) => handleInfoChange('phoneNumber', e.target.value)}
+                          placeholder="Nhập số điện thoại"
+                          className="mt-1"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </CardContent>

@@ -1,15 +1,17 @@
 import axios from 'axios';
+import { API_ENDPOINTS } from '../lib/config';
 import type { 
   LaptopResponse, 
   MonitorResponse, 
   PrinterResponse, 
   ToolResponse,
   ProjectorResponse,
+  PhoneResponse,
   DeviceType,
   CreateDeviceData
 } from '../types/inventory';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api-dev.wellspring.edu.vn/api';
 
 // Create axios instance
 const api = axios.create({
@@ -77,6 +79,7 @@ const createDevice = async (deviceType: DeviceType, deviceData: CreateDeviceData
     monitor: '/monitors',
     printer: '/printers',
     projector: '/projectors',
+    phone: '/phones',
     tool: '/tools',
   };
 
@@ -126,6 +129,7 @@ const updateDevice = async (deviceType: DeviceType, deviceId: string, updateData
     monitor: '/monitors',
     printer: '/printers',
     projector: '/projectors',
+    phone: '/phones',
     tool: '/tools',
   };
 
@@ -140,6 +144,7 @@ const deleteDevice = async (deviceType: DeviceType, deviceId: string) => {
     monitor: '/monitors',
     printer: '/printers',
     projector: '/projectors',
+    phone: '/phones',
     tool: '/tools',
   };
 
@@ -234,9 +239,30 @@ export const inventoryService = {
     return response.data;
   },
 
+  // Phone APIs
+  getPhones: async (page = 1, limit = 20, filters?: SearchFilterParams): Promise<PhoneResponse> => {
+    const params: ApiParams = { page, limit };
+    if (filters?.search) params.search = filters.search;
+    if (filters?.status) params.status = filters.status;
+    if (filters?.manufacturer) params.manufacturer = filters.manufacturer;
+    if (filters?.type) params.type = filters.type;
+    if (filters?.releaseYear) params.releaseYear = filters.releaseYear;
+    
+    const response = await api.get(API_ENDPOINTS.PHONES, { params });
+    return response.data;
+  },
+
   // Get filter options for each device type
   getFilterOptions: async (type: DeviceType) => {
-    const response = await api.get(`/${type}s/filter-options`);
+    const endpoints = {
+      laptop: API_ENDPOINTS.LAPTOPS_FILTER_OPTIONS,
+      monitor: API_ENDPOINTS.MONITORS_FILTER_OPTIONS,
+      printer: API_ENDPOINTS.PRINTERS_FILTER_OPTIONS,
+      projector: API_ENDPOINTS.PROJECTORS_FILTER_OPTIONS,
+      phone: API_ENDPOINTS.PHONES_FILTER_OPTIONS,
+      tool: API_ENDPOINTS.TOOLS_FILTER_OPTIONS,
+    };
+    const response = await api.get(endpoints[type]);
     return response.data;
   },
 
@@ -253,6 +279,8 @@ export const inventoryService = {
         return inventoryService.getTools(filters);
       case 'projector':
         return inventoryService.getProjectors(page, limit, filters);
+      case 'phone':
+        return inventoryService.getPhones(page, limit, filters);
       default:
         throw new Error(`Unknown device type: ${type}`);
     }
@@ -374,6 +402,13 @@ export const inventoryService = {
               storage: "Không xác định",
               display: specs.display || "Không xác định"
             };
+          case 'phone':
+            return {
+              processor: specs.processor || "Không xác định",
+              ram: specs.ram || "Không xác định",
+              storage: specs.storage || "Không xác định",
+              display: specs.display || "Không xác định"
+            };
           case 'tool':
             return {
               processor: specs.processor || "Không xác định",
@@ -417,7 +452,15 @@ export const inventoryService = {
         nextUserTitle: (assignedUser.jobTitle as string) || 
                       (assignedUser.department ? `Nhân sự ${assignedUser.department}` : "Không xác định"),
         
-        // Thông tin thiết bị
+        // Thông tin thiết bị (generic names for all device types)
+        deviceName: (device.name as string) || "Không xác định",
+        deviceSerial: (device.serial as string) || "Không xác định",
+        deviceProcessor: (device.specs as Record<string, string>)?.processor || "Không xác định",
+        deviceStorage: (device.specs as Record<string, string>)?.storage || "Không xác định", 
+        deviceRam: (device.specs as Record<string, string>)?.ram || "Không xác định",
+        deviceReleaseYear: device.releaseYear ? String(device.releaseYear) : "Không xác định",
+        
+        // Legacy laptop names for backward compatibility
         laptopName: (device.name as string) || "Không xác định",
         laptopSerial: (device.serial as string) || "Không xác định",
         laptopProcessor: (device.specs as Record<string, string>)?.processor || "Không xác định",
@@ -433,6 +476,19 @@ export const inventoryService = {
         jobTitle: (assignedUser.jobTitle as string) || "Không xác định",
         department: (assignedUser.department as string) || "Không xác định",
         email: (assignedUser.email as string) || "Không xác định",
+        
+        // Generic device names
+        devicename: (device.name as string) || "Không xác định",
+        deviceserial: (device.serial as string) || "Không xác định",
+        devicemanufacturer: (device.manufacturer as string) || "Không xác định",
+        devicetype: (device.type as string) || "Không xác định",
+        
+        // Phone specific fields
+        phoneIMEI1: deviceType === 'phone' ? ((device as Record<string, unknown>).imei1 as string || "Không xác định") : "N/A",
+        phoneIMEI2: deviceType === 'phone' ? ((device as Record<string, unknown>).imei2 as string || "Không xác định") : "N/A",
+        phoneNumber: deviceType === 'phone' ? ((device as Record<string, unknown>).phoneNumber as string || "Không xác định") : "N/A",
+        
+        // Legacy laptop names for backward compatibility
         laptopname: (device.name as string) || "Không xác định",
         laptopserial: (device.serial as string) || "Không xác định",
         laptopmanufacturer: (device.manufacturer as string) || "Không xác định",

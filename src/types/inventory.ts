@@ -103,6 +103,18 @@ export interface Projector extends BaseDevice {
   };
 }
 
+export interface Phone extends BaseDevice {
+  imei1: string;
+  imei2?: string;
+  phoneNumber?: string;
+  specs?: {
+    processor?: string;
+    ram?: string;
+    storage?: string;
+    display?: string;
+  };
+}
+
 // API Response interfaces
 export interface PaginatedResponse {
   currentPage: number;
@@ -137,9 +149,14 @@ export interface ProjectorResponse {
   pagination: PaginatedResponse;
 }
 
+export interface PhoneResponse {
+  populatedPhones: Phone[];
+  pagination: PaginatedResponse;
+}
+
 // Device types
-export type DeviceType = 'laptop' | 'monitor' | 'printer' | 'tool' | 'projector';
-export type Device = Laptop | Monitor | Printer | Tool | Projector;
+export type DeviceType = 'laptop' | 'monitor' | 'printer' | 'tool' | 'projector' | 'phone';
+export type Device = Laptop | Monitor | Printer | Tool | Projector | Phone;
 
 export interface CreateDeviceData {
   name: string;
