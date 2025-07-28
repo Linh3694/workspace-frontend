@@ -38,6 +38,11 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'library.activities', 
   ],
   technical: ['*'],
+  hr: [
+    'recruitment.jobs',
+    'recruitment.applications', 
+    'application.tickets.user',
+  ],
   user: [
     'application.tickets.user'
   ],
