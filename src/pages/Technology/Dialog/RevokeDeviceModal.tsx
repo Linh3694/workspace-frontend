@@ -118,7 +118,7 @@ const RevokeDeviceModal: React.FC<RevokeDeviceModalProps> = ({
         <div className="flex-1 overflow-auto space-y-4">
           {/* Current User Info */}
           {currentUser && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage
@@ -131,10 +131,10 @@ const RevokeDeviceModal: React.FC<RevokeDeviceModalProps> = ({
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-blue-900">{currentUser.fullname}</p>
-                  <p className="text-sm text-blue-700">{currentUser.jobTitle}</p>
+                  <p className="font-medium text-gray-900">{currentUser.fullname}</p>
+                  <p className="text-sm text-gray-700">{currentUser.jobTitle}</p>
                   {currentUser.department && (
-                    <p className="text-sm text-blue-600">{currentUser.department}</p>
+                    <p className="text-sm text-gray-600">{currentUser.department}</p>
                   )}
                 </div>
               </div>

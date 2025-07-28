@@ -23,6 +23,7 @@ const deviceFields: Record<DeviceType, string[]> = {
   monitor: ['externalCondition', 'display', 'storage', 'connectivity'],
   printer: ['externalCondition', 'ram', 'storage', 'connectivity'],
   projector: ['externalCondition', 'cpu', 'display'],
+  phone: ['externalCondition', 'cpu', 'ram', 'storage', 'battery', 'display', 'connectivity', 'software'],
   tool: ['externalCondition', 'cpu', 'ram', 'storage', 'display'],
 };
 
