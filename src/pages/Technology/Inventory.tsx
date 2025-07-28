@@ -193,7 +193,7 @@ const DeviceTable: React.FC<{
               )}
               <TableHead>Trạng thái</TableHead>
               <TableHead>Người sử dụng</TableHead>
-              <TableHead>Phòng</TableHead>
+              {deviceType !== 'phone' && <TableHead>Phòng</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -246,28 +246,30 @@ const DeviceTable: React.FC<{
                     <span className="text-gray-400">Chưa bàn giao</span>
                   )}
                 </TableCell>
-                <TableCell>
-                  {device.room ? (
-                    <div>
-                      <div className="font-medium text-sm">{device.room.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {Array.isArray(device.room.location) 
-                          ? device.room.location.map(loc => {
-                              if (typeof loc === 'string') {
-                                return loc;
-                              } else if (typeof loc === 'object' && loc && 'building' in loc && 'floor' in loc) {
-                                const roomLoc = loc as { building: string; floor: string };
-                                return `${roomLoc.building}, tầng ${roomLoc.floor}`;
-                              }
-                              return 'Không xác định';
-                            }).join(', ')
-                          : 'N/A'}
+                {deviceType !== 'phone' && (
+                  <TableCell>
+                    {device.room ? (
+                      <div>
+                        <div className="font-medium text-sm">{device.room.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {Array.isArray(device.room.location) 
+                            ? device.room.location.map(loc => {
+                                if (typeof loc === 'string') {
+                                  return loc;
+                                } else if (typeof loc === 'object' && loc && 'building' in loc && 'floor' in loc) {
+                                  const roomLoc = loc as { building: string; floor: string };
+                                  return `${roomLoc.building}, tầng ${roomLoc.floor}`;
+                                }
+                                return 'Không xác định';
+                              }).join(', ')
+                            : 'N/A'}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">Chưa xác định</span>
-                  )}
-                </TableCell>
+                    ) : (
+                      <span className="text-gray-400">Chưa xác định</span>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
