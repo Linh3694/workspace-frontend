@@ -37,7 +37,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from '../../../components/ui/pagination';
-import { API_ENDPOINTS, BASE_URL } from '../../../lib/config';
+import { API_ENDPOINTS, BASE_URL } from '../../../config/api';
 import { useToast } from "../../../hooks/use-toast";
 import StudentDialog from './StudentDialog';
 import StudentImportDialog from './StudentImportDialog';

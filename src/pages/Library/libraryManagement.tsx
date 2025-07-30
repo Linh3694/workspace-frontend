@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { API_URL, BASE_URL, API_ENDPOINTS } from "@/lib/config";
+import { API_URL, BASE_URL, API_ENDPOINTS } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

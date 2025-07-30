@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { API_URL, BASE_URL } from "@/lib/config";
+import { API_URL, BASE_URL } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

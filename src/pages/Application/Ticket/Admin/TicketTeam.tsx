@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
-import { API_URL, BASE_URL } from "@/lib/config";
+import { API_URL, BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 
 interface User {

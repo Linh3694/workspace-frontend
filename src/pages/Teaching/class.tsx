@@ -35,7 +35,7 @@ import {
 } from "../../components/ui/pagination";
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
-import { API_ENDPOINTS, BASE_URL } from "../../lib/config";
+import { API_ENDPOINTS, BASE_URL } from "../../config/api";
 
 // Import dialog components
 import ClassFormDialog from './Dialog/ClassFormDialog';

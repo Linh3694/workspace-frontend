@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Button } from './button';
 import { toast } from 'sonner';
-import { API_URL } from '@/lib/config';
+import { API_URL } from '@/config/api';
 
 
 interface UploadedImage {

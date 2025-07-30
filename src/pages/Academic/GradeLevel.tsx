@@ -43,7 +43,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
-import { API_ENDPOINTS } from "../../lib/config";
+import { API_ENDPOINTS } from "../../config/api";
 import type { 
   School, 
   GradeLevel, 

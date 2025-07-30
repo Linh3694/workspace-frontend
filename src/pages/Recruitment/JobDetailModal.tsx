@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import { API_URL, BASE_URL } from "../../lib/config";
+import { API_URL, BASE_URL } from "../../config/api";
 import Switch from "react-switch";
 import TiptapEditor from "../../components/TiptapEditor";
 import { toast } from 'sonner';

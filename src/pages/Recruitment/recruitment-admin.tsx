@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { API_URL } from "../../lib/config";
+import { API_URL } from "../../config/api";
 import { FiTrash2 } from "react-icons/fi";
 import { toast } from 'sonner';
 import Switch from "react-switch";

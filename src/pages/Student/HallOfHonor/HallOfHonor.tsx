@@ -10,7 +10,7 @@ import {
 import { Button } from '../../../components/ui/button';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Plus, Trophy, Edit, Info } from 'lucide-react';
-import { API_ENDPOINTS } from '../../../lib/config';
+import { API_ENDPOINTS } from '../../../config/api';
 import CreateCategoryDialog from './CreateCategoryDialog';
 import EditCategoryDialog from './EditCategoryDialog';
 import SubAwardsModal from './SubAwardsModal';

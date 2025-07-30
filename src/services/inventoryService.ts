@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_ENDPOINTS } from '../lib/config';
+import { API_ENDPOINTS } from '../config/api';
 import type { 
   LaptopResponse, 
   MonitorResponse, 

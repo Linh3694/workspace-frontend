@@ -35,7 +35,7 @@ import {
   GraduationCap, 
   Search,
 } from 'lucide-react';
-import { API_ENDPOINTS } from '../../../lib/config';
+import { API_ENDPOINTS } from '../../../config/api';
 import { toast } from 'sonner';
 import EditRecordModal from './EditRecordModal';
 import AddStudentsModal from './AddStudentsModal';

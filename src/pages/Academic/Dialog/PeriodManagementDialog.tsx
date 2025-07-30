@@ -20,7 +20,7 @@ import {
 import { Plus, Clock, Loader2 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
-import { API_ENDPOINTS } from "../../../lib/config";
+import { API_ENDPOINTS } from "../../../config/api";
 import { PERIOD_TYPE_LABELS } from '../../../types/timetable.types';
 import type { PeriodDefinition, ApiResponse } from '../../../types/timetable.types';
 import type { School } from '../../../types/school.types';

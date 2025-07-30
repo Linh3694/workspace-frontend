@@ -37,7 +37,7 @@ import { Checkbox } from "../../../components/ui/checkbox";
 import { format } from 'date-fns';
 import { useToast } from "../../../hooks/use-toast";
 import axios from 'axios';
-import { API_ENDPOINTS } from '../../../lib/config';
+import { API_ENDPOINTS } from '../../../config/api';
 import { Combobox } from '../../../components/ui/combobox';
 
 interface Parent {

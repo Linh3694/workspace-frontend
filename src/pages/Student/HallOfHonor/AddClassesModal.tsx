@@ -15,7 +15,7 @@ import { Textarea } from '../../../components/ui/textarea';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { Plus, Trash2, Download } from 'lucide-react';
-import { API_ENDPOINTS } from '../../../lib/config';
+import { API_ENDPOINTS } from '../../../config/api';
 import { toast } from 'sonner';
 import type { 
   AwardCategory, 

@@ -21,7 +21,7 @@ import {
 import { Combobox } from "../../../components/ui/combobox";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
-import { API_ENDPOINTS } from "../../../lib/config";
+import { API_ENDPOINTS } from "../../../config/api";
 import type { Class } from '../../../types/class.types';
 import type { SchoolYear } from '../../../types/school.types';
 import type { ComboboxOption } from '../../../types/common.types';

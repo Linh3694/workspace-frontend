@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { BASE_URL } from "../lib/config";
+import { BASE_URL } from "../config/api";
 import { useAuth } from "../contexts/AuthContext";
 import { MENU_SECTIONS } from "../data/menuConfig";
 import type { MenuItem } from "../types/auth";

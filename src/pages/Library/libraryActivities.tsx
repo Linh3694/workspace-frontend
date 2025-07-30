@@ -32,7 +32,7 @@ import {
 import { useForm, useFieldArray } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ImageUpload } from '@/components/ui/image-upload';
-import { API_URL } from '@/lib/config';
+import { API_URL } from '@/config/api';
 
 // Types
 interface ActivityDay {

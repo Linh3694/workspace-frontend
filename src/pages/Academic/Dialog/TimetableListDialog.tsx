@@ -14,7 +14,7 @@ import { DatePicker } from "../../../components/ui/datepicker";
 import { Loader2, Upload, Calendar, FileText, Edit, Trash2 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
-import { API_ENDPOINTS } from "../../../lib/config";
+import { API_ENDPOINTS } from "../../../config/api";
 import {
   Table,
   TableBody,

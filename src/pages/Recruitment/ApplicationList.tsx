@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { API_URL, BASE_URL } from "../../lib/config";
+import { API_URL, BASE_URL } from "../../config/api";
 import { FiDownload, FiEye, FiUser, FiMail, FiPhone, FiCalendar } from "react-icons/fi";
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";

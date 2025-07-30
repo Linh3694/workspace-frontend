@@ -14,7 +14,7 @@ import { DatePicker } from "../../../components/ui/datepicker";
 import { Loader2, Upload, Calendar, FileText } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
-import { API_ENDPOINTS } from "../../../lib/config";
+import { API_ENDPOINTS } from "../../../config/api";
 import * as XLSX from 'xlsx';
 import type { TimetableImportRecord, TimetableImportPayload, PeriodDefinition } from "../../../types/timetable.types";
 

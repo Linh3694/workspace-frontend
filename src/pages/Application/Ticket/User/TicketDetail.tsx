@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaStar } from "react-icons/fa";
 import { FaCommentDots } from "react-icons/fa6";
-import { BASE_URL } from "../../../../lib/config";
+import { BASE_URL } from "../../../../config/api";
 import TechnicalRating from "../Admin/TechnicalRating";
 import TicketChat from "./TicketChat";
 

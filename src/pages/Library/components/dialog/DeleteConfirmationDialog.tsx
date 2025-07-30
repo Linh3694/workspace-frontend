@@ -1,4 +1,4 @@
-import { API_URL } from "@/lib/config";
+import { API_URL } from "@/config/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";

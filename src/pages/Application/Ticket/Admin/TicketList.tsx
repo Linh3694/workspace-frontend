@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
-import { API_URL } from "../../../../lib/config";
+import { API_URL } from "../../../../config/api";
 import TicketAdminModal from "./DetailModal";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FiSend } from "react-icons/fi";
 import { FaImage, FaCheck } from "react-icons/fa6";
 import io, { Socket } from "socket.io-client";
-import { BASE_URL, API_URL } from "../../../../lib/config";
+import { BASE_URL, API_URL } from "../../../../config/api";
 import axios from "axios";
 import { toast } from "sonner";
 import {

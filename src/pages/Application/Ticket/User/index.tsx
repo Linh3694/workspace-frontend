@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL } from "@/lib/config";
+import { API_URL } from "@/config/api";
 import { toast } from "sonner";
 import TicketCreate from "./TicketCreate";
 import TicketDetail from "./TicketDetail";

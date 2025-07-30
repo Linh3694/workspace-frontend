@@ -11,7 +11,7 @@ import {
 } from "../../../components/ui/alert-dialog";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../lib/api";
-import { API_ENDPOINTS } from "../../../lib/config";
+import { API_ENDPOINTS } from "../../../config/api";
 import type { Class } from '../../../types/class.types';
 
 interface DeleteClassDialogProps {

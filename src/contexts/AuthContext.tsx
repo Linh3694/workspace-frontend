@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { PublicClientApplication, type SilentRequest } from '@azure/msal-browser';
 import type { User, UserRole } from '../types/auth';
 import { ROLE_PERMISSIONS } from '../types/auth';
-import { API_ENDPOINTS } from '../lib/config';
+import { API_ENDPOINTS } from '../config/api';
 
 interface AuthContextType {
   user: User | null;

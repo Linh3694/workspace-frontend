@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FiSearch } from "react-icons/fi";
 import { FaFilter } from "react-icons/fa6";
-import { API_URL } from "../../../../lib/config";
+import { API_URL } from "../../../../config/api";
 import { toast } from "sonner";
 
 // UI Components

@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import ProfileDialog from './ProfileDialog';
 import type { AdmissionFormData } from '../../types/admission';
-import { API_ENDPOINTS } from '../../lib/config';
+import { API_ENDPOINTS } from '../../config/api';
 import { api } from '../../lib/api';
 import { toast } from "../../lib/toast";
 

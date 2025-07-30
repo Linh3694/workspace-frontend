@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 // Removed form validation imports - using inline editing
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
-import { API_ENDPOINTS } from "../../lib/config";
+import { API_ENDPOINTS } from "../../config/api";
 
 import { Loader2, Settings, Plus, Calendar, Clock, Users, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 

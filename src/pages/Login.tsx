@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_ENDPOINTS } from '../lib/config';
+import { API_ENDPOINTS } from '../config/api';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 

@@ -27,7 +27,7 @@ import {
     SelectValue
 } from '../../components/ui/select';
 import { DatePicker } from '../../components/ui/datepicker';
-import { API_ENDPOINTS, API_URL } from '../../lib/config';
+import { API_ENDPOINTS, API_URL } from '../../config/api';
 
 import {
     Dialog,

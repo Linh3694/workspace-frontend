@@ -14,7 +14,7 @@ import { Textarea } from '../../../components/ui/textarea';
 import { Checkbox } from '../../../components/ui/checkbox';
 
 import { Trash2, Save, Edit, Plus } from 'lucide-react';
-import { API_ENDPOINTS } from '../../../lib/config';
+import { API_ENDPOINTS } from '../../../config/api';
 import {
   AlertDialog,
   AlertDialogAction,

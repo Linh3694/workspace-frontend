@@ -32,7 +32,7 @@ import { Label } from '../../components/ui/label';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import UserDialog from './UserDialog';
-import { API_ENDPOINTS } from '../../lib/config';
+import { API_ENDPOINTS } from '../../config/api';
 import { api } from '../../lib/api';
 import { useToast } from "../../hooks/use-toast";
 import { UserAvatar } from '../../lib/avatar';

@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '../../components/ui/select';
-import { API_ENDPOINTS } from '../../lib/config';
+import { API_ENDPOINTS } from '../../config/api';
 
 interface Student {
     _id: string;

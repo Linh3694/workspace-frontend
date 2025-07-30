@@ -29,7 +29,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
-import { API_ENDPOINTS, BASE_URL } from "../../lib/config";
+import { API_ENDPOINTS, BASE_URL } from "../../config/api";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Combobox } from "../../components/ui/combobox";
 

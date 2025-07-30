@@ -19,7 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "../../hooks/use-toast";
 import { api } from "../../lib/api";
-import { API_ENDPOINTS } from "../../lib/config";
+import { API_ENDPOINTS } from "../../config/api";
 import type { SchoolYearEvent, SchoolYear } from "../../types/school-year.types";
 import { CalendarYearView } from "../../components/ui/CalendarYearView";
 import { DatePicker } from "../../components/ui/datepicker";

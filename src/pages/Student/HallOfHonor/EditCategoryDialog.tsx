@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
-import { API_ENDPOINTS, BASE_URL } from '../../../lib/config';
+import { API_ENDPOINTS, BASE_URL } from '../../../config/api';
 import { toast } from 'sonner';
 import type { AwardCategory, RecipientType } from '../../../types';
 

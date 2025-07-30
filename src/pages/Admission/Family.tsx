@@ -17,7 +17,7 @@ import {
 } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { API_ENDPOINTS } from '../../lib/config';
+import { API_ENDPOINTS } from '../../config/api';
 import { useToast } from "../../hooks/use-toast";
 import {
   Dialog,

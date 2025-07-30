@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '../../components/ui/select';
-import { API_ENDPOINTS, BASE_URL } from '../../lib/config';
+import { API_ENDPOINTS, BASE_URL } from '../../config/api';
 import { DatePicker } from '../../components/ui/datepicker';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
