@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import MicrosoftCallback from './pages/MicrosoftCallback';
 import Dashboard from './pages/Dashboard';
 import Layout from './components/Layout';
 import Profile from './pages/Admission/Profile';
@@ -26,6 +27,7 @@ import LibraryActivities from './pages/Library/libraryActivities';
 import { RecruitmentAdmin } from './pages/Recruitment';
 import  ApplicationList  from './pages/Recruitment/ApplicationList';
 import Inventory from './pages/Technology/Inventory';
+import FlipPage from './pages/Application/Flippage';
 import { Toaster } from './components/ui/sonner';
 import { Toaster as HotToaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -55,8 +57,9 @@ function App() {
       <TooltipProvider>
         <Router>
           <Routes>
-                    {/* Public routes */}
+            {/* Public routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/microsoft/callback" element={<MicrosoftCallback />} />
               {/* Protected routes */}
               <Route
                 path="/dashboard"
@@ -205,6 +208,7 @@ function App() {
                   <RecruitmentAdmin />
                 </RoleProtectedRoute>
               } />
+              {/* Recruitment routes */}
               <Route path="recruitment/applications" element={
                 <RoleProtectedRoute permission="recruitment.applications">
                   <ApplicationList />
@@ -222,6 +226,13 @@ function App() {
               <Route path="application/tickets" element={
                 <RoleProtectedRoute permission="application.tickets.user">
                   <TicketWrapper />
+                </RoleProtectedRoute>
+              } />
+
+              {/* Application routes */}
+              <Route path="application/flippage" element={
+                <RoleProtectedRoute permission="application.flippage">
+                  <FlipPage />
                 </RoleProtectedRoute>
               } />
 

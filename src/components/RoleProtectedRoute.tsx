@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import type { UserRole } from '../types/auth';
 
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
@@ -14,7 +13,7 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
   permission,
   role 
 }) => {
-  const { isAuthenticated, isLoading, hasPermission, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission, hasFrappeRole } = useAuth();
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -44,7 +43,7 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
   }
 
   // Check specific role if provided
-  if (role && !hasRole(role as UserRole)) {
+  if (role && !hasFrappeRole(role)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

@@ -29,74 +29,96 @@ import {
 } from "../../components/ui/pagination";
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+// import { format } from 'date-fns';
+// import { vi } from 'date-fns/locale';
 import UserDialog from './UserDialog';
-import { API_ENDPOINTS } from '../../config/api';
-import { api } from '../../lib/api';
+import { frappeApi } from '../../lib/frappe-api';
 import { useToast } from "../../hooks/use-toast";
 import { UserAvatar } from '../../lib/avatar';
 
 // Function to translate role to Vietnamese
 const translateRole = (role: string): string => {
   const roleTranslations: { [key: string]: string } = {
+    // Frappe system roles
+    'System Manager': 'Quản trị viên hệ thống',
+    'Administrator': 'Quản trị viên',
+    'All': 'Người dùng cơ bản',
+    'User': 'Người dùng',
+    'Guest': 'Khách',
+    'Desk User': 'Người dùng bàn làm việc',
+    
+    // Custom roles từ hệ thống
     'superadmin': 'Quản trị viên cấp cao',
     'admin': 'Quản trị viên',
     'teacher': 'Giáo viên',
     'parent': 'Phụ huynh',
-    // 'registrar': 'Giáo vụ',
+    'registrar': 'Giáo vụ',
     'admission': 'Tuyển sinh',
     'bos': 'Ban đào tạo',
-    // 'principal': 'Hiệu trưởng',
-    // 'service': 'Dịch vụ',
+    'principal': 'Hiệu trưởng',
+    'service': 'Dịch vụ',
     'technical': 'Kỹ thuật/IT',
-    // 'marcom': 'Marcom',
+    'marcom': 'Marcom',
     'hr': 'Nhân sự',
-    // 'bod': 'Ban giám đốc',
+    'bod': 'Ban giám đốc',
     'user': 'Người dùng',
-    'librarian': 'Thủ thư'
+    'librarian': 'Thủ thư',
+    'IT Manager': 'Quản lý IT'
   };
   
   return roleTranslations[role] || role;
 };
 
 interface User {
-  _id: string;
-  email: string;
+  name: string; // Frappe document name (usually email)
+  user: string; // Email from ERP User Profile
+  id: string; // Email from ERP User Profile (renamed for clarity)
+  email: string; // From User doctype
+  display_email?: string; // Unified email field from backend
+  full_name: string; // From User doctype
   phone?: string;
-  role: string;
-  fullname: string;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-  school?: string;
-  avatarUrl?: string;
-  employeeCode?: string;
-  department?: string;
-  jobTitle?: string;
+  user_role?: string; // From ERP User Profile (legacy)
+  frappe_roles?: string[]; // Frappe system roles
+  active?: boolean; // From ERP User Profile
+  enabled?: boolean; // From User doctype
+  creation?: string; // From User doctype
+  modified?: string; // From User doctype
+  username?: string; // From ERP User Profile
+  employee_code?: string; // From ERP User Profile
+  department?: string; // From ERP User Profile
+  job_title?: string; // From ERP User Profile
+  avatar_url?: string; // From ERP User Profile
+  provider?: string; // From ERP User Profile
+  disabled?: boolean; // From ERP User Profile
+  last_login?: string; // From ERP User Profile
+  last_seen?: string; // From ERP User Profile
 }
 
 interface UserFormData {
   email: string;
   phone?: string;
-  role: string;
-  fullname: string;
+  fullname: string; // UserDialog uses 'fullname' not 'full_name'
   password?: string;
   oldPassword?: string;
   confirmPassword?: string;
   active: boolean;
   school?: string;
-  avatar?: File | string;
-  employeeCode?: string;
+  _id: string;
+  createdAt: string;
+  updatedAt: string;
+  avatarUrl?: string;
+  employeeCode?: string; // UserDialog uses 'employeeCode' not 'employee_code'
   department?: string;
-  jobTitle?: string;
+  jobTitle?: string; // UserDialog uses 'jobTitle' not 'job_title'
+  avatar?: File | string;
   newAvatarFile?: File;
+  username?: string;
 }
 
-interface ApiResponse {
-  data: User[];
-  message?: string;
-}
+// interface ApiResponse {
+//   data: User[];
+//   message?: string;
+// }
 
 interface APIError {
   response?: {
@@ -139,11 +161,14 @@ const UserManagement = () => {
     }
 
     const filtered = users.filter(user => 
-      (user.fullname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || user.user || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.phone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      translateRole(user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (user.user_role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      translateRole(user.user_role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.employee_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.department || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -161,24 +186,58 @@ const UserManagement = () => {
     };
   }, [users, searchTerm, currentPage, itemsPerPage]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (useServerPagination = false) => {
     try {
-      const response = await api.get<ApiResponse>(API_ENDPOINTS.USERS);
-      if (Array.isArray(response)) {
-        setUsers(response);
-      } else if (response && Array.isArray(response.data)) {
-        setUsers(response.data);
-      } else {
-        console.error('Invalid response format:', response);
-        setUsers([]);
-        toast({
-          variant: "destructive",
-          title: "Lỗi",
-          description: "Không thể tải danh sách người dùng",
+      setLoading(true);
+      
+      if (useServerPagination) {
+        // Server-side pagination - chỉ lấy dữ liệu cho trang hiện tại
+        const response = await frappeApi.getUsers({
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchTerm || undefined
         });
+        
+        console.log('Frappe API response:', response);
+        
+        if (response && response.status === 'success' && Array.isArray(response.users)) {
+          setUsers(response.users as User[]);
+          // TODO: Update pagination info from server response
+        } else {
+          console.error('Invalid response format:', response);
+          setUsers([]);
+          toast({
+            variant: "destructive",
+            title: "Lỗi", 
+            description: "Không thể tải danh sách người dùng",
+          });
+        }
+      } else {
+        // Client-side pagination - lấy tất cả users để có thể filter/search
+        const params = {
+          page: 1,
+          limit: 1000, // Lấy tất cả users (có 384 users total)
+          search: undefined // Không search trên server, để client tự search
+        };
+        
+    
+        
+        const response = await frappeApi.getUsers(params);
+        
+        console.log('Frappe API response:', response);
+        
+        if (response && response.status === 'success' && Array.isArray(response.users)) {
+          setUsers(response.users as User[]);
+        } else {
+          console.error('Invalid response format:', response);
+          setUsers([]);
+          toast({
+            variant: "destructive",
+            title: "Lỗi", 
+            description: "Không thể tải danh sách người dùng",
+          });
+        }
       }
-
-      setLoading(false);
     } catch (err) {
       console.error('Error fetching users:', err);
       const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
@@ -188,12 +247,13 @@ const UserManagement = () => {
         title: "Lỗi",
         description: "Không thể tải danh sách người dùng: " + errorMessage,
       });
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(false); // Sử dụng client-side pagination để lấy nhiều users hơn
   }, []);
 
   const handleCreateUser = () => {
@@ -203,27 +263,34 @@ const UserManagement = () => {
   };
 
   const handleUpdateUser = (user: User) => {
+    console.log('🔍 handleUpdateUser called with user:', user);
     setDialogMode('edit');
     setSelectedUser(user);
     setDialogOpen(true);
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (userEmail: string) => {
     try {
-      await api.delete(API_ENDPOINTS.USER(id));
-      setUsers(users.filter(user => user._id !== id));
-      toast({
-        variant: "success",
-        title: "Thành công",
-        description: "Đã xóa người dùng",
-      });
+              const response = await frappeApi.deleteUser(userEmail);
+              if ((response as { status: string }).status === 'success') {
+          setUsers(users.filter(user => 
+            user.display_email !== userEmail && 
+            user.user !== userEmail && 
+            user.email !== userEmail
+          ));
+        toast({
+          variant: "success", 
+          title: "Thành công",
+          description: "Đã xóa người dùng",
+        });
+      }
     } catch (err) {
       console.error('Error deleting user:', err);
       const errorMessage = err instanceof Error ? err.message : 'Đã xảy ra lỗi';
       setError(errorMessage);
       toast({
         variant: "destructive",
-        title: "Lỗi",
+        title: "Lỗi", 
         description: "Không thể xóa người dùng: " + errorMessage,
       });
     }
@@ -274,8 +341,15 @@ const UserManagement = () => {
 
     // Send to backend
     try {
-      const res = await api.post(API_ENDPOINTS.USERS + '/batch', { users, defaultSchool: undefined });
-      toast({ title: 'Thành công', description: res.data.message });
+                      const res = await frappeApi.batchCreateUsers(users.map(user => ({
+          email: user.email,
+          full_name: user.fullname,
+          password: user.password,
+          user_role: user.role,
+          active: user.active,
+          enabled: user.active
+        })));
+        toast({ title: 'Thành công', description: (res as { message?: string }).message || 'Đã tạo thành công' });
       fetchUsers();
     } catch (err: unknown) {
       const apiError = err as APIError;
@@ -292,7 +366,7 @@ const UserManagement = () => {
     try {
       if (dialogMode === 'create') {
         // Validate dữ liệu cho tạo mới
-        if (!data.email || !data.role || !data.fullname) {
+        if (!data.email || !data.fullname) {
           toast({
             variant: "destructive",
             title: "Lỗi",
@@ -309,56 +383,37 @@ const UserManagement = () => {
           return;
         }
 
-        // Chuẩn hóa dữ liệu
+        // Chuẩn hóa dữ liệu cho Frappe - map từ dialog field names sang API field names
         const submissionData = {
-          ...data,
           email: data.email.trim().toLowerCase(),
-          phone: data.phone?.trim() || undefined,
-          fullname: data.fullname.trim(),
-          role: data.role.trim(),
-          school: data.role === 'teacher' ? data.school : undefined,
-          employeeCode: data.employeeCode?.trim() || undefined,
-          department: data.department?.trim() || undefined,
-          jobTitle: data.jobTitle?.trim() || undefined,
+          full_name: data.fullname.trim(),
+          first_name: data.fullname.split(' ')[0],
+          last_name: data.fullname.split(' ').slice(1).join(' '),
+          password: data.password,
+          enabled: data.active ?? true,
+          username: data.username?.trim(),
+          employee_code: data.employeeCode?.trim(),
+          department: data.department?.trim(),
+          job_title: data.jobTitle?.trim(),
+          provider: 'local',
+          active: data.active ?? true
         };
 
-        // Xử lý upload avatar cho tạo mới
-        let response;
-        if (data.newAvatarFile && data.newAvatarFile instanceof File) {
-          const fd = new FormData();
-          Object.entries(submissionData).forEach(([k, v]) => {
-            if (v !== undefined && v !== null) fd.append(k, String(v));
+        const response = await frappeApi.createUser(submissionData);
+        
+        if ((response as { status: string }).status === 'success') {
+          toast({
+            variant: "success",
+            title: "Thành công",
+            description: "Đã tạo người dùng mới",
           });
-          fd.append("avatar", data.newAvatarFile);
-          response = await api.post<User>(API_ENDPOINTS.USERS, fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-        } else if (data.avatar && data.avatar instanceof File) {
-          const fd = new FormData();
-          Object.entries(submissionData).forEach(([k, v]) => {
-            if (v !== undefined && v !== null) fd.append(k, String(v));
-          });
-          fd.append("avatar", data.avatar);
-          response = await api.post<User>(API_ENDPOINTS.USERS, fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-        } else {
-          response = await api.post<User>(API_ENDPOINTS.USERS, submissionData);
+          setDialogOpen(false);
+          fetchUsers(); // Refresh danh sách
         }
-        
-        const newUser = response.data || response;
-        
-        // Thêm user mới vào danh sách
-        setUsers(prevUsers => [...prevUsers, newUser]);
-        toast({
-          variant: "success",
-          title: "Thành công",
-          description: "Đã tạo người dùng mới",
-        });
-        setDialogOpen(false);
-      } else if (dialogMode === 'edit' && selectedUser) {
+      }
+      else if (dialogMode === 'edit' && selectedUser) {
         // Validate dữ liệu cho cập nhật
-        if (!data.email || !data.role || !data.fullname) {
+        if (!data.email || !data.fullname) {
           toast({
             variant: "destructive",
             title: "Lỗi",
@@ -367,74 +422,44 @@ const UserManagement = () => {
           return;
         }
 
+        // Chuẩn hóa dữ liệu cho Frappe - map từ dialog field names sang API field names
         const updateData = {
           email: data.email.trim().toLowerCase(),
-          phone: data.phone?.trim() || undefined,
-          fullname: data.fullname.trim(),
-          role: data.role.trim(),
-          active: data.active,
-          school: data.role === 'teacher' ? data.school : undefined,
-          employeeCode: data.employeeCode?.trim() || undefined,
-          department: data.department?.trim() || undefined,
-          jobTitle: data.jobTitle?.trim() || undefined,
+          full_name: data.fullname.trim(),
+          first_name: data.fullname.split(' ')[0],
+          last_name: data.fullname.split(' ').slice(1).join(' '),
+          enabled: data.active ?? true,
+          username: data.username?.trim(),
+          employee_code: data.employeeCode?.trim(),
+          department: data.department?.trim(),
+          job_title: data.jobTitle?.trim(),
+          active: data.active ?? true
         };
 
-        // Xử lý upload avatar cho cập nhật
-        let response;
-        if (data.newAvatarFile && data.newAvatarFile instanceof File) {
-          const fd = new FormData();
-          Object.entries(updateData).forEach(([k, v]) => {
-            if (v !== undefined && v !== null) fd.append(k, String(v));
+        const userEmail = selectedUser.display_email || selectedUser.user || selectedUser.email;
+
+        
+        // Kiểm tra xem user email có hợp lệ không
+        if (!userEmail) {
+          toast({
+            variant: "destructive",
+            title: "Lỗi",
+            description: "Không thể xác định email của người dùng",
           });
-          fd.append("avatar", data.newAvatarFile);
-          response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-        } else if (data.avatar && data.avatar instanceof File) {
-          const fd = new FormData();
-          Object.entries(updateData).forEach(([k, v]) => {
-            if (v !== undefined && v !== null) fd.append(k, String(v));
-          });
-          fd.append("avatar", data.avatar);
-          response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-        } else {
-          response = await api.put<User>(API_ENDPOINTS.USER(selectedUser._id), updateData);
+          return;
         }
         
-        const updatedUserFromServer = response.data || response;
+        const response = await frappeApi.updateUser(userEmail, updateData);
         
-        console.log('✅ Updated user from server:', updatedUserFromServer);
-        console.log('✅ Avatar URL:', updatedUserFromServer.avatarUrl);
-        
-        // Cập nhật localStorage nếu là user hiện tại
-        const stored = localStorage.getItem("user");
-        if (stored) {
-          const currentUser = JSON.parse(stored);
-          if (currentUser._id === selectedUser._id) {
-            const newUser = { ...currentUser, avatarUrl: updatedUserFromServer.avatarUrl };
-            localStorage.setItem("user", JSON.stringify(newUser));
-            window.dispatchEvent(new Event("userUpdated"));
-          }
+        if ((response as { status: string }).status === 'success') {
+          toast({
+            variant: "success",
+            title: "Thành công",
+            description: "Đã cập nhật thông tin người dùng",
+          });
+          setDialogOpen(false);
+          fetchUsers(); // Refresh danh sách
         }
-        
-        // Cập nhật danh sách users ngay lập tức
-        setUsers(prevUsers => {
-          const updatedUsers = prevUsers.map(user => 
-            user._id === selectedUser._id 
-              ? { ...user, ...updatedUserFromServer }
-              : user
-          );
-          console.log('✅ Updated users list:', updatedUsers);
-          return updatedUsers;
-        });
-        toast({
-          variant: "success",
-          title: "Thành công",
-          description: "Đã cập nhật thông tin người dùng",
-        });
-        setDialogOpen(false);
       } else if (dialogMode === 'changePassword' && selectedUser) {
         // Validate dữ liệu cho đổi mật khẩu
         if (!data.password || !data.confirmPassword) {
@@ -454,15 +479,17 @@ const UserManagement = () => {
           return;
         }
 
-        await api.put(API_ENDPOINTS.USER_RESET_PASSWORD(selectedUser._id), {
-          newPassword: data.password
-        });
-        toast({
-          variant: "success",
-          title: "Thành công",
-          description: "Đã đặt lại mật khẩu",
-        });
-        setDialogOpen(false);
+        const userEmail = selectedUser.display_email || selectedUser.user || selectedUser.email;
+        const response = await frappeApi.resetUserPassword(userEmail);
+        
+        if ((response as { status: string }).status === 'success') {
+          toast({
+            variant: "success",
+            title: "Thành công",
+            description: "Đã gửi email đặt lại mật khẩu",
+          });
+          setDialogOpen(false);
+        }
       }
 
       setError(null);
@@ -550,43 +577,76 @@ const UserManagement = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="font-semibold">Họ tên</TableHead>
-              <TableHead className="font-semibold">Email</TableHead>
               <TableHead className="font-semibold">Số điện thoại</TableHead>
-              <TableHead className="font-semibold">Vai trò</TableHead>
-              <TableHead className="font-semibold">Ngày tạo</TableHead>
               <TableHead className="font-semibold">Mã NV</TableHead>
-              <TableHead className="font-semibold">Phòng ban</TableHead>
               <TableHead className="font-semibold">Chức danh</TableHead>
+              <TableHead className="font-semibold">Phòng ban</TableHead>
+              <TableHead className="font-semibold">Vai trò</TableHead>
               <TableHead className="text-right font-semibold">Hành Động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndPaginatedUsers.users.map((user) => (
-              <TableRow key={user._id}>
-                <TableCell>
+              <TableRow key={user.name || user.user}>
+                <TableCell className="max-w-[200px]">
                   <div className="flex items-center space-x-3">
-                    <UserAvatar 
-                      user={user}
-                      size={40}
-                      showTooltip
-                    />
-                    <div>
-                      <div className="font-medium">{user.fullname}</div>
-                      {user.school && (
-                        <div className="text-sm text-gray-500">{user.school}</div>
-                      )}
+                    <div className="flex-shrink-0">
+                      <UserAvatar 
+                        user={{
+                          ...user,
+                          fullname: user.full_name,
+                          avatarUrl: user.avatar_url
+                        }}
+                        size={40}
+                        showTooltip
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{user.full_name}</div>
+                      <div className="text-sm text-gray-500 truncate">
+                        {user.display_email || user.email || user.user || '-'}
+                      </div>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{user.email}</TableCell>
                 <TableCell>{user.phone || '-'}</TableCell>
-                <TableCell>{translateRole(user.role)}</TableCell>
-                <TableCell>
-                  {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: vi })}
+                <TableCell>{user.employee_code || '-'}</TableCell>
+                <TableCell className="max-w-[200px] whitespace-normal">
+                  <div className="text-sm leading-relaxed">
+                    {user.job_title || '-'}
+                  </div>
                 </TableCell>
-                <TableCell>{user.employeeCode || '-'}</TableCell>
-                <TableCell>{user.department || '-'}</TableCell>
-                <TableCell>{user.jobTitle || '-'}</TableCell>
+                <TableCell className="max-w-[200px] whitespace-normal">
+                  <div className="text-sm leading-relaxed">
+                    {user.department || '-'}
+                  </div>
+                </TableCell>
+                <TableCell className="max-w-[200px]">
+                  <div className="text-sm leading-relaxed">
+                    {user.frappe_roles && user.frappe_roles.length > 0 ? (
+                      user.frappe_roles.length > 2 ? (
+                        <div>
+                          <div className="font-medium">
+                            {translateRole(user.frappe_roles[0])}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            +{user.frappe_roles.length - 1} vai trò khác
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {user.frappe_roles.map((role, index) => (
+                            <div key={index} className="text-xs">
+                              {translateRole(role)}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    ) : (
+                      translateRole(user.user_role || '')
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button
                     size="sm"
@@ -594,7 +654,6 @@ const UserManagement = () => {
                   >
                     Cập nhật
                   </Button>
-
                 </TableCell>
               </TableRow>
             ))}
@@ -664,23 +723,21 @@ const UserManagement = () => {
         onOpenChange={setDialogOpen}
         mode={dialogMode}
         userData={selectedUser ? {
-          email: selectedUser.email,
+          email: selectedUser.display_email || selectedUser.email || selectedUser.user,
           phone: selectedUser.phone,
-          role: selectedUser.role,
-          fullname: selectedUser.fullname,
-          active: selectedUser.active,
-          school: selectedUser.school,
-          _id: selectedUser._id,
-          avatarUrl: selectedUser.avatarUrl,
-          createdAt: selectedUser.createdAt,
-          updatedAt: selectedUser.updatedAt,
-          employeeCode: selectedUser.employeeCode,
+          fullname: selectedUser.full_name,
+          active: selectedUser.active ?? true,
+          _id: selectedUser.name || selectedUser.user,
+          avatarUrl: selectedUser.avatar_url,
+          createdAt: selectedUser.creation || '',
+          updatedAt: selectedUser.modified || '',
+          employeeCode: selectedUser.employee_code,
           department: selectedUser.department,
-          jobTitle: selectedUser.jobTitle,
+          jobTitle: selectedUser.job_title,
         } : undefined}
         onSubmit={handleDialogSubmit}
-        onDelete={handleDeleteUser}
-        onChangePassword={handleChangePassword}
+        onDelete={(userId) => handleDeleteUser(selectedUser?.display_email || selectedUser?.user || selectedUser?.email || userId)}
+        onChangePassword={(user) => handleChangePassword(user as unknown as User)}
       />
     </div>
   );

@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_ENDPOINTS } from '../config/api';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginWithMicrosoft, isAuthenticated, login } = useAuth();
+  const { loginWithCredentials, loginWithMicrosoft, isAuthenticated, login } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: '',
   });
   const [error, setError] = useState<string>('');
@@ -66,29 +65,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch(API_ENDPOINTS.LOGIN, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Đăng nhập thất bại');
-      }
-
-      // Lưu token vào localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('role', data.user.role);
-
-      // Cập nhật AuthContext
-      login(data.user);
-
-      // Chuyển hướng về trang dashboard
-      navigate('/dashboard');
+      await loginWithCredentials(formData.identifier, formData.password);
+      // Navigation will be handled by the useEffect above when isAuthenticated changes
     } catch (err) {
       console.error('Lỗi đăng nhập:', err);
       setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');
@@ -231,18 +209,18 @@ export default function Login() {
 
                 <div className="space-y-5">
                   <div>
-                    <label htmlFor="email" className="block text-base font-medium text-gray-800 mb-2">
-                      Email <span className="text-red-500">*</span>
+                    <label htmlFor="identifier" className="block text-base font-medium text-gray-800 mb-2">
+                      Email / Mã nhân viên <span className="text-red-500">*</span>
                     </label>
                     <input
-                      id="email"
-                      name="email"
-                      type="email"
+                      id="identifier"
+                      name="identifier"
+                      type="text"
                       required
-                      value={formData.email}
+                      value={formData.identifier}
                       onChange={handleChange}
                       className="w-full px-4 py-4 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all text-gray-900 placeholder-gray-400"
-                      placeholder="example@wellspring.edu.vn"
+                      placeholder="example@wellspring.edu.vn hoặc mã nhân viên"
                     />
                   </div>
 

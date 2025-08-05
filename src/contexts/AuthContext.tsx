@@ -1,45 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { PublicClientApplication, type SilentRequest } from '@azure/msal-browser';
-import type { User, UserRole } from '../types/auth';
-import { ROLE_PERMISSIONS } from '../types/auth';
-import { API_ENDPOINTS } from '../config/api';
+import type { User } from '../types/auth';
+import { FRAPPE_ROLE_PERMISSIONS } from '../types/auth';
+import { frappeApi } from '../services/frappe';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   hasPermission: (permission: string) => boolean;
-  hasRole: (role: UserRole) => boolean;
+  hasFrappeRole: (role: string) => boolean;
+  hasAnyFrappeRole: (roles: string[]) => boolean;
   login: (userData: User) => void;
+  loginWithCredentials: (identifier: string, password: string) => Promise<void>;
   loginWithMicrosoft: () => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// MSAL Configuration
-const msalConfig = {
-  auth: {
-    clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '38b5b315-9e8e-4ca8-9b2e-3c0a3b7e9c29',
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common'}`,
-    redirectUri: window.location.origin,
-  },
-  cache: {
-    cacheLocation: 'localStorage' as const,
-    storeAuthStateInCookie: false,
-  }
-};
-
-// Create a single MSAL instance
-let msalInstance: PublicClientApplication | null = null;
-
-const getMsalInstance = async () => {
-  if (!msalInstance) {
-    msalInstance = new PublicClientApplication(msalConfig);
-    await msalInstance.initialize();
-  }
-  return msalInstance;
-};
+// Removed MSAL configuration as we now use Frappe authentication
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -87,27 +66,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Try silent Microsoft authentication
-      try {
-        const pca = await getMsalInstance();
-        const account = pca.getAllAccounts()[0];
-        
-        if (account) {
-          
-          const silentRequest: SilentRequest = {
-            scopes: ['openid', 'profile', 'email', 'User.Read'],
-            account: account,
-          };
-
-          const response = await pca.acquireTokenSilent(silentRequest);
-          
-          if (response.accessToken) {
-            await authenticateWithBackend(response.accessToken);
+      // Try to get current user from Frappe only if we have a token
+      if (token) {
+        try {
+          const currentUserResponse = await frappeApi.getCurrentUser();
+          if (currentUserResponse.authenticated && currentUserResponse.user) {
+            const frappeUser = currentUserResponse.user;
+            // Sử dụng frappe_roles từ Frappe
+            const frappeRoles = frappeUser.frappe_roles || [frappeUser.role];
+            
+            const user: User = {
+              _id: frappeUser.email, // Use email as ID for now
+              fullname: frappeUser.full_name,
+              email: frappeUser.email,
+              avatarUrl: undefined, // Can be added later
+              permissions: undefined, // Can be added later
+              frappeRoles: frappeRoles, // Store all Frappe roles
+            };
+            setUser(user);
+            setIsAuthenticated(true);
+            setIsLoading(false);
             return;
           }
+        } catch {
+          // Token might be expired, clear it
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
         }
-      } catch {
-        // This is expected when user needs to login again
       }
       setIsAuthenticated(false);
       setIsLoading(false);
@@ -118,31 +103,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const authenticateWithBackend = async (msToken: string) => {
-    try {
-      const response = await fetch(API_ENDPOINTS.MICROSOFT_LOGIN, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${msToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+  // Removed authenticateWithBackend as we now use Frappe authentication directly
 
-      const data = await response.json();
+  const loginWithCredentials = async (identifier: string, password: string) => {
+    try {
+      setIsLoading(true);
       
-      if (response.ok && data.success) {
-        // Store the system token and user data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        console.log('token', data.token);
-        setUser(data.user);
-        setIsAuthenticated(true);
-        setIsLoading(false);
-      } else {
-        throw new Error(data.message || 'Backend authentication failed');
-      }
+      const loginResponse = await frappeApi.login(identifier, password);
+      
+      // Convert FrappeUser to User
+      const frappeUser = loginResponse.user;
+      
+      // Sử dụng frappe_roles từ Frappe
+      const frappeRoles = frappeUser.frappe_roles || [frappeUser.role];
+      
+      const user: User = {
+        _id: frappeUser.email, // Use email as ID for now
+        fullname: frappeUser.full_name,
+        email: frappeUser.email,
+        avatarUrl: undefined, // Can be added later
+        permissions: undefined, // Can be added later
+        frappeRoles: frappeRoles, // Store all Frappe roles
+      };
+      
+      // Store the system token and user data
+      localStorage.setItem('token', loginResponse.token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
+      setIsAuthenticated(true);
+      setIsLoading(false);
     } catch (error) {
-      await logout();
+      setIsLoading(false);
       throw error;
     }
   };
@@ -150,20 +141,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithMicrosoft = async () => {
     try {
       setIsLoading(true);
-      const pca = await getMsalInstance();
-
-      const loginRequest = {
-        scopes: ['openid', 'profile', 'email', 'User.Read'],
-        prompt: 'select_account' as const
-      };
-
-      const response = await pca.loginPopup(loginRequest);
       
-      if (response.accessToken) {
-        await authenticateWithBackend(response.accessToken);
-      } else {
-        throw new Error('No access token received from Microsoft');
-      }
+      // Get redirect URL from Frappe
+      const redirectData = await frappeApi.getMicrosoftLoginUrl();
+      
+      // Redirect to Microsoft login
+      window.location.href = redirectData.redirect_url;
     } catch (error) {
       setIsLoading(false);
       throw error;
@@ -173,41 +156,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const hasPermission = (permission: string): boolean => {
-    if (!user || !user.role) {
+    if (!user || !user.frappeRoles || user.frappeRoles.length === 0) {
       return false;
     }
     
-    const rolePermissions = ROLE_PERMISSIONS[user.role] || [];
-    
-    // Admin has all permissions
-    if (rolePermissions.includes('*')) {
-      return true;
-    }
-    
-    // Check exact permission
-    if (rolePermissions.includes(permission)) {
-      return true;
-    }
-    
-    // Check wildcard permissions (e.g., 'students.*' matches 'students.info')
-    const wildcardPermissions = rolePermissions.filter(p => p.endsWith('.*'));
-    for (const wildcardPerm of wildcardPermissions) {
-      const basePermission = wildcardPerm.replace('.*', '');
-      if (permission.startsWith(basePermission + '.')) {
+    // Kiểm tra tất cả Frappe roles của user
+    for (const frappeRole of user.frappeRoles) {
+      const rolePermissions = FRAPPE_ROLE_PERMISSIONS[frappeRole] || [];
+      
+      // Admin has all permissions
+      if (rolePermissions.includes('*')) {
         return true;
+      }
+      
+      // Check exact permission
+      if (rolePermissions.includes(permission)) {
+        return true;
+      }
+      
+      // Check wildcard permissions (e.g., 'students.*' matches 'students.info')
+      const wildcardPermissions = rolePermissions.filter((p: string) => p.endsWith('.*'));
+      for (const wildcardPerm of wildcardPermissions) {
+        const basePermission = wildcardPerm.replace('.*', '');
+        if (permission.startsWith(basePermission + '.')) {
+          return true;
+        }
       }
     }
     
     return false;
   };
 
-  const hasRole = (role: UserRole): boolean => {
-    return user?.role === role;
+  const hasFrappeRole = (role: string): boolean => {
+    return user?.frappeRoles?.includes(role) || false;
+  };
+
+  const hasAnyFrappeRole = (roles: string[]): boolean => {
+    return roles.some(role => user?.frappeRoles?.includes(role)) || false;
   };
 
   const login = (userData: User) => {
     // Update localStorage and state
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Clear any callback processing flags
+    sessionStorage.removeItem('microsoft_callback_processed');
     
     setUser(userData);
     setIsAuthenticated(true);
@@ -216,22 +209,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      // Clear MSAL cache
-      const pca = await getMsalInstance();
-      const accounts = pca.getAllAccounts();
-      
-      if (accounts.length > 0) {
-        // Clear local cache
-        pca.clearCache();
-      }
+      // Logout from Frappe
+      await frappeApi.logout();
     } catch {
-      // Ignore errors when clearing cache
+      // Ignore errors when logging out from server
     }
     
-    // Clear localStorage
+    // Clear localStorage and sessionStorage
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    sessionStorage.removeItem('microsoft_callback_processed');
     
     // Update state
     setUser(null);
@@ -245,8 +233,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAuthenticated,
       isLoading,
       hasPermission,
-      hasRole,
+      hasFrappeRole,
+      hasAnyFrappeRole,
       login,
+      loginWithCredentials,
       loginWithMicrosoft,
       logout
     }}>

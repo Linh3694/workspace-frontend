@@ -10,13 +10,7 @@ import {
 } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
+
 // import { Switch } from "../../components/ui/switch";
 import {
   AlertDialog,
@@ -30,64 +24,25 @@ import {
 } from "../../components/ui/alert-dialog";
 import { Avatar } from "../../lib/avatar";
 import { getAvatarUrl } from "../../lib/utils";
+import { frappeApi } from "../../lib/frappe-api";
+import { useToast } from "../../hooks/use-toast";
 
-// Function to translate role to Vietnamese
-const translateRole = (role: string): string => {
-  const roleTranslations: { [key: string]: string } = {
-    'superadmin': 'Quản trị viên cấp cao',
-    'admin': 'Quản trị viên',
-    'teacher': 'Giáo viên',
-    'parent': 'Phụ huynh',
-    'registrar': 'Phòng đăng ký',
-    'admission': 'Phòng tuyển sinh',
-    'bos': 'Ban điều hành trường',
-    'principal': 'Hiệu trưởng',
-    'service': 'Dịch vụ',
-    'technical': 'Kỹ thuật',
-    'marcom': 'Marcom',
-    'hr': 'Nhân sự',
-    'bod': 'Hội đồng quản trị',
-    'user': 'Người dùng thông thường',
-    'librarian': 'Thủ thư'
-  };
-  
-  return roleTranslations[role] || role;
-};
 
-// Available roles with their English keys and Vietnamese labels
-const availableRoles = [
-  { value: 'superadmin', label: 'Quản trị viên cấp cao' },
-  { value: 'admin', label: 'Quản trị viên' },
-  { value: 'teacher', label: 'Giáo viên' },
-  { value: 'parent', label: 'Phụ huynh' },
-  // { value: 'registrar', label: 'Phòng đăng ký' },
-  // { value: 'admission', label: 'Phòng tuyển sinh' },
-  { value: 'bos', label: 'Ban đào tạo' },
-  // { value: 'principal', label: 'Hiệu trưởng' },
-  // { value: 'service', label: 'Dịch vụ' },
-  { value: 'technical', label: 'Kỹ thuật' },
-  // { value: 'marcom', label: 'Marcom' },
-  { value: 'hr', label: 'Nhân sự' },
-  // { value: 'bod', label: 'Hội đồng quản trị' },
-  { value: 'user', label: 'Người dùng thông thường' },
-  { value: 'librarian', label: 'Thủ thư' }
-];
 
 interface BaseUser {
   username?: string;
   email: string;
   phone?: string;
-  role: string;
-  fullname: string;
+  fullname: string; // Maps to full_name from API
   active: boolean;
   school?: string;
   _id: string;
   createdAt: string;
   updatedAt: string;
-  avatarUrl?: string;
-  employeeCode?: string;
+  avatarUrl?: string; // Maps to avatar_url from API
+  employeeCode?: string; // Maps to employee_code from API
   department?: string;
-  jobTitle?: string;
+  jobTitle?: string; // Maps to job_title from API
 }
 
 interface UserFormData extends BaseUser {
@@ -111,7 +66,6 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     phone: '',
-    role: 'user',
     fullname: '',
     active: true,
     password: '',
@@ -125,6 +79,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     jobTitle: ''
   });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   // Cập nhật form khi dialog mở và có userData
   useEffect(() => {
@@ -132,7 +87,6 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
       setFormData({
         email: userData.email,
         phone: userData.phone,
-        role: userData.role,
         fullname: userData.fullname,
         active: userData.active ?? true,
         password: '',
@@ -151,7 +105,6 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
       setFormData({
         email: '',
         phone: '',
-        role: 'user',
         fullname: '',
         active: true,
         password: '',
@@ -176,12 +129,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     }));
   };
 
-  const handleSelectChange = (name: string, value: string): void => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+
 
   // const handleSwitchChange = (name: string, checked: boolean): void => {
   //   setFormData(prev => ({
@@ -285,29 +233,7 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">
-                      Vai trò
-                    </Label>
-                    <Select
-                      name="role"
-                      value={formData.role}
-                      onValueChange={(value) => handleSelectChange('role', value)}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Chọn vai trò">
-                          {formData.role ? translateRole(formData.role) : "Chọn vai trò"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableRoles.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="employeeCode" className="text-right">
                       Mã nhân viên

@@ -47,10 +47,19 @@ const Header = () => {
   
   // Filter menu sections based on user permissions
   const filteredMenuSections = useMemo(() => {
-    return MENU_SECTIONS.map(section => ({
-      ...section,
-      items: section.items.filter(item => hasPermission(item.permission))
-    })).filter(section => section.items.length > 0);
+    const sections = MENU_SECTIONS.map(section => {
+      const filteredItems = section.items.filter(item => {
+        const hasPerm = hasPermission(item.permission);
+        return hasPerm;
+      });
+      
+      return {
+        ...section,
+        items: filteredItems
+      };
+    }).filter(section => section.items.length > 0);
+    
+    return sections;
   }, [hasPermission]);
 
   const handleLogout = () => {

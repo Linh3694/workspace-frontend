@@ -2,62 +2,52 @@ export interface User {
   _id: string;
   fullname: string;
   email: string;
-  role: UserRole;
   avatarUrl?: string;
   permissions?: string[];
+  // Additional user info
+  jobTitle?: string;
+  department?: string;
+  employeeCode?: string;
+  username?: string;
+  provider?: string;
+  frappeRoles: string[];  // Frappe system roles
+  microsoftId?: string;
+  active?: boolean;
+  accountEnabled?: boolean;
 }
-
-export type UserRole = 
-  | 'superadmin'    // Quản trị viên - full access
-  | 'admin'         // Phó Quản trị viên - full access
-  | 'teacher'       // Giáo viên
-  | 'parent'        // Phụ huynh
-  | 'registrar'     // Phòng đăng ký
-  | 'admission'     // Phòng tuyển sinh
-  | 'bos'           // Ban điều hành trường
-  | 'principal'     // Hiệu trưởng
-  | 'service'       // Dịch vụ
-  | 'technical'     // Kỹ thuật
-  | 'marcom'        // Marketing & Communication
-  | 'hr'            // Nhân sự
-  | 'bod'           // Board of Directors
-  | 'user'          // Người dùng thông thường
-  | 'librarian';    // Thủ thư
 
 export interface RolePermissions {
   [key: string]: string[];
 }
 
-export const ROLE_PERMISSIONS: RolePermissions = {
-  superadmin: ['*'], // Full access
-  admin: ['*'], // Full access
-  librarian: [
+// Sử dụng trực tiếp Frappe roles cho permissions
+export const FRAPPE_ROLE_PERMISSIONS: RolePermissions = {
+  // Frappe system roles
+  'System Manager': ['*'], // Full access
+  'Administrator': ['*'], // Full access
+  'All': [
+    'students.*',
+    'teaching.*',
+    'academic.*',
+    'library.*',
+    'recruitment.*',
+    'admission.*',
     'application.tickets.user',
-    'library.data', 
-    'library.books',
-    'library.activities', 
+    'settings.users'
   ],
-  technical: ['*'],
-  hr: [
-    'recruitment.jobs',
-    'recruitment.applications', 
+  'User': [
+    'students.info',
     'application.tickets.user',
+    'library.books'
   ],
-  user: [
+  'Guest': [
     'application.tickets.user'
   ],
-  bos: [
-    'application.tickets.user',
-    'students.info', 
-    'students.hall-of-honor',
-    'teaching.classes',
-  ],
-  teacher: [
-    'students.*', 
-    'teaching.*',
-    'application.tickets.user',
-  ]
+ 
 };
+
+// Legacy - giữ lại để backward compatibility
+export const ROLE_PERMISSIONS = FRAPPE_ROLE_PERMISSIONS;
 
 export interface MenuItem {
   title: string;
