@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FiSend } from "react-icons/fi";
 import { FaImage, FaCheck } from "react-icons/fa6";
 import io, { Socket } from "socket.io-client";
-import { BASE_URL, API_URL } from "../../../../config/api";
+import { FRAPPE_API_URL, TICKETS_API_URL } from "../../../../config/api";
 import axios from "axios";
 import { toast } from "sonner";
 import {
@@ -152,7 +152,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
   useEffect(() => {
     if (!ticket._id || !currentUser) return;
 
-    socketRef.current = io(BASE_URL, {
+    socketRef.current = io(FRAPPE_API_URL, {
       auth: {
         token: localStorage.getItem("token"),
         userId: currentUser.id,
@@ -161,7 +161,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
 
     const socket = socketRef.current;
 
-    socket.emit("joinTicket", ticket._id);
+    socket.emit("join_ticket_room", { ticketId: ticket._id });
 
     // Socket event listeners
     socket.on("newMessage", (message: Message) => {
@@ -224,7 +224,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `${API_URL}/tickets/${ticket._id}/messages?page=1&limit=${MESSAGES_PER_PAGE}`,
+        `${TICKETS_API_URL}/${ticket._id}/messages?page=1&limit=${MESSAGES_PER_PAGE}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -253,7 +253,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `${API_URL}/tickets/${ticket._id}/messages?page=${page + 1}&limit=${MESSAGES_PER_PAGE}`,
+        `${TICKETS_API_URL}/${ticket._id}/messages?page=${page + 1}&limit=${MESSAGES_PER_PAGE}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -292,7 +292,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
       if (!path) return "/default-avatar.png";
       return path.startsWith("http") || path.startsWith("/uploads")
         ? path
-        : `${BASE_URL}/uploads/Avatar/${path}`;
+        : `${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${path}`;
     })(),
     time: new Date(msg.timestamp).toLocaleString("vi-VN"),
     timestamp: new Date(msg.timestamp),
@@ -366,7 +366,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
       sender: currentUser?.fullname || "You",
       senderId: currentUser?.id || "",
       senderAvatar: currentUser?.avatarUrl 
-        ? `${BASE_URL}/uploads/Avatar/${currentUser.avatarUrl}`
+        ? `${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${currentUser.avatarUrl}`
         : "/default-avatar.png",
       time: new Date().toLocaleString("vi-VN"),
       timestamp: new Date(),
@@ -383,7 +383,7 @@ const TicketChat: React.FC<TicketChatProps> = ({ ticket, currentUser }) => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        `${API_URL}/tickets/${ticket._id}/messages`,
+        `${TICKETS_API_URL}/${ticket._id}/messages`,
         { text: messageText },
         { headers: { Authorization: `Bearer ${token}` } }
       );

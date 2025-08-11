@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL, BASE_URL } from "../../../../config/api";
+import { TICKETS_API_URL, FRAPPE_API_URL } from "../../../../config/api";
 import { toast } from "sonner";
 import { FaArrowRightArrowLeft } from "react-icons/fa6";
 import {
@@ -66,7 +66,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
 
   const fetchTechnicalUsers = async (): Promise<void> => {
     try {
-      const res = await axios.get<TechnicalUsersResponse>(`${API_URL}/tickets/support-team`, {
+      const res = await axios.get<TechnicalUsersResponse>(`${TICKETS_API_URL}/support-team`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -84,7 +84,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
     }
     try {
       const res = await axios.put<UpdateTicketResponse>(
-        `${API_URL}/tickets/${ticket._id}`,
+        `${TICKETS_API_URL}/${ticket._id}`,
         {
           assignedTo: swapUserId,
         },
@@ -127,10 +127,10 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
               {ticket.attachments.map((item, index) => (
                 <img
                   key={index}
-                  src={`${BASE_URL}/uploads/Tickets/${item.url}`}
+                  src={`${FRAPPE_API_URL}/api/tickets/uploads/Tickets/${item.url}`}
                   alt={item.filename || `attachment-${index}`}
                   onClick={() =>
-                    setPreviewImage(`${BASE_URL}/uploads/Tickets/${item.url}`)
+                    setPreviewImage(`${FRAPPE_API_URL}/api/tickets/uploads/Tickets/${item.url}`)
                   }
                   className="w-[120px] h-[120px] object-cover rounded-lg border shadow-sm cursor-pointer"
                 />
@@ -194,7 +194,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
         }
 
         const res = await axios.put<UpdateTicketResponse>(
-          `${API_URL}/tickets/${ticket._id}`,
+          `${TICKET_API_URL}/tickets/${ticket._id}`,
           payload,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -217,7 +217,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
     const handleUpdateSubTaskStatus = async (subTaskId: string, newStatus: string) => {
       try {
         const res = await axios.put(
-          `${API_URL}/tickets/${ticket._id}/subtasks/${subTaskId}`,
+          `${TICKETS_API_URL}/${ticket._id}/subtasks/${subTaskId}`,
           { status: newStatus },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -249,7 +249,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
       }
       try {
         const res = await axios.post(
-          `${API_URL}/tickets/${ticket._id}/subtasks`,
+          `${TICKETS_API_URL}/${ticket._id}/subtasks`,
           {
             title: newSubTaskTitle,
             assignedTo: currentUser?.fullname,
@@ -517,7 +517,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
     }
     try {
       const res = await axios.put(
-        `${API_URL}/tickets/${ticket._id}`,
+        `${TICKETS_API_URL}/${ticket._id}`,
         { status: "Cancelled", cancellationReason: cancelReason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -539,7 +539,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
   const handleAcceptTicket = async () => {
     try {
       const res = await axios.put(
-        `${API_URL}/tickets/${ticket._id}`,
+        `${TICKETS_API_URL}/${ticket._id}`,
         {
           status: "Processing",
           assignedTo: currentUser?.id,
@@ -718,8 +718,8 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
               <p className="text-sm text-muted-foreground">Người tạo</p>
               <div className="flex items-center gap-2 mt-2">
                 <Avatar className="w-12 h-12">
-                  <AvatarImage 
-                    src={`${BASE_URL}/uploads/Avatar/${ticket.creator?.avatarUrl}`}
+                   <AvatarImage 
+                    src={`${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${ticket.creator?.avatarUrl}`}
                     alt={ticket.creator?.fullname || "Avatar"}
                     className="object-cover object-top"
                   />
@@ -755,7 +755,7 @@ const TicketAdminModal: React.FC<TicketAdminModalProps> = ({
                   <div className="flex gap-2">
                     <Avatar className="w-12 h-12">
                       <AvatarImage 
-                        src={`${BASE_URL}/uploads/Avatar/${ticket.assignedTo?.avatarUrl}`}
+                        src={`${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${ticket.assignedTo?.avatarUrl}`}
                         alt={ticket.assignedTo?.fullname || "Avatar"}
                         className="object-cover object-top"
                       />

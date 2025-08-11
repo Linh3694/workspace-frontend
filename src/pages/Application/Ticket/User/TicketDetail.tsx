@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaStar } from "react-icons/fa";
 import { FaCommentDots } from "react-icons/fa6";
-import { BASE_URL } from "../../../../config/api";
+import { FRAPPE_API_URL } from "../../../../config/api";
 import TechnicalRating from "../Admin/TechnicalRating";
 import TicketChat from "./TicketChat";
 
@@ -253,7 +253,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
               {selectedTicket.assignedTo ? (
                 <div className="flex items-center gap-2 mt-3">
                   <img
-                    src={`${BASE_URL}/uploads/Avatar/${selectedTicket.assignedTo?.avatarUrl}`}
+                    src={`${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${selectedTicket.assignedTo?.avatarUrl}`}
                     alt="Avatar"
                     className="w-20 h-20 rounded-xl object-cover object-top border"
                   />
@@ -466,10 +466,10 @@ const RequestTab: React.FC<RequestTabProps> = ({ selectedTicket }) => {
             {selectedTicket.attachments.map((item, index) => (
               <img
                 key={index}
-                src={`${BASE_URL}/uploads/Tickets/${item.url}`}
+                src={`${FRAPPE_API_URL}/api/tickets/uploads/Tickets/${item.url}`}
                 alt={item.filename || `attachment-${index}`}
                 onClick={() =>
-                  setPreviewImage(`${BASE_URL}/uploads/Tickets/${item.url}`)
+                  setPreviewImage(`${FRAPPE_API_URL}/api/tickets/uploads/Tickets/${item.url}`)
                 }
                 className="w-[120px] h-[120px] object-cover rounded-lg border shadow-sm cursor-pointer"
               />
@@ -621,8 +621,8 @@ const ProgressTab: React.FC<ProgressTabProps> = ({
           <div>
             <p className="text-sm text-[#757575] mb-2">Người tiếp nhận</p>
             <div className="flex items-center gap-4">
-              <img
-                src={`${BASE_URL}/uploads/Avatar/${selectedTicket.assignedTo?.avatarUrl || 'default.png'}`}
+                  <img
+                    src={`${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${selectedTicket.assignedTo?.avatarUrl || 'default.png'}`}
                 alt="Avatar"
                 className="w-16 h-16 rounded-xl object-cover border"
               />

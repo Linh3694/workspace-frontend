@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
-import { API_URL, BASE_URL } from "@/config/api";
+import { TICKETS_API_URL, FRAPPE_API_URL, API_URL, BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 
 interface User {
@@ -30,7 +30,7 @@ const TicketTeam: React.FC = () => {
   // Lấy thông tin supportTeam
   const fetchSupportTeam = async () => {
     try {
-      const res = await axios.get(`${API_URL}/tickets/support-team`, {
+      const res = await axios.get(`${TICKETS_API_URL}/support-team`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
@@ -105,7 +105,7 @@ const TicketTeam: React.FC = () => {
     }
     try {
       const res = await axios.post(
-        `${API_URL}/tickets/support-team/add-user`,
+        `${TICKETS_API_URL}/support-team/add-user`,
         { userId: selectedUser },
         {
           headers: {
@@ -136,7 +136,7 @@ const TicketTeam: React.FC = () => {
 
     try {
       const res = await axios.delete(
-        `${API_URL}/tickets/support-team/remove-user/${userId}`,
+        `${TICKETS_API_URL}/support-team/remove-user/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("authToken")}`,
@@ -224,7 +224,7 @@ const TicketTeam: React.FC = () => {
                 <img
                   src={
                     member.avatarUrl
-                      ? `${BASE_URL}/uploads/Avatar/${member.avatarUrl}`
+                      ? `${FRAPPE_API_URL}/api/tickets/uploads/Avatar/${member.avatarUrl}`
                       : "/default-avatar.png"
                   }
                   alt={member.fullname}
@@ -320,7 +320,7 @@ const TicketTeam: React.FC = () => {
                         <img
                           src={
                             u.avatarUrl
-                              ? `${BASE_URL}/uploads/Avatar/${u.avatarUrl}`
+                               ? `${BASE_URL}/uploads/Avatar/${u.avatarUrl}`
                               : "/default-avatar.png"
                           }
                           alt={u.fullname}

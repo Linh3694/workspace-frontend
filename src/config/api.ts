@@ -171,3 +171,8 @@ export const USER_MANAGEMENT_ENDPOINTS = {
 
 // Legacy API endpoints - keeping for backward compatibility
 export const API_ENDPOINTS = AUTH_ENDPOINTS; 
+
+// Ticket-service API (via same domain, path-based per Nginx)
+export const TICKETS_API_URL = `${FRAPPE_API_URL}/api/tickets`;
+// Backward alias
+export const TICKET_API_URL = TICKETS_API_URL;

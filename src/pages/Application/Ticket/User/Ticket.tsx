@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FiSearch } from "react-icons/fi";
 import { FaFilter } from "react-icons/fa6";
-import { API_URL } from "../../../../config/api";
+import { TICKETS_API_URL } from "../../../../config/api";
 import { toast } from "sonner";
 
 // UI Components
@@ -153,7 +153,7 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
         return;
       }
 
-      let url = `${API_URL}/tickets`;
+      let url = `${TICKETS_API_URL}`;
       if (currentUser?.id) {
         url += `?creator=${currentUser.id}`;
       }
@@ -198,7 +198,7 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
         return;
       }
 
-      const res = await axios.get(`${API_URL}/tickets/${ticketId}`, {
+      const res = await axios.get(`${TICKETS_API_URL}/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -241,7 +241,7 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
         return;
       }
 
-      const res = await axios.post(`${API_URL}/tickets`, formData, {
+      const res = await axios.post(`${TICKETS_API_URL}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -295,11 +295,11 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
         return;
       }
 
-      console.log("🔍 Debug Feedback - API URL:", `${API_URL}/tickets/${selectedTicket._id}/feedback`);
+      console.log("🔍 Debug Feedback - API URL:", `${TICKETS_API_URL}/${selectedTicket._id}/feedback`);
       console.log("🔍 Debug Feedback - Request payload:", { rating, comment: review, badges: selectedBadges });
 
       const res = await axios.post(
-        `${API_URL}/tickets/${selectedTicket._id}/feedback`,
+        `${TICKETS_API_URL}/${selectedTicket._id}/feedback`,
         {
           rating,
           comment: review,
@@ -334,7 +334,7 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
       }
 
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKET_API_URL}/tickets/${selectedTicket._id}`,
         { status: "Processing" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -365,11 +365,11 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
         return;
       }
 
-      console.log("🔍 Debug - API URL:", `${API_URL}/tickets/${selectedTicket._id}`);
+      console.log("🔍 Debug - API URL:", `${TICKETS_API_URL}/${selectedTicket._id}`);
       console.log("🔍 Debug - Request payload:", { status: "Closed" });
 
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKETS_API_URL}/${selectedTicket._id}`,
         { status: "Closed" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -406,7 +406,7 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
       }
 
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKETS_API_URL}/${selectedTicket._id}`,
         { priority: "High" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -439,7 +439,7 @@ const Ticket: React.FC<TicketProps> = ({ currentUser }) => {
       }
 
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKETS_API_URL}/${selectedTicket._id}`,
         { status: "Cancelled", cancellationReason: cancelReason },
         { headers: { Authorization: `Bearer ${token}` } }
       );

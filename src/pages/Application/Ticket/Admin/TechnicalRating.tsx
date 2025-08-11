@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
-import { API_URL } from "../../../../config/api";
+import { TICKETS_API_URL } from "../../../../config/api";
 
 interface TechnicalStats {
   success: boolean;
@@ -21,7 +21,7 @@ const TechnicalRating: React.FC<TechnicalRatingProps> = ({ technicalId }) => {
     const fetchStats = async (): Promise<void> => {
       try {
         const res = await axios.get<TechnicalStats>(
-          `${API_URL}/tickets/technical-stats/${technicalId}`
+          `${TICKETS_API_URL}/technical-stats/${technicalId}`
         );
         if (res.data.success) {
           setStats(res.data);

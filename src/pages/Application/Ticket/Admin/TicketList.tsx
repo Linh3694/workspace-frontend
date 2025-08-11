@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
-import { API_URL } from "../../../../config/api";
+import { TICKETS_API_URL } from "../../../../config/api";
 import TicketAdminModal from "./DetailModal";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
@@ -84,7 +84,7 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
   // Modal functions
   const openTicketModal = async (ticketId: string): Promise<void> => {
     try {
-      const res = await axios.get<TicketResponse>(`${API_URL}/tickets/${ticketId}`, {
+      const res = await axios.get<TicketResponse>(`${TICKETS_API_URL}/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -108,7 +108,7 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
   const fetchTickets = async (): Promise<void> => {
     try {
       console.log("🔑 Token:", token ? "Có token" : "Không có token");
-      console.log("🌐 API URL:", `${API_URL}/tickets`);
+      console.log("🌐 API URL:", `${TICKETS_API_URL}`);
       
       if (!token) {
         setError("Không tìm thấy token xác thực. Vui lòng đăng nhập lại.");
@@ -116,7 +116,7 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
         return;
       }
 
-      const response = await axios.get<TicketsResponse>(`${API_URL}/tickets`, {
+      const response = await axios.get<TicketsResponse>(`${TICKETS_API_URL}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -142,7 +142,7 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
 
   const fetchTicketById = async (ticketId: string): Promise<void> => {
     try {
-      const response = await axios.get<TicketResponse>(`${API_URL}/tickets/${ticketId}`, {
+      const response = await axios.get<TicketResponse>(`${TICKETS_API_URL}/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.data.success) {
@@ -158,7 +158,7 @@ const TicketList: React.FC<TicketAdminTableProps> = ({ currentUser }) => {
   // Fetch danh sách users
   const fetchUsers = async (): Promise<void> => {
     try {
-      const response = await axios.get<UsersResponse | User[]>(`${API_URL}/users`, {
+      const response = await axios.get<UsersResponse | User[]>(`${TICKET_API_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL } from "@/config/api";
+import { TICKETS_API_URL } from "@/config/api";
 import { toast } from "sonner";
 import TicketCreate from "./TicketCreate";
 import TicketDetail from "./TicketDetail";
@@ -79,7 +79,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
-  const token = localStorage.getItem("authToken");
+  const token = localStorage.getItem("token");
 
   // Reset form khi chuyển view
   useEffect(() => {
@@ -103,7 +103,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
   const fetchTicketById = async (ticketId: string) => {
     if (!ticketId) return;
     try {
-      const res = await axios.get(`${API_URL}/tickets/${ticketId}`, {
+      const res = await axios.get(`${TICKETS_API_URL}/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -144,7 +144,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
       // Thêm file đính kèm
       ticketData.images.forEach((file) => formData.append("attachments", file));
 
-      const res = await axios.post(`${API_URL}/tickets`, formData, {
+      const res = await axios.post(`${TICKETS_API_URL}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -187,7 +187,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
       }
 
       const res = await axios.post(
-        `${API_URL}/tickets/${selectedTicket._id}/feedback`,
+        `${TICKETS_API_URL}/${selectedTicket._id}/feedback`,
         {
           rating,
           comment: review,
@@ -215,7 +215,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
 
     try {
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKETS_API_URL}/${selectedTicket._id}`,
         { status: "Processing" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -238,7 +238,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
 
     try {
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKETS_API_URL}/${selectedTicket._id}`,
         { status: "Closed" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -259,7 +259,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
 
     try {
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKETS_API_URL}/${selectedTicket._id}`,
         { priority: "High" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -283,7 +283,7 @@ const TicketUser: React.FC<TicketUserProps> = ({ currentUser }) => {
 
     try {
       const res = await axios.put(
-        `${API_URL}/tickets/${selectedTicket._id}`,
+        `${TICKET_API_URL}/tickets/${selectedTicket._id}`,
         { 
           status: "Cancelled",
           cancelReason: cancelReason
