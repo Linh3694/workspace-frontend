@@ -34,7 +34,7 @@ interface Application {
   fullname: string;
   email: string;
   phone: string;
-  resumeUrl: string;
+  cvFile: string;
   createdAt: string;
 }
 
@@ -326,14 +326,14 @@ function JobDetailModal({ isOpen, onClose, jobId }: JobDetailModalProps) {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handlePreview(`${BASE_URL}/uploads/CV/${cv.resumeUrl}`)}
+                            onClick={() => handlePreview(`${BASE_URL}${cv.cvFile}`)}
                             className="flex items-center justify-center w-8 h-8 text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition"
                             title="Xem trước"
                           >
                             <FaEye size={14} />
                           </button>
                           <a
-                            href={`${BASE_URL}/uploads/CV/${cv.resumeUrl}`}
+                            href={`${BASE_URL}${cv.cvFile}`}
                             download
                             className="flex items-center justify-center w-8 h-8 text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition"
                             title="Tải xuống"
