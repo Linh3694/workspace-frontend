@@ -28,28 +28,58 @@ function RecruitmentAdmin() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
 
-  const fetchFileList = () => {
+  const fetchFileList = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
       toast.error("Bạn chưa đăng nhập!");
       return;
     }
-    fetch(`${API_URL}/jobs`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setFileList(data);
-        }
-      })
-      .catch(() => {
-        toast.error("Có lỗi khi tải danh sách CV!");
+
+    try {
+      const res = await fetch(`${API_URL}/jobs`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
+
+      const jobs = await res.json();
+
+      if (!Array.isArray(jobs)) {
+        setFileList([]);
+        return;
+      }
+
+      // Lấy số lượng CV cho từng job
+      const jobsWithCounts: Job[] = await Promise.all(
+        jobs.map(async (job: Job) => {
+          try {
+            const cvRes = await fetch(`${API_URL}/applications/job/${job._id}`, {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            });
+
+            if (!cvRes.ok) {
+              return { ...job, cvCount: 0 };
+            }
+
+            const cvData = await cvRes.json();
+            const applications = Array.isArray(cvData?.applications) ? cvData.applications : [];
+            return { ...job, cvCount: applications.length };
+          } catch {
+            return { ...job, cvCount: 0 };
+          }
+        })
+      );
+
+      setFileList(jobsWithCounts);
+    } catch {
+      toast.error("Có lỗi khi tải danh sách CV!");
+    }
   };
 
   const handleOpenJobDetail = (job: Job) => {
