@@ -143,6 +143,41 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
     onSubmit(formData);
   };
 
+  // Password strength validation
+  const validatePassword = (password: string): boolean => {
+    if (password.length < 8) return false;
+    
+    // Check password strength - must contain uppercase, lowercase, number and special char
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!passwordRegex.test(password)) return false;
+    
+    // Check common weak passwords
+    const commonPasswords = ['password', '123456', 'admin', 'test', 'user'];
+    if (commonPasswords.some(common => password.toLowerCase().includes(common))) return false;
+    
+    return true;
+  };
+
+  // Validation for submit button
+  const isSubmitDisabled = (): boolean => {
+    if (mode === 'changePassword') {
+      return !formData.password || 
+             !formData.confirmPassword || 
+             formData.password !== formData.confirmPassword || 
+             !validatePassword(formData.password);
+    }
+    
+    if (mode === 'create') {
+      return !formData.email || !formData.fullname || !formData.password || !validatePassword(formData.password);
+    }
+    
+    if (mode === 'edit') {
+      return !formData.email || !formData.fullname;
+    }
+    
+    return false;
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -306,31 +341,72 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
             )}
             {mode === 'changePassword' && (
               <div className="space-y-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4 mb-4">
+                  <div className="col-span-4">
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-blue-800 mb-2">Đổi mật khẩu cho người dùng</h4>
+                      <div className="text-sm text-blue-700">
+                        <strong>Người dùng:</strong> {userData?.fullname} ({userData?.email})
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="password" className="text-right">
-                    Mật khẩu mới
+                    Mật khẩu mới <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
+                  <div className="col-span-3">
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password || ''}
+                      onChange={handleInputChange}
+                      placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                      required
+                    />
+                    <div className="text-xs mt-1">
+                      <div className="text-gray-500">
+                        Mật khẩu phải có ít nhất 8 ký tự, bao gồm: chữ hoa, chữ thường, số và ký tự đặc biệt (@$!%*?&)
+                      </div>
+                      {formData.password && !validatePassword(formData.password) && (
+                        <div className="text-red-500 mt-1">
+                          ❌ Mật khẩu không đủ mạnh
+                        </div>
+                      )}
+                      {formData.password && validatePassword(formData.password) && (
+                        <div className="text-green-600 mt-1">
+                          ✅ Mật khẩu hợp lệ
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="confirmPassword" className="text-right">
-                    Xác nhận mật khẩu
+                    Xác nhận mật khẩu <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
+                  <div className="col-span-3">
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword || ''}
+                      onChange={handleInputChange}
+                      placeholder="Nhập lại mật khẩu mới"
+                      required
+                    />
+                    {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                      <div className="text-xs text-red-500 mt-1">
+                        Mật khẩu xác nhận không khớp
+                      </div>
+                    )}
+                    {formData.password && formData.confirmPassword && formData.password === formData.confirmPassword && (
+                      <div className="text-xs text-green-600 mt-1">
+                        Mật khẩu khớp ✓
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -352,7 +428,10 @@ const UserDialog = ({ open, onOpenChange, onSubmit, onDelete, onChangePassword, 
                   Đổi mật khẩu
                 </Button>
               )}
-              <Button type="submit">
+              <Button 
+                type="submit"
+                disabled={isSubmitDisabled()}
+              >
                 {mode === 'create' && 'Thêm mới'}
                 {mode === 'edit' && 'Cập nhật'}
                 {mode === 'changePassword' && 'Đổi mật khẩu'}

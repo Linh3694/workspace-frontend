@@ -173,6 +173,20 @@ class FrappeApiClient {
     return this.callMethod(USER_MANAGEMENT_ENDPOINTS.RESET_PASSWORD, { user_email: userEmail });
   }
 
+  // Admin set password for user (directly update password without requiring current password)
+  async setUserPassword(userEmail: string, newPassword: string): Promise<FrappeResponse> {
+    console.log('Setting password for user:', userEmail);
+    
+    // Use UPDATE_USER API with password field since SET_PASSWORD is not deployed yet
+    const params = {
+      user_email: userEmail,
+      password: newPassword
+    };
+    
+    console.log('API params (using update_user):', params);
+    return this.callMethod<FrappeResponse>(USER_MANAGEMENT_ENDPOINTS.UPDATE_USER, params);
+  }
+
   async getUserRoles() {
     return this.callMethod(USER_MANAGEMENT_ENDPOINTS.USER_ROLES);
   }

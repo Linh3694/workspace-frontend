@@ -159,6 +159,7 @@ export const USER_MANAGEMENT_ENDPOINTS = {
   DELETE_USER: 'erp.api.erp_common_user.user_management.delete_user',
   ENABLE_DISABLE_USER: 'erp.api.erp_common_user.user_management.enable_disable_user',
   RESET_PASSWORD: 'erp.api.erp_common_user.user_management.reset_user_password',
+  SET_PASSWORD: 'erp.api.erp_common_user.user_management.set_user_password',
   USER_ROLES: 'erp.api.erp_common_user.user_management.get_user_roles',
   USER_STATS: 'erp.api.erp_common_user.user_management.get_user_dashboard_stats',
   

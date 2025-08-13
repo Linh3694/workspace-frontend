@@ -479,16 +479,51 @@ const UserManagement = () => {
           return;
         }
 
+        // Validate password strength (follow Frappe validation)
+        if (data.password.length < 8) {
+          toast({
+            variant: "destructive",
+            title: "Lỗi",
+            description: "Mật khẩu phải có ít nhất 8 ký tự",
+          });
+          return;
+        }
+
+        // Check password strength - must contain uppercase, lowercase, number and special char
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+        if (!passwordRegex.test(data.password)) {
+          toast({
+            variant: "destructive",
+            title: "Lỗi",
+            description: "Mật khẩu phải chứa: chữ hoa, chữ thường, số và ký tự đặc biệt",
+          });
+          return;
+        }
+
+        // Check common weak passwords
+        const commonPasswords = ['password', '123456', 'admin', 'test', 'user'];
+        if (commonPasswords.some(common => data.password.toLowerCase().includes(common))) {
+          toast({
+            variant: "destructive",
+            title: "Lỗi", 
+            description: "Mật khẩu không được chứa từ thông dụng",
+          });
+          return;
+        }
+
         const userEmail = selectedUser.display_email || selectedUser.user || selectedUser.email;
-        const response = await frappeApi.resetUserPassword(userEmail);
+        
+        // Call the new setUserPassword method instead of resetUserPassword
+        const response = await frappeApi.setUserPassword(userEmail, data.password);
         
         if ((response as { status: string }).status === 'success') {
           toast({
             variant: "success",
-            title: "Thành công",
-            description: "Đã gửi email đặt lại mật khẩu",
+            title: "Thành công", 
+            description: "Đã cập nhật mật khẩu cho người dùng",
           });
           setDialogOpen(false);
+          fetchUsers(); // Refresh danh sách
         }
       }
 
@@ -503,7 +538,25 @@ const UserManagement = () => {
         message: apiError?.message
       });
 
-      const errorMessage = apiError?.response?.data?.message || apiError?.message || 'Đã xảy ra lỗi không xác định';
+      let errorMessage = 'Đã xảy ra lỗi không xác định';
+      
+      // Handle specific error cases
+      if (apiError?.message) {
+        if (apiError.message.includes('commonly used password')) {
+          errorMessage = 'Mật khẩu quá phổ biến, vui lòng chọn mật khẩu khác';
+        } else if (apiError.message.includes('Password')) {
+          errorMessage = 'Lỗi mật khẩu: ' + apiError.message;
+        } else if (apiError.message.includes('User not found')) {
+          errorMessage = 'Không tìm thấy người dùng';
+        } else if (apiError.message.includes('not whitelisted')) {
+          errorMessage = 'Không có quyền thực hiện thao tác này';
+        } else if (apiError.message.includes('Authentication')) {
+          errorMessage = 'Lỗi xác thực. Vui lòng đăng nhập lại';
+        } else {
+          errorMessage = apiError?.response?.data?.message || apiError?.message;
+        }
+      }
+
       toast({
         variant: "destructive",
         title: "Lỗi",
