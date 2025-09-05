@@ -52,11 +52,6 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'students.hall-of-honor',
     'teaching.classes',
   ],
-  teacher: [
-    'students.*', 
-    'teaching.*',
-    'application.tickets.user',
-  ]
 };
 
 export interface MenuItem {
