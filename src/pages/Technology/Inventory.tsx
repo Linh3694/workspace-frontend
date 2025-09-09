@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Laptop, Monitor, Printer, Server, HardDrive, Smartphone, Search, Filter, X, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Laptop, Monitor, Printer, Server, HardDrive, Smartphone, Search, Filter, X, RefreshCw, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { cn } from '../../lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -477,17 +478,9 @@ const Inventory: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [selectedCategory, currentPage, searchTerm, filters.status, filters.manufacturer, filters.type, filters.releaseYear]);
 
-  // Auto refresh when component mounts or when there are important changes
-  useEffect(() => {
-    // Force refresh on mount to ensure fresh data
-    if (devices.length === 0 && !isLoading) {
-      refetchDevices();
-    }
-  }, []); // Only run on mount
-
   const selectedCategoryInfo = deviceCategories.find(cat => cat.id === selectedCategory);
 
-  const refetchDevices = () => {
+  const refetchDevices = useCallback(() => {
     // Clear browser cache for this domain
     if ('caches' in window) {
       caches.keys().then(names => {
@@ -552,11 +545,94 @@ const Inventory: React.FC = () => {
     };
 
     fetchDevices();
-  };
+  }, [selectedCategory, currentPage, searchTerm, filters.status, filters.manufacturer, filters.type, filters.releaseYear]);
+
+  // Auto refresh when component mounts or when there are important changes
+  useEffect(() => {
+    // Force refresh on mount to ensure fresh data
+    if (devices.length === 0 && !isLoading) {
+      refetchDevices();
+    }
+  }, [devices.length, isLoading, refetchDevices]); // Include all dependencies
 
   const handleDeviceUpdated = () => {
-  refetchDevices();            // Gọi hàm đã có để tải lại danh sách
-};
+    refetchDevices();            // Gọi hàm đã có để tải lại danh sách
+  };
+
+  // Export devices to Excel
+  const exportDevicesToExcel = async () => {
+    try {
+      setIsLoading(true);
+
+      // Fetch all devices for the current category (without pagination)
+      const searchFilters = {
+        search: searchTerm || undefined,
+        status: filters.status || undefined,
+        manufacturer: filters.manufacturer || undefined,
+        type: filters.type || undefined,
+        releaseYear: filters.releaseYear || undefined,
+      };
+
+      // Get all devices (set pageSize to a large number to get all data)
+      const response = await inventoryService.getDevicesByType(selectedCategory, 1, 10000, searchFilters);
+
+      let deviceList: Device[] = [];
+
+      // Extract devices based on category
+      if ('populatedLaptops' in response) {
+        deviceList = response.populatedLaptops;
+      } else if ('populatedMonitors' in response) {
+        deviceList = response.populatedMonitors;
+      } else if ('populatedPrinters' in response) {
+        deviceList = response.populatedPrinters;
+      } else if ('populatedTools' in response) {
+        deviceList = response.populatedTools;
+      } else if ('populatedProjectors' in response) {
+        deviceList = response.populatedProjectors;
+      } else if ('populatedPhones' in response) {
+        deviceList = response.populatedPhones;
+      }
+
+      // Format data for Excel
+      const excelData = deviceList.map(device => ({
+        'Tên thiết bị': device.name || 'N/A',
+        'Loại thiết bị': device.type || 'N/A',
+        'Serial': device.serial || 'N/A',
+        'Tên người sử dụng hiện tại': device.assigned && device.assigned.length > 0
+          ? device.assigned[0].fullname || 'N/A'
+          : 'Chưa bàn giao'
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      const colWidths = [
+        { wch: 30 }, // Tên thiết bị
+        { wch: 20 }, // Loại thiết bị
+        { wch: 25 }, // Serial
+        { wch: 30 }  // Tên người sử dụng hiện tại
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, selectedCategoryInfo?.name || 'Devices');
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `danh-sach-${selectedCategoryInfo?.name.toLowerCase().replace(' ', '-')}-${currentDate}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+
+    } catch (error) {
+      console.error('Error exporting devices:', error);
+      setError('Không thể xuất file Excel. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -597,6 +673,18 @@ const Inventory: React.FC = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-bold text-gray-900">Danh sách {selectedCategoryInfo?.name}</CardTitle>
               <div className="flex items-center space-x-3">
+                {/* Export Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportDevicesToExcel}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2"
+                >
+                  <Download className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>Xuất Excel</span>
+                </Button>
+
                 {/* Refresh Button */}
                 <Button
                   variant="outline"
