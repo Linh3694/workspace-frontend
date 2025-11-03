@@ -27,7 +27,7 @@ const StudentImportDialog = ({ open, onOpenChange }: StudentImportDialogProps) =
             const formData = new FormData();
             formData.append('excelFile', file);
 
-            const response = await fetch(`${API_ENDPOINTS.STUDENTS}/import`, {
+            const response = await fetch(`${API_ENDPOINTS.STUDENTS}/bulk-import-students`, {
                 method: 'POST',
                 body: formData,
             });
