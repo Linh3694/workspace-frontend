@@ -10,39 +10,46 @@ import {
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-
-interface StudentExcel {
-    studentCode: string;
-    name: string;
-    gender: 'male' | 'female' | 'other';
-    birthDate: string;
-    address: string;
-    email: string;
-    parentName: string;
-    parentPhone: string;
-    parentEmail: string;
-    status: 'active' | 'transferred' | 'dropped';
-}
+import { API_ENDPOINTS } from '../../../lib/config';
 
 interface StudentImportDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onUpload: (students: StudentExcel[]) => Promise<void>;
-    isLoading?: boolean;
-    error?: string | null;
 }
 
-const StudentImportDialog = ({ open, onOpenChange, onUpload, isLoading, error }: StudentImportDialogProps) => {
+const StudentImportDialog = ({ open, onOpenChange }: StudentImportDialogProps) => {
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         try {
+            // Gửi file Excel trực tiếp đến API
             const formData = new FormData();
-            formData.append('file', file);
-            await onUpload([]); // API sẽ xử lý file Excel
+            formData.append('excelFile', file);
+
+            const response = await fetch(`${API_ENDPOINTS.STUDENTS}/import`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            // Thông báo kết quả
+            if (result.summary?.successful > 0) {
+                alert(`Import thành công: ${result.summary.successful} học sinh\nLỗi: ${result.summary.failed} học sinh`);
+            } else {
+                alert(`Import thất bại. Chi tiết: ${result.message}`);
+            }
+
+            onOpenChange(false); // Đóng dialog
+
         } catch (err) {
             console.error('Lỗi khi tải file:', err);
+            alert('Có lỗi xảy ra khi import file Excel');
         }
     };
 
@@ -66,20 +73,14 @@ const StudentImportDialog = ({ open, onOpenChange, onUpload, isLoading, error }:
                             accept=".xlsx,.xls"
                             onChange={handleFileUpload}
                             className="col-span-3"
-                            disabled={isLoading}
                         />
                     </div>
-                    {error && (
-                        <div className="text-red-500 text-sm">
-                            {error}
-                        </div>
-                    )}
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label className="text-right">
                             File Mẫu
                         </Label>
                         <Button variant="outline" asChild>
-                            <a href="/Template/student-example.xlsx" download>
+                            <a href="/Template/record-sample-students.xlsx" download>
                                 Tải file mẫu
                             </a>
                         </Button>

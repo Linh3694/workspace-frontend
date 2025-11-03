@@ -86,18 +86,6 @@ interface StudentFormData {
     family?: string; // Family ID
 }
 
-interface StudentExcel {
-    studentCode: string;
-    name: string;
-    gender: 'male' | 'female' | 'other';
-    birthDate: string;
-    address: string;
-    email: string;
-    parentName: string;
-    parentPhone: string;
-    parentEmail: string;
-    status: 'active' | 'transferred' | 'dropped';
-}
 
 const StudentList: React.FC = () => {
     const [students, setStudents] = useState<Student[]>([]);
@@ -117,8 +105,6 @@ const StudentList: React.FC = () => {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState<boolean>(false);
     const [selectedStudent, setSelectedStudent] = useState<StudentFormData | null>(null);
-    const [importError, setImportError] = useState<string | null>(null);
-    const [isImportLoading, setIsImportLoading] = useState<boolean>(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -436,29 +422,6 @@ const StudentList: React.FC = () => {
         }
     };
 
-    const handleImportStudents = async (students: StudentExcel[]) => {
-        try {
-            setIsImportLoading(true);
-            setImportError(null);
-
-            // API sẽ xử lý file Excel
-            await axios.post(`${API_ENDPOINTS.STUDENTS}/import`, {
-                students
-            });
-
-            toast({
-                title: "Thành công",
-                description: "Nhập danh sách học sinh thành công",
-            });
-            setIsImportDialogOpen(false);
-            await fetchStudents();
-        } catch (error) {
-            console.error('Lỗi khi nhập danh sách học sinh:', error);
-            setImportError("Không thể nhập danh sách học sinh. Vui lòng kiểm tra lại file Excel.");
-        } finally {
-            setIsImportLoading(false);
-        }
-    };
 
     const editStudent = (student: Student) => {
         // Chuyển đổi từ Student sang StudentFormData
@@ -859,9 +822,6 @@ const StudentList: React.FC = () => {
             <StudentImportDialog
                 open={isImportDialogOpen}
                 onOpenChange={setIsImportDialogOpen}
-                onUpload={handleImportStudents}
-                isLoading={isImportLoading}
-                error={importError}
             />
         </div>
     );
