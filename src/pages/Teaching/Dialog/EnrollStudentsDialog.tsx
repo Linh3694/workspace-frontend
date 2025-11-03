@@ -328,7 +328,7 @@ const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({
                     }}
                   />
                   <Button variant="outline" asChild>
-                    <a href="/Template/enrollment-example.xlsx" download>
+                    <a href="/Template/import-class-student.xlsx" download>
                       File mẫu
                     </a>
                   </Button>
