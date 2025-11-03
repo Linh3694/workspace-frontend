@@ -80,7 +80,7 @@ const StudentImportDialog = ({ open, onOpenChange }: StudentImportDialogProps) =
                             File Mẫu
                         </Label>
                         <Button variant="outline" asChild>
-                            <a href="/Template/record-sample-students.xlsx" download>
+                            <a href="/Template/import-student.xlsx" download>
                                 Tải file mẫu
                             </a>
                         </Button>
