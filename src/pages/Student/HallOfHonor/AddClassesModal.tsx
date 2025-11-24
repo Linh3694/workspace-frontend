@@ -214,7 +214,7 @@ const AddClassesModal: React.FC<AddClassesModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Thêm lớp vào "{selectedSubAward.label}"</DialogTitle>
+          <DialogTitle>Thêm lớp "{selectedSubAward.label}"</DialogTitle>
           <DialogDescription>
             Thêm lớp vào loại vinh danh "{selectedCategory.name}"
           </DialogDescription>
