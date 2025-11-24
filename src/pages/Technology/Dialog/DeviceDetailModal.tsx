@@ -11,7 +11,23 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/
 import { getAvatarUrl, getInitials } from '../../../lib/utils';
 import { inventoryService } from '../../../services/inventoryService';
 import type { DeviceType } from '../../../types/inventory';
+import axios from 'axios';
 import { useAuth } from '../../../contexts/AuthContext';
+
+// Create API instance for user calls
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'https://api-dev.wellspring.edu.vn/api',
+  timeout: 10000,
+});
+
+// Add auth token to requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 import AssignRoomModal from './AssignRoomModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import AssignDeviceModal from './AssignDeviceModal';
@@ -562,39 +578,50 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
 
 
   const handleDownloadLatestInspectionReport = async () => {
-    if (!deviceId) return;
+    if (!deviceId || !device) return;
+
     try {
-      const res = await inventoryService.getLatestInspection(deviceId);
-      const { documentUrl, _id: inspectId } = res.data ?? {};
-      
-      if (documentUrl && documentUrl !== '#') {
-        // Tải file đã có sẵn
-        const filename = documentUrl.split('/').pop() || 'report.docx';
-        const downloadUrl = `${import.meta.env.VITE_BASE_URL}/uploads/reports/${filename}`;
-        window.open(downloadUrl, '_blank');
-      } else if (inspectId) {
-        // Tạo file DOCX mới từ inspection data
-        const deviceResponse = await inventoryService.getDeviceById(deviceType, deviceId);
-        const currentUserResponse = await fetch(`${import.meta.env.VITE_API_URL}/users/me`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const currentUser = await currentUserResponse.json();
-        
+      // Get current user
+      let currentUser = null;
+      try {
+        const userResponse = await api.get('/users/me');
+        currentUser = userResponse.data;
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        currentUser = user; // fallback to auth user
+      }
+
+      // Nếu có inspection data sẵn, dùng nó để generate report
+      if (inspectionData) {
+        // Generate inspection report document từ template inspection_report.docx
         await inventoryService.generateInspectionReportDocument(
-          res.data,
-          deviceResponse,
+          inspectionData,
+          device,
           currentUser,
-          deviceResponse.assigned?.[0] || null,
+          device.assigned?.[0] || null,
           null,
-          inspectId
+          undefined // Không truyền inspectId để tải xuống trực tiếp thay vì upload lên BE
         );
       } else {
-        console.warn('No inspection data found for this device.');
+        // Nếu không có inspection data, vẫn có thể generate report với device info
+        console.warn('No inspection data found, generating basic report with device info only.');
+
+        // Generate basic inspection report với device info từ template
+        await inventoryService.generateInspectionReportDocument(
+          {
+            overallAssessment: 'Chưa có dữ liệu kiểm tra',
+            technicalConclusion: 'Thiết bị chưa được kiểm tra định kỳ',
+            inspectionDate: new Date().toISOString()
+          },
+          device,
+          currentUser,
+          device.assigned?.[0] || null,
+          null,
+          undefined // Không truyền inspectId để tải xuống trực tiếp
+        );
       }
     } catch (err) {
-      console.error('Error downloading inspection report:', err);
+      console.error('Error generating inspection report:', err);
     }
   };
 

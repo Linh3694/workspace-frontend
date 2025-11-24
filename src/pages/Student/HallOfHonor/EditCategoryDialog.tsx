@@ -331,9 +331,7 @@ const EditCategoryDialog: React.FC<EditCategoryDialogProps> = ({
                 <p className="text-sm text-red-500">{errors.nameEng}</p>
               )}
             </div>
-
-
-
+            
             {/* Mô tả tiếng Việt */}
             <div className="space-y-2">
               <Label htmlFor="edit-description">
