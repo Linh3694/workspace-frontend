@@ -596,7 +596,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
         // Generate inspection report document từ template inspection_report.docx
         await inventoryService.generateInspectionReportDocument(
           inspectionData,
-          device,
+          device as unknown as Record<string, unknown>,
           currentUser,
           device.assigned?.[0] || null,
           null,
@@ -613,7 +613,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({
             technicalConclusion: 'Thiết bị chưa được kiểm tra định kỳ',
             inspectionDate: new Date().toISOString()
           },
-          device,
+          device as unknown as Record<string, unknown>,
           currentUser,
           device.assigned?.[0] || null,
           null,
