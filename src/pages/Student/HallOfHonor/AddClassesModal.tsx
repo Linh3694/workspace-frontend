@@ -179,7 +179,6 @@ const AddClassesModal: React.FC<AddClassesModalProps> = ({
 
       const recordData = {
         awardCategory: selectedCategory._id,
-        students: [],
         awardClasses: finalClasses,
         subAward: {
           type: selectedSubAward.type,
